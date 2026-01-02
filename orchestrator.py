@@ -182,19 +182,16 @@ async def generate_action(request: ActionRequest):
     private_mem = "\n".join(memory.get("private_notes", []))
     memory_block = f"Глобальные знания:\n{global_mem}\n\nЛичные заметки:\n{private_mem}"
 
-    # Context Block
     # Context Block (История):
     # Проходим циклом по массиву 'history' из event_log.json.
     # Превращаем каждый объект события в строку диалога.
-    # Формат: "[Шаг 1] Имя: Действие (Мысли)".
+    # Формат: "[Шаг 1] Имя: Действие".
     # Это позволяет нейросети понимать хронологию и контекст беседы.
     context_lines = []
     for event in history:
         step_info = f"[Шаг {event.get('step')}] {event.get('name')}:"
         action_text = f"Действие/Речь: {event.get('action')}"
-        thoughts_text = f" (Мысли: {event.get('thoughts')})" if event.get(
-            'thoughts') else ""
-        context_lines.append(f"{step_info} {action_text}{thoughts_text}")
+        context_lines.append(f"{step_info} {action_text}")
 
     context_block = "История событий (Лог):\n" + "\n".join(context_lines)
 
