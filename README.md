@@ -58,6 +58,12 @@ OPENAI_BASE_URL="https://ваш_api_эндпоинт/v1"
 uvicorn orchestrator:app --reload
 ```
 
-### 4. Используйте фронтенд
+### 4. Запуск фронтенда
 
-Откройте файл `frontend/gm-console/index.html` в вашем веб-браузере.
+cd frontend/gm-console
+python -m http.server 8080
+http://localhost:8080/console-gm.html
+
+
+### 5. Запуск чере start.py 
+python start.py
