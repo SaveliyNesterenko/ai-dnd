@@ -1,0 +1,63 @@
+<div class="editor-container">
+    <h1>GM Console</h1>
+
+    <!-- Поле для ввода ключа персонажа -->
+    <div class="input-group">
+        <label for="charKey">ID Персонажа (из characters.json):</label>
+        <input type="text" id="charKey" placeholder="Например: grommash" value="grommash">
+    </div>
+
+    <!-- Текстовое поле для ответа -->
+    <textarea class="model response" id="modelOutput" placeholder="Здесь появится ответ нейросети..."></textarea>
+
+    <button class="generate-btn" id="sendBtn">Сгенерировать ответ</button>
+</div>
+
+<script>
+    const sendBtn = document.getElementById('sendBtn');
+    const charInput = document.getElementById('charKey');
+    const outputArea = document.getElementById('modelOutput');
+
+    sendBtn.addEventListener('click', async () => {
+        const charKey = charInput.value.trim();
+
+        if (!charKey) {
+            alert("Пожалуйста, введите ID персонажа!");
+            return;
+        }
+
+        // Визуализация загрузки
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Думаю...";
+        outputArea.value = "Запрос отправлен к модели...";
+
+        try {
+            // Отправка запроса на локальный сервер Python (FastAPI)
+            const response = await fetch('http://127.0.0.1:8000/act', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ character_key: charKey })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Вывод результата
+            outputArea.value = data.response;
+
+        } catch (error) {
+            console.error('Ошибка:', error);
+            outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
+        } finally {
+            // Возвращаем кнопку в исходное состояние
+            sendBtn.disabled = false;
+            sendBtn.textContent = "Сгенерировать ответ";
+        }
+    });
+</script>
