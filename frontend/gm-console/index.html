@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GM Console - AI Orchestrator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .editor-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            margin-top: 0;
+        }
+
+        /* Стили для поля ввода ID персонажа */
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+            /* Моноширинный шрифт для удобства чтения логов */
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        textarea:focus,
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+
+        .generate-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .generate-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .generate-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="editor-container">
+        <h1>GM Console</h1>
+
+        <!-- Поле для ввода ключа персонажа -->
+        <div class="input-group">
+            <label for="charKey">ID Персонажа (из characters.json):</label>
+            <input type="text" id="charKey" placeholder="Например: grommash" value="grommash">
+        </div>
+
+        <!-- Текстовое поле для ответа -->
+        <textarea class="model response" id="modelOutput" placeholder="Здесь появится ответ нейросети..."></textarea>
+
+        <button class="generate-btn" id="sendBtn">Сгенерировать ответ</button>
+    </div>
+
+    <script>
+        const sendBtn = document.getElementById('sendBtn');
+        const charInput = document.getElementById('charKey');
+        const outputArea = document.getElementById('modelOutput');
+
+        sendBtn.addEventListener('click', async () => {
+            const charKey = charInput.value.trim();
+
+            if (!charKey) {
+                alert("Пожалуйста, введите ID персонажа!");
+                return;
+            }
+
+            // Визуализация загрузки
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Думаю...";
+            outputArea.value = "Запрос отправлен к модели...";
+
+            try {
+                // Отправка запроса на локальный сервер Python (FastAPI)
+                const response = await fetch('http://127.0.0.1:8000/act', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ character_key: charKey })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Вывод результата
+                outputArea.value = data.response;
+
+            } catch (error) {
+                console.error('Ошибка:', error);
+                outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
+            } finally {
+                // Возвращаем кнопку в исходное состояние
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Сгенерировать ответ";
+            }
+        });
+    </script>
+
+</body>
+
+</html>
