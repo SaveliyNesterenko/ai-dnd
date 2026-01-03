@@ -1,3 +1,4 @@
+
 import { state, addVisibleCharacter, removeVisibleCharacter, setSelectedCharacterCard } from '../state.js';
 
 /**
@@ -62,22 +63,53 @@ export function toggleCharacterCard(characterId) {
             `;
         }
 
+        let attributesHtml = '<div class="attributes-grid">';
+        if (charData.attributes) {
+            for (const attr in charData.attributes) {
+                attributesHtml += `<div class="attribute-item"><span>${attr}</span><span>${charData.attributes[attr]}</span></div>`;
+            }
+        }
+        attributesHtml += '</div>';
+
         card.innerHTML = `
-            <div class="card-content">
-                <h3>${name}</h3>
-                <p class="role">${role}</p>
-                <div class="stats-grid">
-                    ${statsHtml}
+            <div class="card-inner">
+                <div class="card-front">
+                    <div class="card-content">
+                        <h3>${name}</h3>
+                        <p class="role">${role}</p>
+                        <div class="stats-grid">
+                            ${statsHtml}
+                        </div>
+                        <div class="card-buttons">
+                            <button class="card-btn attributes-btn" title="Attributes">&#9733;</button>
+                            <button class="card-btn" title="Status Effects">&#9881;</button>
+                            <button class="card-btn" title="Inventory">&#127890;</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-buttons">
-                    <button class="card-btn" title="Attributes">&#9733;</button>
-                    <button class="card-btn" title="Status Effects">&#9881;</button>
-                    <button class="card-btn" title="Inventory">&#127890;</button>
+                <div class="card-back">
+                    <h3>Attributes</h3>
+                    ${attributesHtml}
+                    <button class="card-btn back-btn" title="Back">&#8617;</button>
                 </div>
             </div>
         `;
         
         container.appendChild(card);
         addVisibleCharacter(characterId);
+
+        const attributesButton = card.querySelector('.attributes-btn');
+        attributesButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const cardElement = event.currentTarget.closest('.character-card');
+            cardElement.classList.add('flipped');
+        });
+
+        const backButton = card.querySelector('.back-btn');
+        backButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const cardElement = event.currentTarget.closest('.character-card');
+            cardElement.classList.remove('flipped');
+        });
     }
 }

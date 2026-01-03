@@ -34,6 +34,36 @@
     position: relative;
     display: flex;
     overflow: hidden;
+    perspective: 1000px; /* Add perspective for 3D effect */
+}
+
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+}
+
+.character-card.flipped .card-inner {
+    transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden; /* Safari */
+    backface-visibility: hidden;
+}
+
+.card-back {
+    transform: rotateY(180deg);
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .character-card:hover {
@@ -87,19 +117,19 @@
 }
 
 /* === Stats Container (Flexbox) === */
-.stats-grid { /* Renaming to stats-container is better, but this works to avoid touching JS again */
+.stats-grid {
     display: flex;
-    flex-direction: column; /* Stack items vertically */
-    gap: 5px; /* Space between HP and MP */
+    flex-direction: column;
+    gap: 5px;
     width: 100%;
-    margin: auto 0; /* Center vertically in the available space */
+    margin: auto 0;
 }
 
 .stat-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.1em; /* Make HP/MP stats more prominent */
+    font-size: 1.1em;
     background-color: rgba(0, 0, 0, 0.3);
     padding: 5px 8px;
     border-radius: 4px;
@@ -112,6 +142,36 @@
 }
 
 .stat-item span:last-child {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #f0e6d6;
+}
+
+.attributes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    margin: auto 0;
+}
+
+.attribute-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1.1em;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-family: 'serif';
+}
+
+.attribute-item span:first-child {
+    font-weight: bold;
+    color: #c9a977;
+}
+
+.attribute-item span:last-child {
     font-weight: bold;
     font-size: 1.1em;
     color: #f0e6d6;
