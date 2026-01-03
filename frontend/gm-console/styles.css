@@ -34,9 +34,6 @@ body, html {
 
 #left-panel {
     grid-area: left-panel;
-    justify-content: space-between;
-    padding: 10px;
-    box-sizing: border-box;
 }
 
 #center-panel {
@@ -147,22 +144,4 @@ input:focus, textarea:focus {
     cursor: not-allowed;
     transform: none;
     color: #aaa;
-}
-
-.left-panel-section {
-    width: 100%;
-    height: 49%;
-    border: 1px solid #444;
-    border-radius: 8px;
-    padding: 10px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-}
-
-.left-panel-section h2 {
-    margin-top: 0;
-    text-align: center;
-    color: #f4f4f9;
-    font-size: 1.2em;
 }
