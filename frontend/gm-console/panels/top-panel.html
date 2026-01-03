@@ -28,7 +28,7 @@
 <script>
     async function populateDropdowns() {
         try {
-            const charactersResponse = await fetch('../../data/characters.json');
+            const charactersResponse = await fetch('http://localhost:8000/data/characters.json');
             const charactersData = await charactersResponse.json();
             const characterSelect = document.getElementById('character-select');
             characterSelect.innerHTML = '<option disabled selected>Characters</option>';
@@ -40,7 +40,7 @@
                 characterSelect.appendChild(option);
             }
 
-            const npcResponse = await fetch('../../data/npc.json');
+            const npcResponse = await fetch('http://localhost:8000/data/npc.json');
             const npcData = await npcResponse.json();
             const npcSelect = document.getElementById('npc-select');
             npcSelect.innerHTML = '<option disabled selected>NPC</option>';

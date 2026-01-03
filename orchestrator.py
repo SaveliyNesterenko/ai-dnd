@@ -11,6 +11,7 @@ import datetime
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -38,6 +39,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Монтирование статичной папки для раздачи данных.
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
 
 class ActionRequest(BaseModel):
