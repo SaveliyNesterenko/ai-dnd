@@ -102,14 +102,14 @@ export function toggleCharacterCard(characterId) {
         attributesButton.addEventListener('click', (event) => {
             event.stopPropagation();
             const cardElement = event.currentTarget.closest('.character-card');
-            cardElement.classList.add('flipped');
+            cardElement.classList.toggle('flipped');
         });
 
         const backButton = card.querySelector('.back-btn');
         backButton.addEventListener('click', (event) => {
             event.stopPropagation();
             const cardElement = event.currentTarget.closest('.character-card');
-            cardElement.classList.remove('flipped');
+            cardElement.classList.toggle('flipped');
         });
     }
 }
