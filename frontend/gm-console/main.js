@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "bottom-panel": "panels/bottom-panel.html"
     };
 
-    // Function to initialize the center panel logic
     function initializeCenterPanel() {
         const sendBtn = document.getElementById('sendBtn');
         const charInput = document.getElementById('charKey');
@@ -21,33 +20,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         sendBtn.addEventListener('click', async () => {
             const charKey = charInput.value.trim();
-
             if (!charKey) {
                 alert("Пожалуйста, введите ID персонажа!");
                 return;
             }
-
             sendBtn.disabled = true;
             sendBtn.textContent = "Думаю...";
             outputArea.value = "Запрос отправлен к модели...";
-
             try {
                 const response = await fetch('http://127.0.0.1:8000/act', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ character_key: charKey })
                 });
-
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
                 }
-
                 const data = await response.json();
                 outputArea.value = data.response;
-
             } catch (error) {
                 console.error('Ошибка:', error);
                 outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
@@ -58,35 +49,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Function to initialize the top panel logic
     async function initializeTopPanel() {
-        try {
-            const charactersResponse = await fetch('http://127.0.0.1:8000/api/characters');
-            const charactersData = await charactersResponse.json();
-            const characterSelect = document.getElementById('character-select');
-            characterSelect.innerHTML = '<option disabled selected>Characters</option>';
-            for (const key in charactersData) {
-                const character = charactersData[key];
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = character.identity.name;
-                characterSelect.appendChild(option);
+        const populateSelect = async (url, selectId, defaultOptionText) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.warn(`Could not load data for ${selectId} from ${url}. Status: ${response.status}`);
+                    const selectElement = document.getElementById(selectId);
+                    selectElement.innerHTML = `<option disabled selected>${defaultOptionText} (Error)</option>`;
+                    return;
+                }
+                const data = await response.json();
+                const selectElement = document.getElementById(selectId);
+                selectElement.innerHTML = `<option disabled selected>${defaultOptionText}</option>`;
+                for (const key in data) {
+                    const item = data[key];
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = item.identity.name;
+                    selectElement.appendChild(option);
+                }
+            } catch (error) {
+                console.error(`Error populating ${selectId}:`, error);
             }
+        };
 
-            const npcResponse = await fetch('http://127.0.0.1:8000/api/npcs');
-            const npcData = await npcResponse.json();
-            const npcSelect = document.getElementById('npc-select');
-            npcSelect.innerHTML = '<option disabled selected>NPC</option>';
-            for (const key in npcData) {
-                const npc = npcData[key];
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = npc.identity.name;
-                npcSelect.appendChild(option);
-            }
-        } catch (error) {
-            console.error('Error populating dropdowns:', error);
-        }
+        // Use the new, correct API endpoints
+        populateSelect('http://127.0.0.1:8000/api/characters', 'character-select', 'Characters');
+        populateSelect('http://127.0.0.1:8000/api/npcs', 'npc-select', 'NPCs');
     }
 
     function loadPanel(panelId, url) {
@@ -101,72 +91,49 @@ document.addEventListener("DOMContentLoaded", () => {
                 const panelElement = document.getElementById(panelId);
                 if (panelElement) {
                     panelElement.innerHTML = html;
-
-                    if (panelId === "center-panel") {
-                        initializeCenterPanel();
-                    } else if (panelId === "top-panel") {
-                        initializeTopPanel();
-                    } else if (panelId === "bottom-panel") {
-                        setTimeout(fetchCharacters, 100); 
-                    }
+                    if (panelId === "center-panel") initializeCenterPanel();
+                    else if (panelId === "top-panel") initializeTopPanel();
+                    // Use the dedicated function for the bottom panel
+                    else if (panelId === "bottom-panel") fetchAllCharactersCards();
                 }
             })
             .catch(err => console.warn(`Could not load panel ${panelId}:`, err));
     }
 
-    for (const panelId in panels) {
-        loadPanel(panelId, panels[panelId]);
-    }
+    // Load all panels
+    Object.entries(panels).forEach(([id, url]) => loadPanel(id, url));
 
-    function fetchCharacters() {
-        fetch('http://127.0.0.1:8000/api/characters')
+    // This function now specifically fetches all characters for the bottom panel
+    function fetchAllCharactersCards() {
+        fetch('http://127.0.0.1:8000/api/all_characters') // Use the new endpoint
             .then(response => response.json())
             .then(data => {
                 const bottomPanel = document.getElementById('bottom-panel');
-                if (!bottomPanel) {
-                    console.error("Could not find the 'bottom-panel' element.");
-                    return;
-                }
-                
-                bottomPanel.innerHTML = ''; 
-
+                if (!bottomPanel) return;
+                bottomPanel.innerHTML = ''; // Clear previous content
                 const container = document.createElement('div');
                 container.className = 'characters-container';
-
                 for (const key in data) {
-                    if (data.hasOwnProperty(key)) {
-                        const char = data[key];
-                        const card = document.createElement('div');
-                        card.className = 'character-card';
-                        card.dataset.charKey = key;
-
-                        const name = char.identity ? char.identity.name : 'Unknown Name';
-                        const bio = char.identity && char.identity.bio ? char.identity.bio.substring(0, 100) + '...' : 'No bio available.';
-
-                        card.innerHTML = `
-                            <h3>${name}</h3>
-                            <p>${bio}</p>
-                        `;
-                        container.appendChild(card);
-                    }
+                    const char = data[key];
+                    const card = document.createElement('div');
+                    card.className = 'character-card';
+                    card.dataset.charKey = key;
+                    const name = char.identity ? char.identity.name : 'Unknown';
+                    const bio = char.identity && char.identity.bio ? char.identity.bio.substring(0, 100) + '...' : 'No bio.';
+                    card.innerHTML = `<h3>${name}</h3><p>${bio}</p>`;
+                    container.appendChild(card);
                 }
-                
                 bottomPanel.appendChild(container);
                 
+                // Add a single event listener to the container
                 container.addEventListener('click', (event) => {
-                    const clickedCard = event.target.closest('.character-card');
-                    if (clickedCard) {
-                        const charKey = clickedCard.dataset.charKey;
+                    const card = event.target.closest('.character-card');
+                    if (card) {
                         const charKeyInput = document.getElementById('charKey');
-                        if (charKeyInput) {
-                            charKeyInput.value = charKey;
-                        }
+                        if (charKeyInput) charKeyInput.value = card.dataset.charKey;
                     }
                 });
-
             })
-            .catch(error => {
-                console.error('Error fetching or processing characters:', error);
-            });
+            .catch(error => console.error('Error fetching all characters for cards:', error));
     }
 });

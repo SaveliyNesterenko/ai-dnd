@@ -59,7 +59,7 @@ if not os.path.exists(LOG_DIR):
 
 def load_json(filepath):
     abs_path = os.path.abspath(filepath)
-    print(f"📂 Загрузка файла: {abs_path}")
+    # print(f"📂 Загрузка файла: {abs_path}") # Reduced logging verbosity
 
     if not os.path.exists(filepath):
         print(f"❌ ОШИБКА: Файл физически не найден по пути: {filepath}")
@@ -68,8 +68,7 @@ def load_json(filepath):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            if isinstance(data, dict):
-                print(f"✅ Файл загружен. Найдены ключи: {list(data.keys())}")
+            # print(f"✅ Файл загружен. Найдены ключи: {list(data.keys())}") # Reduced logging verbosity
             return data
     except json.JSONDecodeError as e:
         print(f"❌ ОШИБКА JSON: Неверный формат файла {filepath}. Детали: {e}")
@@ -107,40 +106,56 @@ def save_prompt_to_log(char_key, prompt_text):
     except Exception as e:
         print(f"⚠️ Ошибка при сохранении лога: {e}")
 
+# --- NEW API ENDPOINTS ---
 
 @app.get("/api/characters")
+async def get_characters():
+    """
+    Загружает и возвращает только игровых персонажей (PCs).
+    """
+    characters_data = load_json(CHARACTERS_FILE)
+    if characters_data is None:
+        raise HTTPException(status_code=404, detail="Character data not found.")
+    return characters_data
+
+@app.get("/api/npcs")
+async def get_npcs():
+    """
+    Загружает и возвращает только неигровых персонажей (NPCs).
+    """
+    npc_data = load_json(NPC_FILE)
+    if npc_data is None:
+        raise HTTPException(status_code=404, detail="NPC data not found.")
+    return npc_data
+
+@app.get("/api/all_characters")
 async def get_all_characters():
     """
     Загружает и объединяет данные о персонажах и NPC.
+    Используется для отображения всех карточек на нижней панели.
     """
-    characters_data = load_json(CHARACTERS_FILE)
-    npc_data = load_json(NPC_FILE)
+    characters_data = load_json(CHARACTERS_FILE) or {}
+    npc_data = load_json(NPC_FILE) or {}
 
-    if characters_data is None:
-        characters_data = {}
-    if npc_data is None:
-        npc_data = {}
-
-    # Объединяем словари
     combined_data = {**characters_data, **npc_data}
 
     if not combined_data:
-        raise HTTPException(
-            status_code=404, detail="No character or NPC data found.")
-
+        raise HTTPException(status_code=404, detail="No character or NPC data found.")
     return combined_data
 
+# --- MAIN GAME LOGIC ---
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
     char_key = request.character_key
 
-    characters_data = load_json(CHARACTERS_FILE)
-    if not characters_data or char_key not in characters_data:
-        raise HTTPException(
-            status_code=404, detail=f"Character '{char_key}' not found.")
+    # Load all characters to find the requested one
+    all_chars_data = await get_all_characters()
 
-    char = characters_data[char_key]
+    if char_key not in all_chars_data:
+        raise HTTPException(status_code=404, detail=f"Character '{char_key}' not found.")
+
+    char = all_chars_data[char_key]
     meta = char.get("meta", {})
     identity = char.get("identity", {})
     stats = char.get("stats", {})
