@@ -127,6 +127,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (charKeyInput) charKeyInput.value = card.dataset.charKey;
                 }
             });
+
+            container.addEventListener('wheel', (event) => {
+                if (event.deltaY !== 0) {
+                    event.preventDefault();
+                    container.scrollLeft += event.deltaY;
+                }
+            });
         }
     }
 
