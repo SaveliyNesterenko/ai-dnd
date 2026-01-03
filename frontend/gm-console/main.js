@@ -8,6 +8,61 @@ document.addEventListener("DOMContentLoaded", () => {
         "bottom-panel": "panels/bottom-panel.html"
     };
 
+    // Function to initialize the center panel logic
+    function initializeCenterPanel() {
+        const sendBtn = document.getElementById('sendBtn');
+        const charInput = document.getElementById('charKey');
+        const outputArea = document.getElementById('modelOutput');
+
+        if (!sendBtn || !charInput || !outputArea) {
+            console.error("Center panel elements not found!");
+            return;
+        }
+
+        sendBtn.addEventListener('click', async () => {
+            const charKey = charInput.value.trim();
+
+            if (!charKey) {
+                alert("Пожалуйста, введите ID персонажа!");
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Думаю...";
+            outputArea.value = "Запрос отправлен к модели...";
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/act', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ character_key: charKey })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+                }
+
+                const data = await response.json();
+                outputArea.value = data.response;
+
+            } catch (error) {
+                console.error('Ошибка:', error);
+                outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "Сгенерировать ответ";
+            }
+        });
+    }
+
+    // Function to initialize the top panel logic (will be filled in later)
+    function initializeTopPanel() {
+        // Placeholder for top panel's JS logic
+    }
+
     function loadPanel(panelId, url) {
         fetch(url)
             .then(response => {
@@ -20,7 +75,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 const panelElement = document.getElementById(panelId);
                 if (panelElement) {
                     panelElement.innerHTML = html;
-                    if (panelId === "bottom-panel") {
+
+                    // After loading, initialize the specific panel's JS
+                    if (panelId === "center-panel") {
+                        initializeCenterPanel();
+                    } else if (panelId === "top-panel") {
+                        initializeTopPanel();
+                    } else if (panelId === "bottom-panel") {
+                        // The timeout ensures the panel is fully in the DOM
                         setTimeout(fetchCharacters, 100); 
                     }
                 }
@@ -52,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         const char = data[key];
                         const card = document.createElement('div');
                         card.className = 'character-card';
-                        card.dataset.charKey = key; // Store character key in a data attribute
+                        card.dataset.charKey = key;
 
                         const name = char.identity ? char.identity.name : 'Unknown Name';
                         const bio = char.identity && char.identity.bio ? char.identity.bio.substring(0, 100) + '...' : 'No bio available.';
@@ -67,7 +129,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 bottomPanel.appendChild(container);
                 
-                // Add click listener to the container
                 container.addEventListener('click', (event) => {
                     const clickedCard = event.target.closest('.character-card');
                     if (clickedCard) {
@@ -75,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         const charKeyInput = document.getElementById('charKey');
                         if (charKeyInput) {
                             charKeyInput.value = charKey;
-                            console.log(`Set charKey input to: ${charKey}`);
                         }
                     }
                 });
