@@ -34,6 +34,36 @@ export function initializeCenterPanel() {
 }
 
 /**
+ * Инициализирует логику левой панели.
+ */
+export function initializeLeftPanel() {
+    const recordButton = document.getElementById('record-button');
+    const voicePreview = document.getElementById('voice-preview');
+
+    if (!recordButton || !voicePreview) return;
+
+    const speechRecognition = initializeSpeechRecognition(
+        (text) => { // resultCallback
+            voicePreview.value = text;
+        },
+        () => { // endCallback
+            recordButton.textContent = "<span>&#127908;</span> УДЕРЖИВАТЬ ДЛЯ ЗАПИСИ";
+        }
+    );
+
+    if (speechRecognition) {
+        recordButton.addEventListener('mousedown', () => {
+            speechRecognition.start();
+            recordButton.textContent = "Идёт запись...";
+        });
+
+        recordButton.addEventListener('mouseup', () => {
+            speechRecognition.stop();
+        });
+    }
+}
+
+/**
  * Инициализирует логику верхней панели.
  * Заполняет выпадающие списки персонажей и NPC.
  */

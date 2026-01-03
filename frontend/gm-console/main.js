@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (panelId === "center-panel") panels.initializeCenterPanel();
                 if (panelId === "top-panel") panels.initializeTopPanel();
                 if (panelId === "bottom-panel") panels.initializeBottomPanel();
+                if (panelId === "left-panel") panels.initializeLeftPanel();
             })
             .catch(err => console.warn(`Could not load panel ${panelId}:`, err));
     }
