@@ -93,7 +93,7 @@ def save_json(filepath, data):
 def save_prompt_to_log(char_key, prompt_text):
     print(f"🗂️  Logging prompt for char_key: {char_key}")
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"{LOG_DIR}/prompt_{char_key}_{now}.txt"
+    filename = f"{LOG_DIR}/{now}_{char_key}.txt"
 
     try:
         with open(filename, "w", encoding="utf-8") as f:
