@@ -1,5 +1,5 @@
-
 import { state, addVisibleCharacter, removeVisibleCharacter, setSelectedCharacterCard } from '../state.js';
+import { showInventoryModal } from './inventoryModal.js';
 
 /**
  * Устанавливает персонажа как "выбранного".
@@ -95,7 +95,7 @@ export function toggleCharacterCard(characterId) {
                         <div class="card-buttons">
                             <button class="card-btn attributes-btn" title="Attributes">&#9733;</button>
                             <button class="card-btn status-effects-btn" title="Status Effects">&#9881;</button>
-                            <button class="card-btn" title="Inventory">&#127890;</button>
+                            <button class="card-btn inventory-btn" title="Inventory">&#127890;</button>
                         </div>
                     </div>
                 </div>
@@ -113,6 +113,7 @@ export function toggleCharacterCard(characterId) {
         // Получаем элементы для управления контентом на обратной стороне
         const attributesButton = card.querySelector('.attributes-btn');
         const statusEffectsButton = card.querySelector('.status-effects-btn');
+        const inventoryButton = card.querySelector('.inventory-btn');
         const cardBack = card.querySelector('.card-back');
         const cardBackTitle = card.querySelector('.card-back-title');
         const attributesContent = card.querySelector('.attributes-content');
@@ -134,6 +135,13 @@ export function toggleCharacterCard(characterId) {
             statusEffectsContent.classList.remove('hidden');
             attributesContent.classList.add('hidden');
             card.classList.add('flipped');
+        });
+
+        // Клик на "Inventory"
+        inventoryButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const inventoryData = charData.inventory || [];
+            showInventoryModal(inventoryData);
         });
 
         // Клик на обратной стороне для возврата

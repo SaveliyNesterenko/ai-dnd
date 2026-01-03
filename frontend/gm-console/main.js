@@ -1,6 +1,7 @@
 import { cacheAllCharacters } from './js/state.js';
 import * as api from './js/api.js';
 import * as panels from './js/ui/panels.js';
+import './js/ui/inventoryModal.js'; // Просто импортируем, чтобы код был доступен
 
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
