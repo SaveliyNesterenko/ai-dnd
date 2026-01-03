@@ -1,4 +1,8 @@
 /* Left Panel CSS */
+#voice-input-panel {
+    padding: 15px;
+}
+
 .left-panel-section {
     margin-bottom: 20px;
     height: 45%;
@@ -32,11 +36,17 @@
     margin-right: 10px;
     font-size: 18px;
     padding: 15px;
-    background-color: #333;
+    background-color: #808080; /* Gray */
     color: #fff;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    min-width: 120px;
+    min-height: 50px;
+}
+
+#record-button:active {
+    background-color: #ff0000; /* Red */
 }
 
 #send-button {
@@ -48,9 +58,8 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
-}
-#record-button span {
-    margin-right: 10px;
+    min-width: 60px;
+    min-height: 50px;
 }
 
 #event-log-panel {
