@@ -21,8 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (panelElement) {
                     panelElement.innerHTML = html;
                     if (panelId === "bottom-panel") {
-                        // Wait a moment for the panel to be in the DOM, then fetch characters.
-                        setTimeout(fetchCharacters, 100);
+                        setTimeout(fetchCharacters, 100); 
                     }
                 }
             })
@@ -34,40 +33,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function fetchCharacters() {
-        console.log("[1/6] Attempting to fetch characters...");
         fetch('http://127.0.0.1:8000/api/characters')
-            .then(response => {
-                console.log("[2/6] Received response from server:", response);
-                if (!response.ok) {
-                    console.error("Server response not OK:", response.status, response.statusText);
-                    throw new Error(`Network response was not ok: ${response.statusText}`);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                console.log("[3/6] Successfully parsed JSON data:", data);
                 const bottomPanel = document.getElementById('bottom-panel');
                 if (!bottomPanel) {
                     console.error("Could not find the 'bottom-panel' element.");
                     return;
                 }
                 
-                // Clear previous content if any
                 bottomPanel.innerHTML = ''; 
 
                 const container = document.createElement('div');
                 container.className = 'characters-container';
-                console.log("[4/6] Created characters container.");
 
-                let characterCount = 0;
                 for (const key in data) {
                     if (data.hasOwnProperty(key)) {
-                        characterCount++;
                         const char = data[key];
                         const card = document.createElement('div');
                         card.className = 'character-card';
-                        
-                        // Defensive checks for properties
+                        card.dataset.charKey = key; // Store character key in a data attribute
+
                         const name = char.identity ? char.identity.name : 'Unknown Name';
                         const bio = char.identity && char.identity.bio ? char.identity.bio.substring(0, 100) + '...' : 'No bio available.';
 
@@ -78,19 +64,25 @@ document.addEventListener("DOMContentLoaded", () => {
                         container.appendChild(card);
                     }
                 }
-
-                if (characterCount > 0) {
-                    console.log(`[5/6] Created and prepared ${characterCount} character cards.`);
-                } else {
-                    console.warn("Data received, but it contains no characters to display.");
-                }
                 
                 bottomPanel.appendChild(container);
-                console.log("[6/6] Appended container to bottom panel.");
+                
+                // Add click listener to the container
+                container.addEventListener('click', (event) => {
+                    const clickedCard = event.target.closest('.character-card');
+                    if (clickedCard) {
+                        const charKey = clickedCard.dataset.charKey;
+                        const charKeyInput = document.getElementById('charKey');
+                        if (charKeyInput) {
+                            charKeyInput.value = charKey;
+                            console.log(`Set charKey input to: ${charKey}`);
+                        }
+                    }
+                });
 
             })
             .catch(error => {
-                console.error('CRITICAL ERROR: Error fetching or processing characters:', error);
+                console.error('Error fetching or processing characters:', error);
             });
     }
 });
