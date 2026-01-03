@@ -39,9 +39,11 @@ export function initializeCenterPanel() {
 export function initializeLeftPanel() {
     const recordButton = document.getElementById('record-button');
     const voicePreview = document.getElementById('voice-preview');
+    const sendButton = document.getElementById('send-button'); // Make sure this ID exists in your left-panel.html
 
-    if (!recordButton || !voicePreview) return;
+    if (!recordButton || !voicePreview || !sendButton) return;
 
+    // Speech Recognition Logic
     const speechRecognition = initializeSpeechRecognition(
         (text) => { // resultCallback
             voicePreview.value = text;
@@ -61,6 +63,29 @@ export function initializeLeftPanel() {
             speechRecognition.stop();
         });
     }
+
+    // Send Button Logic
+    sendButton.addEventListener('click', async () => {
+        const textToSend = voicePreview.value.trim();
+        if (!textToSend) {
+            // Maybe show a small, temporary message instead of an alert
+            return;
+        }
+
+        sendButton.disabled = true;
+        sendButton.textContent = "Отправка...";
+
+        try {
+            await api.postGmAction(textToSend);
+            voicePreview.value = ''; // Clear the textarea on success
+        } catch (error) {
+            console.error('Ошибка при отправке действия GM:', error);
+            // Optionally, display an error message to the user in the UI
+        } finally {
+            sendButton.disabled = false;
+            sendButton.textContent = "ОТПРАВИТЬ";
+        }
+    });
 }
 
 /**

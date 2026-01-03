@@ -48,6 +48,10 @@ class ActionRequest(BaseModel):
     character_key: str
 
 
+class GmActionRequest(BaseModel):
+    text: str
+
+
 CHARACTERS_FILE = "./data/characters.json"
 NPC_FILE = "./data/npc.json"
 EVENT_LOG_FILE = "./data/event_log.json"
@@ -142,6 +146,29 @@ async def get_all_characters():
     if not combined_data:
         raise HTTPException(status_code=404, detail="No character or NPC data found.")
     return combined_data
+
+@app.post("/api/add_gm_action")
+async def add_gm_action(request: GmActionRequest):
+    event_data = load_json(EVENT_LOG_FILE)
+    if event_data is None:
+        event_data = {"history": []}
+
+    history = event_data.get("history", [])
+    new_step_number = history[-1].get("step", 0) + 1 if history else 1
+
+    new_action = {
+        "step": new_step_number,
+        "name": "Game Master",
+        "action": request.text
+    }
+
+    history.append(new_action)
+    event_data["history"] = history
+
+    if save_json(EVENT_LOG_FILE, event_data):
+        return {"status": "success", "message": "GM action added to the log."}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save the event log.")
 
 # --- MAIN GAME LOGIC ---
 

@@ -47,3 +47,21 @@ export async function postAction(character_key) {
     }
     return await response.json();
 }
+
+/**
+ * Отправляет действие Мастера Игры на сервер.
+ * @param {string} text - Текст действия.
+ * @returns {Promise<object>} Ответ сервера.
+ */
+export async function postGmAction(text) {
+    const response = await fetch(`${API_BASE_URL}/api/add_gm_action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `Server error: ${response.status}`);
+    }
+    return await response.json();
+}
