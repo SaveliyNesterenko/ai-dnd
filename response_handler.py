@@ -2,15 +2,15 @@ import json
 
 def handle_response(response_text, event_log_data, character_name):
     """
-    Parses the model's response, updates the event log, and returns the updated log.
+    Анализирует ответ модели, обновляет журнал событий и возвращает обновлённый журнал.
 
-    Args:
-        response_text: The raw text response from the model.
-        event_log_data: The current event log data (as a Python dictionary).
-        character_name: The name of the character performing the action.
+    Аргументы:
+        response_text: необработанный текстовый ответ модели.
+        event_log_data: текущие данные журнала событий (в виде словаря Python).
+        character_name: имя персонажа, выполняющего действие.
 
-    Returns:
-        The updated event log data.
+    Возвращает:
+        обновлённые данные журнала событий.
     """
     thoughts = ""
     action = ""
