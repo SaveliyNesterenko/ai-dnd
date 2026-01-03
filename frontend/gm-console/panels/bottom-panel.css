@@ -1,0 +1,52 @@
+
+.characters-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start; /* Align cards to the start */
+    align-items: center; /* Center cards vertically */
+    height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow-x: auto; /* Add horizontal scroll if cards overflow */
+    gap: 15px; /* Space between cards */
+}
+
+.character-card {
+    height: 90%;
+    aspect-ratio: 1 / 1.6; /* Approximate 1:2 ratio */
+    flex-shrink: 0; /* Prevent cards from shrinking */
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 8px;
+    padding: 15px;
+    box-sizing: border-box;
+    color: #eee;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden; /* Hide overflowing text */
+    display: flex;
+    flex-direction: column;
+}
+
+.character-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.character-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1em;
+    color: #fca311; /* A nice accent color */
+    white-space: nowrap; /* Prevent title from wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.character-card p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #ccc;
+    flex-grow: 1; /* Allow paragraph to take up available space */
+    overflow: hidden;
+}
