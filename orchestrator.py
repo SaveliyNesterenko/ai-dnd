@@ -49,6 +49,7 @@ class ActionRequest(BaseModel):
 
 
 CHARACTERS_FILE = "./data/characters.json"
+NPC_FILE = "./data/npc.json"
 EVENT_LOG_FILE = "./data/event_log.json"
 LOG_DIR = "./logs"
 
@@ -105,6 +106,29 @@ def save_prompt_to_log(char_key, prompt_text):
         print(f"📝 Промт успешно сохранен в файл: {filename}")
     except Exception as e:
         print(f"⚠️ Ошибка при сохранении лога: {e}")
+
+
+@app.get("/api/characters")
+async def get_all_characters():
+    """
+    Загружает и объединяет данные о персонажах и NPC.
+    """
+    characters_data = load_json(CHARACTERS_FILE)
+    npc_data = load_json(NPC_FILE)
+
+    if characters_data is None:
+        characters_data = {}
+    if npc_data is None:
+        npc_data = {}
+
+    # Объединяем словари
+    combined_data = {**characters_data, **npc_data}
+
+    if not combined_data:
+        raise HTTPException(
+            status_code=404, detail="No character or NPC data found.")
+
+    return combined_data
 
 
 @app.post("/act")
