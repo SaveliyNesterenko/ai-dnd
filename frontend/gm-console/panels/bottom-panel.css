@@ -5,15 +5,22 @@
     justify-content: flex-start; /* Align cards to the start */
     align-items: center; /* Center cards vertically */
     height: 100%;
+    width: 90%;
     padding: 10px;
     box-sizing: border-box;
-    overflow-x: auto; /* Add horizontal scroll if cards overflow */
+    overflow-x: scroll;
     gap: 15px; /* Space between cards */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+.characters-container::-webkit-scrollbar {
+    display: none;
 }
 
 .character-card {
     height: 90%;
-    aspect-ratio: 1 / 1.6; /* Approximate 1:2 ratio */
+    aspect-ratio: 2 / 3;
     flex-shrink: 0; /* Prevent cards from shrinking */
     background-color: #333;
     border: 1px solid #555;
