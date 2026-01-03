@@ -64,9 +64,9 @@ export function toggleCharacterCard(characterId) {
         }
 
         let attributesHtml = '<div class="attributes-grid">';
-        if (charData.attributes) {
-            for (const attr in charData.attributes) {
-                attributesHtml += `<div class="attribute-item"><span>${attr}</span><span>${charData.attributes[attr]}</span></div>`;
+        if (charData.stats && charData.stats.attributes) {
+            for (const attr in charData.stats.attributes) {
+                attributesHtml += `<div class="attribute-item"><span>${attr}</span><span>${charData.stats.attributes[attr]}</span></div>`;
             }
         }
         attributesHtml += '</div>';
