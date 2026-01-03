@@ -90,7 +90,6 @@ export function toggleCharacterCard(characterId) {
                 <div class="card-back">
                     <h3>Attributes</h3>
                     ${attributesHtml}
-                    <button class="card-btn back-btn" title="Back">&#8617;</button>
                 </div>
             </div>
         `;
@@ -98,18 +97,18 @@ export function toggleCharacterCard(characterId) {
         container.appendChild(card);
         addVisibleCharacter(characterId);
 
+        // Переворот на сторону с атрибутами
         const attributesButton = card.querySelector('.attributes-btn');
         attributesButton.addEventListener('click', (event) => {
             event.stopPropagation();
-            const cardElement = event.currentTarget.closest('.character-card');
-            cardElement.classList.toggle('flipped');
+            card.classList.add('flipped');
         });
 
-        const backButton = card.querySelector('.back-btn');
-        backButton.addEventListener('click', (event) => {
+        // Переворот обратно на лицевую сторону
+        const cardBack = card.querySelector('.card-back');
+        cardBack.addEventListener('click', (event) => {
             event.stopPropagation();
-            const cardElement = event.currentTarget.closest('.character-card');
-            cardElement.classList.toggle('flipped');
+            card.classList.remove('flipped');
         });
     }
 }
