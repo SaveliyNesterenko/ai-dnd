@@ -58,14 +58,6 @@ body, html {
     width: 100%;
 }
 
-.character-card {
-    border: 1px solid #444;
-    background-color: #2a2f38;
-    border-radius: 8px;
-    height: 90%;
-    width: 20%;
-}
-
 /* Styles from the original index.html, adapted for the new theme */
 .editor-container {
     background-color: transparent; /* Container is now transparent */
