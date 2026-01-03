@@ -47,10 +47,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const role = charData.meta ? charData.meta.role : 'No Role';
             
             let statsHtml = '';
-            if (charData.stats && charData.stats.attributes) {
-                for (const [key, value] of Object.entries(charData.stats.attributes)) {
-                    statsHtml += `<div class="stat-item"><span>${key}</span><span>${value}</span></div>`;
-                }
+            if (charData.stats) {
+                const hp = charData.stats.hp ? `${charData.stats.hp.current} / ${charData.stats.hp.max}` : 'N/A';
+                const mp = charData.stats.mp ? `${charData.stats.mp.current} / ${charData.stats.mp.max}` : 'N/A';
+                statsHtml = `
+                    <div class="stat-item"><span>HP</span><span>${hp}</span></div>
+                    <div class="stat-item"><span>MP</span><span>${mp}</span></div>
+                `;
             }
 
             card.innerHTML = `
