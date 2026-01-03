@@ -91,6 +91,7 @@ def save_json(filepath, data):
 
 
 def save_prompt_to_log(char_key, prompt_text):
+    print(f"🗂️  Logging prompt for char_key: {char_key}")
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{LOG_DIR}/prompt_{char_key}_{now}.txt"
 
@@ -169,10 +170,10 @@ async def generate_action(request: ActionRequest):
     goal_block = "Твоя задача — отыгрывать роль своего персонажа, опираясь на его характер, состояние и историю событий."
 
     format_block = (
-        """Твой ответ должен быть простым текстом, четко разделенным специальными тегами на два блока
+        '''Твой ответ должен быть простым текстом, четко разделенным специальными тегами на два блока
         [THOUGHTS] Мысли и [ACTION] Действие / Речь.
         Строго следуй формату.
-        Сначала напиши скрытые мысли персонажа, затем то, что он делает и (или) говорит вслух."""
+        Сначала напиши скрытые мысли персонажа, затем то, что он делает и (или) говорит вслух.'''
     )
 
     final_prompt = (
