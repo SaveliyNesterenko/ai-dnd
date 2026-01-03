@@ -49,7 +49,7 @@ export function initializeLeftPanel() {
             voicePreview.value = text;
         },
         () => { // endCallback
-            recordButton.textContent = "<span>&#127908;</span> УДЕРЖИВАТЬ ДЛЯ ЗАПИСИ";
+            recordButton.innerHTML = "ЗАПИСЬ";
         }
     );
 
