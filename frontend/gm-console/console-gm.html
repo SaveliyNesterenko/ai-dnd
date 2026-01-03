@@ -15,37 +15,6 @@
         <div id="bottom-panel" class="panel"></div>
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const panels = {
-                "top-panel": "panels/top-panel.html",
-                "left-panel": "panels/left-panel.html",
-                "center-panel": "panels/center-panel.html",
-                "right-panel": "panels/right-panel.html",
-                "bottom-panel": "panels/bottom-panel.html"
-            };
-
-            for (const panelId in panels) {
-                fetch(panels[panelId])
-                    .then(response => response.text())
-                    .then(html => {
-                        const panelElement = document.getElementById(panelId);
-                        panelElement.innerHTML = html;
-                        // If the loaded HTML contains scripts, we need to manually execute them
-                        const scripts = panelElement.getElementsByTagName('script');
-                        for (let i = 0; i < scripts.length; i++) {
-                            const script = document.createElement('script');
-                            if (scripts[i].src) {
-                                script.src = scripts[i].src;
-                            } else {
-                                script.innerHTML = scripts[i].innerHTML;
-                            }
-                            document.body.appendChild(script);
-                        }
-                    })
-                    .catch(err => console.warn(`Could not load ${panelId}:`, err));
-            }
-        });
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
