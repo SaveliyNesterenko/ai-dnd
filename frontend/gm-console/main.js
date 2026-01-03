@@ -25,6 +25,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const panelElement = document.getElementById(panelId);
                 if (panelElement) {
                     panelElement.innerHTML = html;
+                    // If the loaded content is the bottom panel, fetch and display characters
+                    if (panelId === "bottom-panel") {
+                        fetchCharacters();
+                    }
                     // Execute scripts in the loaded HTML
                     const scripts = panelElement.getElementsByTagName('script');
                     for (let i = 0; i < scripts.length; i++) {
@@ -51,5 +55,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (const panelId in panels) {
         loadPanel(panelId, panels[panelId]);
+    }
+
+    function fetchCharacters() {
+        fetch('http://127.0.0.1:8000/api/characters')
+            .then(response => response.json())
+            .then(data => {
+                const bottomPanel = document.getElementById('bottom-panel');
+                const container = document.createElement('div');
+                container.className = 'characters-container';
+
+                for (const key in data) {
+                    const char = data[key];
+                    const card = document.createElement('div');
+                    card.className = 'character-card';
+                    card.innerHTML = `
+                        <h3>${char.identity.name}</h3>
+                        <p>${char.identity.bio.substring(0, 100)}...</p>
+                    `;
+                    container.appendChild(card);
+                }
+                bottomPanel.appendChild(container);
+            })
+            .catch(error => console.error('Error fetching characters:', error));
     }
 });
