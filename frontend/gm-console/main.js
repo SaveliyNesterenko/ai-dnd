@@ -8,11 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
         "bottom-panel": "panels/bottom-panel.html"
     };
 
-    /**
-     * Loads content into a panel.
-     * @param {string} panelId The ID of the panel element.
-     * @param {string} url The URL to fetch the content from.
-     */
     function loadPanel(panelId, url) {
         fetch(url)
             .then(response => {
@@ -25,28 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const panelElement = document.getElementById(panelId);
                 if (panelElement) {
                     panelElement.innerHTML = html;
-                    // If the loaded content is the bottom panel, fetch and display characters
                     if (panelId === "bottom-panel") {
-                        fetchCharacters();
-                    }
-                    // Execute scripts in the loaded HTML
-                    const scripts = panelElement.getElementsByTagName('script');
-                    for (let i = 0; i < scripts.length; i++) {
-                        const script = document.createElement('script');
-                        if (scripts[i].src) {
-                            // If the script has a src, we need to handle its loading
-                            script.src = scripts[i].src;
-                            script.onload = () => {
-                                // Optional: callback after script is loaded
-                            };
-                            document.body.appendChild(script);
-                        } else {
-                            // If it's an inline script
-                            script.innerHTML = scripts[i].innerHTML;
-                            document.body.appendChild(script);
-                        }
-                        // To prevent re-execution, we could remove the original script tag
-                        scripts[i].parentNode.removeChild(scripts[i]);
+                        // Wait a moment for the panel to be in the DOM, then fetch characters.
+                        setTimeout(fetchCharacters, 100);
                     }
                 }
             })
@@ -58,25 +34,63 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function fetchCharacters() {
+        console.log("[1/6] Attempting to fetch characters...");
         fetch('http://127.0.0.1:8000/api/characters')
-            .then(response => response.json())
+            .then(response => {
+                console.log("[2/6] Received response from server:", response);
+                if (!response.ok) {
+                    console.error("Server response not OK:", response.status, response.statusText);
+                    throw new Error(`Network response was not ok: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log("[3/6] Successfully parsed JSON data:", data);
                 const bottomPanel = document.getElementById('bottom-panel');
+                if (!bottomPanel) {
+                    console.error("Could not find the 'bottom-panel' element.");
+                    return;
+                }
+                
+                // Clear previous content if any
+                bottomPanel.innerHTML = ''; 
+
                 const container = document.createElement('div');
                 container.className = 'characters-container';
+                console.log("[4/6] Created characters container.");
 
+                let characterCount = 0;
                 for (const key in data) {
-                    const char = data[key];
-                    const card = document.createElement('div');
-                    card.className = 'character-card';
-                    card.innerHTML = `
-                        <h3>${char.identity.name}</h3>
-                        <p>${char.identity.bio.substring(0, 100)}...</p>
-                    `;
-                    container.appendChild(card);
+                    if (data.hasOwnProperty(key)) {
+                        characterCount++;
+                        const char = data[key];
+                        const card = document.createElement('div');
+                        card.className = 'character-card';
+                        
+                        // Defensive checks for properties
+                        const name = char.identity ? char.identity.name : 'Unknown Name';
+                        const bio = char.identity && char.identity.bio ? char.identity.bio.substring(0, 100) + '...' : 'No bio available.';
+
+                        card.innerHTML = `
+                            <h3>${name}</h3>
+                            <p>${bio}</p>
+                        `;
+                        container.appendChild(card);
+                    }
                 }
+
+                if (characterCount > 0) {
+                    console.log(`[5/6] Created and prepared ${characterCount} character cards.`);
+                } else {
+                    console.warn("Data received, but it contains no characters to display.");
+                }
+                
                 bottomPanel.appendChild(container);
+                console.log("[6/6] Appended container to bottom panel.");
+
             })
-            .catch(error => console.error('Error fetching characters:', error));
+            .catch(error => {
+                console.error('CRITICAL ERROR: Error fetching or processing characters:', error);
+            });
     }
 });
