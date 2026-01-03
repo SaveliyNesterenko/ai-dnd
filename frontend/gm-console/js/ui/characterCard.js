@@ -63,13 +63,25 @@ export function toggleCharacterCard(characterId) {
             `;
         }
 
-        let attributesHtml = '<div class="attributes-grid">';
+        // HTML для Атрибутов
+        let attributesHtml = '<div class="attributes-content hidden"><div class="attributes-grid">';
         if (charData.stats && charData.stats.attributes) {
             for (const attr in charData.stats.attributes) {
                 attributesHtml += `<div class="attribute-item"><span>${attr}</span><span>${charData.stats.attributes[attr]}</span></div>`;
             }
         }
-        attributesHtml += '</div>';
+        attributesHtml += '</div></div>';
+
+        // HTML для Эффектов
+        let statusEffectsHtml = '<div class="status-effects-content hidden"><div class="status-effects-list">';
+        if (charData.stats && charData.stats.status_effects && charData.stats.status_effects.length > 0) {
+            charData.stats.status_effects.forEach(effect => {
+                statusEffectsHtml += `<div class="status-effect-item">${effect}</div>`;
+            });
+        } else {
+            statusEffectsHtml += '<p>No active effects</p>';
+        }
+        statusEffectsHtml += '</div></div>';
 
         card.innerHTML = `
             <div class="card-inner">
@@ -82,14 +94,15 @@ export function toggleCharacterCard(characterId) {
                         </div>
                         <div class="card-buttons">
                             <button class="card-btn attributes-btn" title="Attributes">&#9733;</button>
-                            <button class="card-btn" title="Status Effects">&#9881;</button>
+                            <button class="card-btn status-effects-btn" title="Status Effects">&#9881;</button>
                             <button class="card-btn" title="Inventory">&#127890;</button>
                         </div>
                     </div>
                 </div>
                 <div class="card-back">
-                    <h3>Attributes</h3>
+                    <h3 class="card-back-title"></h3>
                     ${attributesHtml}
+                    ${statusEffectsHtml}
                 </div>
             </div>
         `;
@@ -97,15 +110,33 @@ export function toggleCharacterCard(characterId) {
         container.appendChild(card);
         addVisibleCharacter(characterId);
 
-        // Переворот на сторону с атрибутами
+        // Получаем элементы для управления контентом на обратной стороне
         const attributesButton = card.querySelector('.attributes-btn');
+        const statusEffectsButton = card.querySelector('.status-effects-btn');
+        const cardBack = card.querySelector('.card-back');
+        const cardBackTitle = card.querySelector('.card-back-title');
+        const attributesContent = card.querySelector('.attributes-content');
+        const statusEffectsContent = card.querySelector('.status-effects-content');
+
+        // Клик на "Attributes"
         attributesButton.addEventListener('click', (event) => {
             event.stopPropagation();
+            cardBackTitle.textContent = 'Attributes';
+            attributesContent.classList.remove('hidden');
+            statusEffectsContent.classList.add('hidden');
             card.classList.add('flipped');
         });
 
-        // Переворот обратно на лицевую сторону
-        const cardBack = card.querySelector('.card-back');
+        // Клик на "Status Effects"
+        statusEffectsButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            cardBackTitle.textContent = 'Status Effects';
+            statusEffectsContent.classList.remove('hidden');
+            attributesContent.classList.add('hidden');
+            card.classList.add('flipped');
+        });
+
+        // Клик на обратной стороне для возврата
         cardBack.addEventListener('click', (event) => {
             event.stopPropagation();
             card.classList.remove('flipped');
