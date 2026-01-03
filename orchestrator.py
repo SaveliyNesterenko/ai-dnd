@@ -147,6 +147,16 @@ async def get_all_characters():
         raise HTTPException(status_code=404, detail="No character or NPC data found.")
     return combined_data
 
+@app.get("/api/event_log")
+async def get_event_log():
+    """
+    Загружает и возвращает историю событий.
+    """
+    event_log_data = load_json(EVENT_LOG_FILE)
+    if event_log_data is None:
+        raise HTTPException(status_code=404, detail="Event log not found.")
+    return event_log_data
+
 @app.post("/api/add_gm_action")
 async def add_gm_action(request: GmActionRequest):
     event_data = load_json(EVENT_LOG_FILE)

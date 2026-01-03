@@ -31,6 +31,16 @@ export async function fetchNpcs() {
 }
 
 /**
+ * Запрашивает и возвращает историю событий.
+ * @returns {Promise<object>} История событий.
+ */
+export async function fetchEventLog() {
+    const response = await fetch(`${API_BASE_URL}/api/event_log`);
+    if (!response.ok) throw new Error('Failed to load event log');
+    return await response.json();
+}
+
+/**
  * Отправляет действие персонажа на сервер.
  * @param {string} character_key - Ключ (ID) персонажа.
  * @returns {Promise<object>} Ответ сервера.

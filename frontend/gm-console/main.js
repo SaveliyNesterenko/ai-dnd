@@ -3,6 +3,53 @@ import * as api from './js/api.js';
 import * as panels from './js/ui/panels.js';
 import './js/ui/inventoryModal.js'; // Просто импортируем, чтобы код был доступен
 
+const ROLE_COLORS = {
+    player: 'green',
+    gm: 'blue',
+    npc: 'yellow',
+    enemy: 'red'
+};
+
+async function updateEventLog() {
+    const eventLogPanel = document.getElementById('event-log-panel');
+    if (!eventLogPanel) return;
+
+    try {
+        const eventLogData = await api.fetchEventLog();
+        const history = eventLogData.history || [];
+
+        // Очищаем старые логи
+        eventLogPanel.innerHTML = '<h2>Event Log</h2>';
+
+        // Отображаем новые логи
+        history.forEach(event => {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+
+            const characterName = document.createElement('span');
+            characterName.className = 'character-name';
+            characterName.textContent = `${event.name}: `;
+            characterName.style.color = ROLE_COLORS[event.role] || 'white';
+
+            const thoughts = document.createElement('p');
+            thoughts.className = 'thoughts';
+            thoughts.textContent = event.thoughts ? `Мысли: ${event.thoughts}` : '';
+
+            const action = document.createElement('p');
+            action.className = 'action';
+            action.textContent = `Действие: ${event.action}`;
+
+            logEntry.appendChild(characterName);
+            logEntry.appendChild(thoughts);
+            logEntry.appendChild(action);
+
+            eventLogPanel.appendChild(logEntry);
+        });
+    } catch (error) {
+        console.error('Failed to update event log:', error);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
         "top-panel": "panels/top-panel.html",
@@ -53,6 +100,12 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Затем загружаем все панели пользовательского интерфейса
             Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
+
+            // Обновляем лог в первый раз
+            updateEventLog();
+
+            // Устанавливаем интервал для автоматического обновления лога
+            setInterval(updateEventLog, 3000);
 
         } catch (error) {
             console.error("Failed to initialize the application:", error);
