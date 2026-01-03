@@ -1,60 +1,6 @@
-<!-- Top Panel -->
-<style>
-    .top-panel-container {
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        padding: 10px;
-    }
-
-    .dropdown-container {
-        display: flex;
-        gap: 10px;
-    }
-
-    #character-select, #npc-select {
-        padding: 5px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-    }
-</style>
 <div class="top-panel-container">
     <div class="dropdown-container">
         <select id="character-select"></select>
         <select id="npc-select"></select>
     </div>
 </div>
-
-<script>
-    async function populateDropdowns() {
-        try {
-            const charactersResponse = await fetch('http://localhost:8000/data/characters.json');
-            const charactersData = await charactersResponse.json();
-            const characterSelect = document.getElementById('character-select');
-            characterSelect.innerHTML = '<option disabled selected>Characters</option>';
-            for (const key in charactersData) {
-                const character = charactersData[key];
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = character.identity.name;
-                characterSelect.appendChild(option);
-            }
-
-            const npcResponse = await fetch('http://localhost:8000/data/npc.json');
-            const npcData = await npcResponse.json();
-            const npcSelect = document.getElementById('npc-select');
-            npcSelect.innerHTML = '<option disabled selected>NPC</option>';
-            for (const key in npcData) {
-                const npc = npcData[key];
-                const option = document.createElement('option');
-                option.value = key;
-                option.textContent = npc.identity.name;
-                npcSelect.appendChild(option);
-            }
-        } catch (error) {
-            console.error('Error populating dropdowns:', error);
-        }
-    }
-
-    populateDropdowns();
-</script>

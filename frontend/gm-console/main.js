@@ -58,9 +58,35 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Function to initialize the top panel logic (will be filled in later)
-    function initializeTopPanel() {
-        // Placeholder for top panel's JS logic
+    // Function to initialize the top panel logic
+    async function initializeTopPanel() {
+        try {
+            const charactersResponse = await fetch('http://127.0.0.1:8000/api/characters');
+            const charactersData = await charactersResponse.json();
+            const characterSelect = document.getElementById('character-select');
+            characterSelect.innerHTML = '<option disabled selected>Characters</option>';
+            for (const key in charactersData) {
+                const character = charactersData[key];
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = character.identity.name;
+                characterSelect.appendChild(option);
+            }
+
+            const npcResponse = await fetch('http://127.0.0.1:8000/api/npcs');
+            const npcData = await npcResponse.json();
+            const npcSelect = document.getElementById('npc-select');
+            npcSelect.innerHTML = '<option disabled selected>NPC</option>';
+            for (const key in npcData) {
+                const npc = npcData[key];
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = npc.identity.name;
+                npcSelect.appendChild(option);
+            }
+        } catch (error) {
+            console.error('Error populating dropdowns:', error);
+        }
     }
 
     function loadPanel(panelId, url) {
@@ -76,13 +102,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (panelElement) {
                     panelElement.innerHTML = html;
 
-                    // After loading, initialize the specific panel's JS
                     if (panelId === "center-panel") {
                         initializeCenterPanel();
                     } else if (panelId === "top-panel") {
                         initializeTopPanel();
                     } else if (panelId === "bottom-panel") {
-                        // The timeout ensures the panel is fully in the DOM
                         setTimeout(fetchCharacters, 100); 
                     }
                 }
