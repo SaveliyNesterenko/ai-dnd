@@ -8,40 +8,37 @@
     padding: 10px;
     box-sizing: border-box;
     overflow-x: scroll;
-    gap: 20px; /* Increased space between cards */
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    gap: 20px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 .characters-container::-webkit-scrollbar {
     display: none;
 }
 
-/* === Character Card (Classic Sheet Style) === */
+/* === Character Card (Classic Sheet Style) - FINAL COMPACT VERSION === */
 .character-card {
-    height: 95%; /* Slightly reduced height to not touch the edges */
-    aspect-ratio: 2 / 3; /* Taller than wide */
+    height: 95%;
+    aspect-ratio: 3 / 4.2; /* Fine-tuned ratio for content */
     flex-shrink: 0;
-    border: 1px solid #776a54; /* Thematic border color */
+    border: 1px solid #776a54;
     border-radius: 10px;
-    color: #f0e6d6; /* Light parchment color for text */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    color: #f0e6d6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     cursor: pointer;
     transition: transform 0.3s, box-shadow 0.3s;
-    
-    /* Background image setup */
     background-size: cover;
     background-position: center;
-    background-color: #2a2f38; /* Fallback color */
-
-    position: relative; /* For the overlay */
+    background-color: #2a2f38;
+    position: relative;
     display: flex;
-    overflow: hidden; /* Important for border-radius on children */
+    overflow: hidden;
 }
 
 .character-card:hover {
     transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Gradient Overlay for text readability */
@@ -52,57 +49,58 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(to top, rgba(15, 10, 5, 0.95) 25%, rgba(15, 10, 5, 0.6) 50%, rgba(0, 0, 0, 0.2) 100%);
+    background: linear-gradient(to top, rgba(15, 10, 5, 0.98) 20%, rgba(15, 10, 5, 0.7) 50%, transparent 100%);
     z-index: 0;
 }
 
 /* === Card Content === */
 .card-content {
-    position: relative; /* To appear above the overlay */
+    position: relative;
     z-index: 1;
     width: 100%;
-    padding: 18px;
+    padding: 12px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end; /* Push content to the bottom */
+    justify-content: space-between; /* This is key: pushes header up and buttons down */
 }
 
 .character-card h3 {
     font-family: 'serif';
-    font-size: 1.8em;
+    font-size: 1.4em;
     font-weight: 600;
     margin: 0;
-    color: #fca311; /* Accent color for the name */
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    color: #fca311;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    text-align: center;
 }
 
 .role {
     font-family: 'serif';
     font-style: italic;
-    font-size: 1em;
+    font-size: 0.85em;
     color: #d3c4a8;
-    margin: 0 0 15px 0;
+    margin: 2px 0 10px 0;
     border-bottom: 1px solid #776a54;
-    padding-bottom: 10px;
+    padding-bottom: 5px;
+    text-align: center;
 }
 
 /* === Stats Grid === */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 4px;
     width: 100%;
-    margin-bottom: auto; /* Pushes everything below it down */
 }
 
 .stat-item {
     display: flex;
     justify-content: space-between;
-    font-size: 0.9em;
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 4px 6px;
-    border-radius: 4px;
+    font-size: 0.8em;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 2px 5px;
+    border-radius: 3px;
 }
 
 .stat-item span:first-child {
@@ -113,22 +111,24 @@
 /* === Card Buttons === */
 .card-buttons {
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
+    justify-content: space-around; /* Changed to space-around */
+    gap: 5px;
     width: 100%;
-    margin-top: 20px; /* Space from the content above */
+    margin-top: 10px;
 }
 
 .card-btn {
-    flex-grow: 1;
-    font-family: 'serif';
     background-color: transparent;
     border: 1px solid #776a54;
     color: #d3c4a8;
-    padding: 8px 5px;
+    padding: 5px;
+    width: 40px; /* Fixed width for consistency */
+    height: 30px; /* Fixed height for consistency */
     border-radius: 5px;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 1.2em; /* Larger size for icons */
+    line-height: 1;
+    text-align: center;
     transition: background-color 0.2s, color 0.2s;
 }
 

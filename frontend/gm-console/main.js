@@ -40,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Set background image
             if (charData.meta && charData.meta.sprite_id) {
-                // Path is relative to the root where index.html is served from.
                 card.style.backgroundImage = `url(../../assets/characters/${charData.meta.sprite_id}.png)`;
             }
 
@@ -62,9 +61,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         ${statsHtml}
                     </div>
                     <div class="card-buttons">
-                        <button class="card-btn">attributes</button>
-                        <button class="card-btn">status_effects</button>
-                        <button class="card-btn">inventory</button>
+                        <button class="card-btn" title="Attributes">&#9733;</button>
+                        <button class="card-btn" title="Status Effects">&#9881;</button>
+                        <button class="card-btn" title="Inventory">&#127890;</button>
                     </div>
                 </div>
             `;
