@@ -1,10 +1,14 @@
 <div class="editor-container">
     <h1>GM Console</h1>
 
-    <!-- Поле для ввода ключа персонажа -->
+    <!-- Поле для выбора персонажа -->
     <div class="input-group">
-        <label for="charKey">ID Персонажа (из characters.json):</label>
-        <input type="text" id="charKey" placeholder="Например: grommash" value="grommash">
+        <label for="charKey">Персонаж:</label>
+        <select id="charKey">
+            <option value="grommash">Громмаш</option>
+            <option value="aelin">Аэлин</option>
+            <option value="garret">Гаррет</option>
+        </select>
     </div>
 
     <!-- Текстовое поле для ответа -->
