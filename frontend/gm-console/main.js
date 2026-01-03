@@ -11,8 +11,26 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Global State ---
     let allCharactersData = {}; // Cache for all character data (PCs and NPCs)
     const visibleCharacterIds = new Set(); // IDs of characters currently visible
+    let selectedCharacterCard = null;
 
     // --- Core Logic ---
+
+    function selectCharacter(cardElement) {
+        // If there's a previously selected card, remove its 'active' class
+        if (selectedCharacterCard) {
+            selectedCharacterCard.classList.remove('active');
+        }
+
+        // Set the new card as selected and add the 'active' class
+        selectedCharacterCard = cardElement;
+        selectedCharacterCard.classList.add('active');
+
+        // Update the input field with the character's key
+        const charKeyInput = document.getElementById('charKey');
+        if (charKeyInput) {
+            charKeyInput.value = cardElement.dataset.charKey;
+        }
+    }
 
     function toggleCharacterCard(characterId) {
         const container = document.querySelector('#bottom-panel .characters-container');
@@ -154,8 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
             container.addEventListener('click', (event) => {
                 const card = event.target.closest('.character-card');
                 if (card) {
-                    const charKeyInput = document.getElementById('charKey');
-                    if (charKeyInput) charKeyInput.value = card.dataset.charKey;
+                    selectCharacter(card);
                 }
             });
 

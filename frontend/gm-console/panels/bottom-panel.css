@@ -146,3 +146,9 @@
     color: #151922;
     border-color: #fca311;
 }
+
+.character-card.active {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 0 15px 5px #ffd700;
+    border: 2px solid #ffd700;
+}
