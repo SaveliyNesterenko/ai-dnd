@@ -37,9 +37,38 @@ document.addEventListener("DOMContentLoaded", () => {
             const card = document.createElement('div');
             card.className = 'character-card';
             card.dataset.charKey = characterId;
+
+            // Set background image
+            if (charData.meta && charData.meta.sprite_id) {
+                // Path is relative to the root where index.html is served from.
+                card.style.backgroundImage = `url(../../assets/characters/${charData.meta.sprite_id}.png)`;
+            }
+
             const name = charData.identity ? charData.identity.name : 'Unknown';
-            const bio = charData.identity && charData.identity.bio ? charData.identity.bio.substring(0, 100) + '...' : 'No bio.';
-            card.innerHTML = `<h3>${name}</h3><p>${bio}</p>`;
+            const role = charData.meta ? charData.meta.role : 'No Role';
+            
+            let statsHtml = '';
+            if (charData.stats && charData.stats.attributes) {
+                for (const [key, value] of Object.entries(charData.stats.attributes)) {
+                    statsHtml += `<div class="stat-item"><span>${key}</span><span>${value}</span></div>`;
+                }
+            }
+
+            card.innerHTML = `
+                <div class="card-content">
+                    <h3>${name}</h3>
+                    <p class="role">${role}</p>
+                    <div class="stats-grid">
+                        ${statsHtml}
+                    </div>
+                    <div class="card-buttons">
+                        <button class="card-btn">attributes</button>
+                        <button class="card-btn">status_effects</button>
+                        <button class="card-btn">inventory</button>
+                    </div>
+                </div>
+            `;
+            
             container.appendChild(card);
             visibleCharacterIds.add(characterId);
         }

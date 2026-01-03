@@ -20,7 +20,7 @@
 
 .character-card {
     height: 90%;
-    aspect-ratio: 2 / 3;
+    aspect-ratio: 3 / 3;
     flex-shrink: 0; /* Prevent cards from shrinking */
     background-color: #333;
     border: 1px solid #555;
