@@ -40,6 +40,26 @@ export async function postGmAction(text) {
     return await response.json();
 }
 
+/**
+ * Обновляет список активных персонажей на сервере.
+ * @param {object} data - Данные для отправки (например, { characters_id: [...] }).
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function updateActiveCharacters(data) {
+    const response = await fetch(`${API_BASE_URL}/api/update_active_characters`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update active characters');
+    }
+    return await response.json();
+}
+
 
 /**
  * Запрашивает и возвращает данные всех персонажей.

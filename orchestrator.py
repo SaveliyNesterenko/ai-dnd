@@ -14,7 +14,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List
 from dotenv import load_dotenv
 from openai import OpenAI
 from response_handler import handle_response
@@ -56,11 +57,15 @@ class ActionRequest(BaseModel):
 class GmActionRequest(BaseModel):
     text: str
 
+class ActiveCharactersRequest(BaseModel):
+    characters_id: List[str]
+
 
 CHARACTERS_FILE = "./data/characters.json"
 NPC_FILE = "./data/npc.json"
 EVENT_LOG_FILE = "./data/event_log.json"
 LOCATIONS_FILE = "./data/locations.json"
+ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 
 # --- SSE (Server-Sent Events) Endpoints ---
 
@@ -129,6 +134,21 @@ async def character_stream():
 
 
 # --- Standard API Endpoints ---
+
+@app.post("/api/update_active_characters")
+async def update_active_characters(request: ActiveCharactersRequest):
+    """
+    Обновляет файл active_characters.json списком ID активных персонажей.
+    """
+    try:
+        # Мы просто перезаписываем файл, так как нам не нужно сохранять предыдущее состояние
+        if save_json(ACTIVE_CHARACTERS_FILE, request.dict()):
+            return {"status": "success", "message": "Active characters updated."}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save active characters file.")
+    except Exception as e:
+        print(f"Error updating active characters: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/characters")
 async def get_characters():
