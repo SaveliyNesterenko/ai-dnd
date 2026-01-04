@@ -73,7 +73,6 @@ export function initializeLeftPanel() {
         }
 
         sendButton.disabled = true;
-        sendButton.textContent = "Отправка...";
 
         try {
             await api.postGmAction(textToSend);
