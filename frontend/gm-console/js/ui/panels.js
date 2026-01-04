@@ -19,9 +19,15 @@ export function initializeCenterPanel() {
     const sendBtn = document.getElementById('sendBtn');
     const charInput = document.getElementById('charKey');
     const outputArea = document.getElementById('modelOutput');
-    if (!sendBtn || !charInput || !outputArea) return;
+    const responseButtons = document.getElementById('response-buttons');
+    const retryBtn = document.getElementById('retryBtn');
+    const sendResponseBtn = document.getElementById('sendResponseBtn');
+    const sendWithDiceRollBtn = document.getElementById('sendWithDiceRollBtn');
 
-    sendBtn.addEventListener('click', async () => {
+
+    if (!sendBtn || !charInput || !outputArea || !responseButtons || !retryBtn || !sendResponseBtn || !sendWithDiceRollBtn) return;
+
+    const generateResponse = async () => {
         const charKey = charInput.value.trim();
         if (!charKey) {
             alert("Пожалуйста, введите ID персонажа!");
@@ -30,9 +36,12 @@ export function initializeCenterPanel() {
         sendBtn.disabled = true;
         sendBtn.textContent = "Думаю...";
         outputArea.value = "Запрос отправлен к модели...";
+        responseButtons.style.display = 'none';
+
         try {
             const data = await api.postAction(charKey);
             outputArea.value = data.response;
+            responseButtons.style.display = 'block';
         } catch (error) {
             console.error('Ошибка:', error);
             outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
@@ -40,6 +49,19 @@ export function initializeCenterPanel() {
             sendBtn.disabled = false;
             sendBtn.textContent = "Сгенерировать ответ";
         }
+    };
+
+    sendBtn.addEventListener('click', generateResponse);
+    retryBtn.addEventListener('click', generateResponse);
+
+    sendResponseBtn.addEventListener('click', () => {
+        // Placeholder for future functionality
+        console.log('Отправить');
+    });
+
+    sendWithDiceRollBtn.addEventListener('click', () => {
+        // Placeholder for future functionality
+        console.log('Отправить с Dice Roll');
     });
 }
 
