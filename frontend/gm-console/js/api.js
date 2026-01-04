@@ -72,6 +72,16 @@ export async function fetchNpcs() {
 }
 
 /**
+ * Запрашивает и возвращает данные о локациях.
+ * @returns {Promise<object>} Данные о локациях.
+ */
+export async function fetchLocations() {
+    const response = await fetch(`${API_BASE_URL}/api/locations`);
+    if (!response.ok) throw new Error('Failed to load locations');
+    return await response.json();
+}
+
+/**
  * Запрашивает и возвращает историю событий. (Используется для первоначальной загрузки)
  * @returns {Promise<object>} История событий.
  */

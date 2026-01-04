@@ -89,10 +89,10 @@ export function initializeLeftPanel() {
 
 /**
  * Инициализирует логику верхней панели.
- * Заполняет выпадающие списки персонажей и NPC.
+ * Заполняет выпадающие списки персонажей, NPC и локаций.
  */
 export async function initializeTopPanel() {
-    const populateSelect = async (fetcher, selectId, defaultText) => {
+    const populateSelect = async (fetcher, selectId, defaultText, nameField = null) => {
         try {
             const data = await fetcher();
             const select = document.getElementById(selectId);
@@ -102,7 +102,8 @@ export async function initializeTopPanel() {
                 const item = data[key];
                 const option = document.createElement('option');
                 option.value = key;
-                option.textContent = item.identity.name;
+                // Если `nameField` задано, используем его для получения имени, иначе используем ключ
+                option.textContent = nameField ? item[nameField] : key;
                 select.appendChild(option);
             }
         } catch (error) {
@@ -110,8 +111,9 @@ export async function initializeTopPanel() {
         }
     };
 
-    await populateSelect(api.fetchCharacters, 'character-select', 'Characters');
-    await populateSelect(api.fetchNpcs, 'npc-select', 'NPCs');
+    await populateSelect(api.fetchCharacters, 'character-select', 'Characters', 'identity.name');
+    await populateSelect(api.fetchNpcs, 'npc-select', 'NPCs', 'identity.name');
+    await populateSelect(api.fetchLocations, 'location-select', 'Locations');
 
     const handleDropdownChange = (event) => {
         const selectedId = event.target.value;
@@ -120,6 +122,11 @@ export async function initializeTopPanel() {
 
     document.getElementById('character-select')?.addEventListener('change', handleDropdownChange);
     document.getElementById('npc-select')?.addEventListener('change', handleDropdownChange);
+    document.getElementById('location-select')?.addEventListener('change', (event) => {
+        const selectedLocation = event.target.value;
+        // Здесь вы можете добавить логику для обработки выбора локации
+        console.log(`Location selected: ${selectedLocation}`);
+    });
 }
 
 /**

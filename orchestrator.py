@@ -57,6 +57,7 @@ class GmActionRequest(BaseModel):
 CHARACTERS_FILE = "./data/characters.json"
 NPC_FILE = "./data/npc.json"
 EVENT_LOG_FILE = "./data/event_log.json"
+LOCATIONS_FILE = "./data/locations.json"
 LOG_DIR = "./logs"
 
 if not os.path.exists(LOG_DIR):
@@ -187,6 +188,13 @@ async def get_npcs():
     if npc_data is None:
         raise HTTPException(status_code=404, detail="NPC data not found.")
     return npc_data
+
+@app.get("/api/locations")
+async def get_locations():
+    locations_data = load_json(LOCATIONS_FILE)
+    if locations_data is None:
+        raise HTTPException(status_code=404, detail="Locations data not found.")
+    return locations_data.get("locations", {})
 
 @app.get("/api/all_characters")
 async def get_all_characters():
