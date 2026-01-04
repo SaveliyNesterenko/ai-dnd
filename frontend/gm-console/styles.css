@@ -145,3 +145,44 @@ input:focus, textarea:focus {
     transform: none;
     color: #aaa;
 }
+
+#response-buttons {
+    display: flex;
+    justify-content: space-around;
+    width: 90%;
+    align-self: center;
+    margin-top: 10px;
+}
+
+.response-btn {
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    flex-grow: 1;
+    margin: 0 5px;
+}
+
+.response-btn:hover {
+    opacity: 0.9;
+}
+
+.response-btn:active {
+    transform: scale(0.98);
+}
+
+#retryBtn {
+    background-color: #ffc107; /* Yellow */
+}
+
+#sendResponseBtn {
+    background-color: #28a745; /* Green */
+}
+
+#sendWithDiceRollBtn {
+    background-color: #17a2b8; /* Teal */
+}

@@ -10,11 +10,13 @@
     <!-- Текстовое поле для ответа -->
     <textarea class="model response" id="modelOutput" placeholder="Здесь появится ответ нейросети..."></textarea>
 
-    <button class="generate-btn" id="sendBtn">Сгенерировать ответ</button>
+    <div id="generate-button-container">
+        <button class="generate-btn" id="sendBtn">Сгенерировать ответ</button>
+    </div>
 
     <div id="response-buttons" style="display: none;">
-        <button id="retryBtn">Повторить</button>
-        <button id="sendResponseBtn">Отправить</button>
-        <button id="sendWithDiceRollBtn">Отправить с Dice Roll</button>
+        <button id="retryBtn" class="response-btn">Повторить</button>
+        <button id="sendResponseBtn" class="response-btn">Отправить</button>
+        <button id="sendWithDiceRollBtn" class="response-btn">Отправить с Dice Roll</button>
     </div>
 </div>

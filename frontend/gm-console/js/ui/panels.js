@@ -16,6 +16,7 @@ const getNestedProperty = (obj, path) => {
  * Initializes the center panel logic.
  */
 export function initializeCenterPanel() {
+    const generateButtonContainer = document.getElementById('generate-button-container');
     const sendBtn = document.getElementById('sendBtn');
     const charInput = document.getElementById('charKey');
     const outputArea = document.getElementById('modelOutput');
@@ -24,8 +25,7 @@ export function initializeCenterPanel() {
     const sendResponseBtn = document.getElementById('sendResponseBtn');
     const sendWithDiceRollBtn = document.getElementById('sendWithDiceRollBtn');
 
-
-    if (!sendBtn || !charInput || !outputArea || !responseButtons || !retryBtn || !sendResponseBtn || !sendWithDiceRollBtn) return;
+    if (!generateButtonContainer || !sendBtn || !charInput || !outputArea || !responseButtons || !retryBtn || !sendResponseBtn || !sendWithDiceRollBtn) return;
 
     const generateResponse = async () => {
         const charKey = charInput.value.trim();
@@ -33,37 +33,45 @@ export function initializeCenterPanel() {
             alert("Пожалуйста, введите ID персонажа!");
             return;
         }
-        sendBtn.disabled = true;
-        sendBtn.textContent = "Думаю...";
-        outputArea.value = "Запрос отправлен к модели...";
+
+        // Hide buttons and show thinking status
+        generateButtonContainer.style.display = 'none';
         responseButtons.style.display = 'none';
+        outputArea.value = "Запрос отправлен к модели...";
 
         try {
             const data = await api.postAction(charKey);
             outputArea.value = data.response;
-            responseButtons.style.display = 'block';
+            responseButtons.style.display = 'flex'; // Show response buttons
         } catch (error) {
             console.error('Ошибка:', error);
             outputArea.value = "ПРОИЗОШЛА ОШИБКА:\n" + error.message;
-        } finally {
-            sendBtn.disabled = false;
-            sendBtn.textContent = "Сгенерировать ответ";
+            generateButtonContainer.style.display = 'block'; // Show generate button again on error
         }
     };
 
     sendBtn.addEventListener('click', generateResponse);
     retryBtn.addEventListener('click', generateResponse);
 
+    const resetToGenerate = () => {
+        responseButtons.style.display = 'none';
+        generateButtonContainer.style.display = 'block';
+        outputArea.value = ''; // Clear output
+    };
+
     sendResponseBtn.addEventListener('click', () => {
-        // Placeholder for future functionality
         console.log('Отправить');
+        // Here you would add the logic to actually send the response
+        resetToGenerate();
     });
 
     sendWithDiceRollBtn.addEventListener('click', () => {
-        // Placeholder for future functionality
         console.log('Отправить с Dice Roll');
+        // Here you would add the logic to send with a dice roll
+        resetToGenerate();
     });
 }
+
 
 /**
  * Initializes the left panel logic.
