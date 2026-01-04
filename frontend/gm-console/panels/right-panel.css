@@ -16,6 +16,7 @@
     color: #fff; /* White text */
     margin-top: 0;
     margin-bottom: 15px;
+    text-align: center; /* Center the heading */
 }
 
 #observer-textarea {
@@ -33,7 +34,7 @@
 
 .observer-buttons {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center; /* Center buttons horizontally */
     gap: 10px;
 }
 
