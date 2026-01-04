@@ -1,16 +1,67 @@
+
 .observer-container {
-    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px;
+    background-color: #f0f0f0; /* Light grey background */
+    border-left: 1px solid #ccc; /* Separator line */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.observer-container h3 {
+    font-family: 'Arial', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 15px;
 }
 
 #observer-textarea {
-    width: 100%;
-    margin-bottom: 10px;
+    flex-grow: 1; /* Make textarea fill available space */
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #333;
+    background-color: #fff;
+    resize: vertical; /* Allow vertical resizing */
 }
 
 .observer-buttons {
-    text-align: right;
+    display: flex;
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 10px; /* Space between buttons */
 }
 
 .observer-buttons button {
-    margin-left: 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#retry-button {
+    background-color: #f44336; /* Red */
+    color: white;
+}
+
+#retry-button:hover {
+    background-color: #d32f2f;
+}
+
+#confirm-button {
+    background-color: #4CAF50; /* Green */
+    color: white;
+}
+
+#confirm-button:hover {
+    background-color: #45a049;
 }
