@@ -56,8 +56,7 @@ export async function fetchAllCharacters() {
  * @returns {Promise<object>} Данные PC.
  */
 export async function fetchCharacters() {
-    const response = await fetch(`${API_
-BASE_URL}/api/characters`);
+    const response = await fetch(`${API_BASE_URL}/api/characters`);
     if (!response.ok) throw new Error('Failed to load characters');
     return await response.json();
 }
