@@ -1,6 +1,6 @@
 /* Left Panel CSS */
 #voice-input-panel {
-    padding: 15px;
+    padding: 15px 0;
 }
 
 .left-panel-section {
@@ -14,6 +14,7 @@
     display: flex;
     flex-direction: column;
     flex-grow: 1;
+    align-items: center;
 }
 
 #voice-preview {
@@ -25,10 +26,12 @@
     margin-bottom: 10px;
     padding: 10px;
     font-size: 16px;
+    width: 90%;
 }
 
 .voice-buttons {
     display: flex;
+    width: 90%;
 }
 
 #record-button {
