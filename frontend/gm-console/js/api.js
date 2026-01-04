@@ -1,6 +1,47 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
+ * Отправляет действие персонажа на сервер для генерации ответа модели.
+ * @param {string} characterKey - Ключ персонажа, который совершает действие.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function postAction(characterKey) {
+    const response = await fetch(`${API_BASE_URL}/act`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ character_key: characterKey }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to post action');
+    }
+    return await response.json();
+}
+
+/**
+ * Отправляет действие от имени Game Master.
+ * @param {string} text - Текст действия или реплики.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function postGmAction(text) {
+    const response = await fetch(`${API_BASE_URL}/api/add_gm_action`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to post GM action');
+    }
+    return await response.json();
+}
+
+
+/**
  * Запрашивает и возвращает данные всех персонажей.
  * @returns {Promise<object>} Данные всех персонажей.
  */
