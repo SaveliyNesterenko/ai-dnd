@@ -83,7 +83,7 @@ export function initializeLeftPanel() {
             // Optionally, display an error message to the user in the UI
         } finally {
             sendButton.disabled = false;
-            sendButton.textContent = "ОТПРАВИТЬ";
+            // sendButton.textContent = "ОТПРАВИТЬ";
         }
     });
 }
