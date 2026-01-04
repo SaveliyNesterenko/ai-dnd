@@ -4,37 +4,37 @@
     flex-direction: column;
     height: 100%;
     padding: 20px;
-    background-color: #f0f0f0; /* Light grey background */
-    border-left: 1px solid #ccc; /* Separator line */
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    background-color: #252526; /* Dark background */
+    border-left: 1px solid #333; /* Separator line */
+    box-sizing: border-box;
 }
 
 .observer-container h3 {
     font-family: 'Arial', sans-serif;
     font-size: 18px;
     font-weight: bold;
-    color: #333;
+    color: #fff; /* White text */
     margin-top: 0;
     margin-bottom: 15px;
 }
 
 #observer-textarea {
-    flex-grow: 1; /* Make textarea fill available space */
+    flex-grow: 1;
     margin-bottom: 15px;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid #555; /* Darker border */
     border-radius: 5px;
     font-family: 'Courier New', monospace;
     font-size: 14px;
-    color: #333;
-    background-color: #fff;
-    resize: vertical; /* Allow vertical resizing */
+    color: #fff; /* White text */
+    background-color: #3c3c3c; /* Dark input background */
+    resize: vertical;
 }
 
 .observer-buttons {
     display: flex;
-    justify-content: flex-end; /* Align buttons to the right */
-    gap: 10px; /* Space between buttons */
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 .observer-buttons button {
@@ -49,19 +49,19 @@
 }
 
 #retry-button {
-    background-color: #f44336; /* Red */
+    background-color: #5a5a5a; /* Grey button */
     color: white;
 }
 
 #retry-button:hover {
-    background-color: #d32f2f;
+    background-color: #6a6a6a;
 }
 
 #confirm-button {
-    background-color: #4CAF50; /* Green */
+    background-color: #007bff; /* Blue button */
     color: white;
 }
 
 #confirm-button:hover {
-    background-color: #45a049;
+    background-color: #0056b3;
 }
