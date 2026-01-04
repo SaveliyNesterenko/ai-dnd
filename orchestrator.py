@@ -185,7 +185,8 @@ async def add_gm_action(request: GmActionRequest):
 
 # --- MAIN GAME LOGIC ---
 
-@app.post("/act")sync def generate_action(request: ActionRequest):
+@app.post("/act")
+async def generate_action(request: ActionRequest):
     char_key = request.character_key
     all_chars_data = await get_all_characters()
     if char_key not in all_chars_data:
