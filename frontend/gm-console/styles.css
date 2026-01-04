@@ -23,8 +23,7 @@ body, html {
     border: 1px solid #333;
     overflow: auto;
     display: flex; /* Use flexbox to center content */
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
+    justify-content: center; /* Center vertically */
     flex-direction: column; /* Stack children vertically */
 }
 
