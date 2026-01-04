@@ -24,6 +24,7 @@ body, html {
     overflow: auto;
     display: flex; /* Use flexbox to center content */
     justify-content: center; /* Center vertically */
+    align-items: center; /* Center horizontally */
     flex-direction: column; /* Stack children vertically */
 }
 
