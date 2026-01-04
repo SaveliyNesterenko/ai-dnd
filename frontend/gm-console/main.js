@@ -10,45 +10,46 @@ const ROLE_COLORS = {
     enemy: 'red'
 };
 
-async function updateEventLog() {
+/**
+ * Отрисовывает историю событий в панели "Event Log".
+ * @param {Array} history - Массив событий для отображения.
+ */
+function renderEventLog(history) {
     const eventLogPanel = document.getElementById('event-log-panel');
     if (!eventLogPanel) return;
 
-    try {
-        const eventLogData = await api.fetchEventLog();
-        const history = eventLogData.history || [];
+    // Очищаем старые логи
+    eventLogPanel.innerHTML = '<h2>Event Log</h2>';
 
-        // Очищаем старые логи
-        eventLogPanel.innerHTML = '<h2>Event Log</h2>';
+    // Отображаем новые логи
+    history.forEach(event => {
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log-entry';
 
-        // Отображаем новые логи
-        history.forEach(event => {
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
+        const characterName = document.createElement('span');
+        characterName.className = 'character-name';
+        characterName.textContent = `${event.name}: `;
+        characterName.style.color = ROLE_COLORS[event.role] || 'white';
 
-            const characterName = document.createElement('span');
-            characterName.className = 'character-name';
-            characterName.textContent = `${event.name}: `;
-            characterName.style.color = ROLE_COLORS[event.role] || 'white';
+        const thoughts = document.createElement('p');
+        thoughts.className = 'thoughts';
+        thoughts.textContent = event.thoughts ? `Мысли: ${event.thoughts}` : '';
 
-            const thoughts = document.createElement('p');
-            thoughts.className = 'thoughts';
-            thoughts.textContent = event.thoughts ? `Мысли: ${event.thoughts}` : '';
+        const action = document.createElement('p');
+        action.className = 'action';
+        action.textContent = `Действие: ${event.action}`;
 
-            const action = document.createElement('p');
-            action.className = 'action';
-            action.textContent = `Действие: ${event.action}`;
+        logEntry.appendChild(characterName);
+        if (event.thoughts) logEntry.appendChild(thoughts);
+        logEntry.appendChild(action);
 
-            logEntry.appendChild(characterName);
-            logEntry.appendChild(thoughts);
-            logEntry.appendChild(action);
+        eventLogPanel.appendChild(logEntry);
+    });
 
-            eventLogPanel.appendChild(logEntry);
-        });
-    } catch (error) {
-        console.error('Failed to update event log:', error);
-    }
+    // Автоматически прокручиваем до последнего события
+    eventLogPanel.scrollTop = eventLogPanel.scrollHeight;
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
@@ -101,11 +102,15 @@ document.addEventListener("DOMContentLoaded", () => {
             // Затем загружаем все панели пользовательского интерфейса
             Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
 
-            // Обновляем лог в первый раз
-            updateEventLog();
+            // 1. Загружаем лог в первый раз при загрузке страницы
+            const initialLogData = await api.fetchEventLog();
+            renderEventLog(initialLogData.history || []);
 
-            // Устанавливаем интервал для автоматического обновления лога
-            setInterval(updateEventLog, 3000);
+            // 2. Подписываемся на живые обновления через SSE
+            api.subscribeToEventLog(eventLogData => {
+                console.log('Received event log update via SSE');
+                renderEventLog(eventLogData.history || []);
+            });
 
         } catch (error) {
             console.error("Failed to initialize the application:", error);

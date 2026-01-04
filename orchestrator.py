@@ -9,7 +9,9 @@ import os
 import json
 import datetime
 import uvicorn
+import asyncio
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -63,17 +65,12 @@ if not os.path.exists(LOG_DIR):
 
 def load_json(filepath):
     abs_path = os.path.abspath(filepath)
-    # print(f"📂 Загрузка файла: {abs_path}") # Reduced logging verbosity
-
     if not os.path.exists(filepath):
         print(f"❌ ОШИБКА: Файл физически не найден по пути: {filepath}")
         return None
-
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            # print(f"✅ Файл загружен. Найдены ключи: {list(data.keys())}") # Reduced logging verbosity
-            return data
+            return json.load(f)
     except json.JSONDecodeError as e:
         print(f"❌ ОШИБКА JSON: Неверный формат файла {filepath}. Детали: {e}")
         return None
@@ -102,7 +99,6 @@ def save_prompt_to_log(char_key, prompt_text):
     print(f"🗂️  Logging prompt for char_key: {char_key}")
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{LOG_DIR}/{now}_{char_key}.txt"
-
     try:
         with open(filename, "w", encoding="utf-8") as f:
             f.write(prompt_text)
@@ -110,13 +106,40 @@ def save_prompt_to_log(char_key, prompt_text):
     except Exception as e:
         print(f"⚠️ Ошибка при сохранении лога: {e}")
 
-# --- NEW API ENDPOINTS ---
+# --- SSE (Server-Sent Events) Endpoint ---
+
+last_known_data = {}
+
+async def event_stream_generator():
+    """
+    Генератор, который следит за изменениями в event_log.json
+    и отправляет обновления клиенту.
+    """
+    global last_known_data
+    while True:
+        try:
+            with open(EVENT_LOG_FILE, 'r', encoding='utf-8') as f:
+                current_data = json.load(f)
+            if current_data != last_known_data:
+                last_known_data = current_data
+                yield f"data: {json.dumps(current_data)}\n\n"
+        except (IOError, json.JSONDecodeError):
+            pass
+        await asyncio.sleep(1)
+
+@app.get("/api/event_stream")
+async def event_stream():
+    """
+    Эндпоинт, к которому будет подключаться клиент для получения
+    обновлений журнала событий в реальном времени.
+    """
+    return StreamingResponse(event_stream_generator(), media_type="text/event-stream")
+
+
+# --- Standard API Endpoints ---
 
 @app.get("/api/characters")
 async def get_characters():
-    """
-    Загружает и возвращает только игровых персонажей (PCs).
-    """
     characters_data = load_json(CHARACTERS_FILE)
     if characters_data is None:
         raise HTTPException(status_code=404, detail="Character data not found.")
@@ -124,9 +147,6 @@ async def get_characters():
 
 @app.get("/api/npcs")
 async def get_npcs():
-    """
-    Загружает и возвращает только неигровых персонажей (NPCs).
-    """
     npc_data = load_json(NPC_FILE)
     if npc_data is None:
         raise HTTPException(status_code=404, detail="NPC data not found.")
@@ -134,24 +154,15 @@ async def get_npcs():
 
 @app.get("/api/all_characters")
 async def get_all_characters():
-    """
-    Загружает и объединяет данные о персонажах и NPC.
-    Используется для отображения всех карточек на нижней панели.
-    """
     characters_data = load_json(CHARACTERS_FILE) or {}
     npc_data = load_json(NPC_FILE) or {}
-
     combined_data = {**characters_data, **npc_data}
-
     if not combined_data:
         raise HTTPException(status_code=404, detail="No character or NPC data found.")
     return combined_data
 
 @app.get("/api/event_log")
 async def get_event_log():
-    """
-    Загружает и возвращает историю событий.
-    """
     event_log_data = load_json(EVENT_LOG_FILE)
     if event_log_data is None:
         raise HTTPException(status_code=404, detail="Event log not found.")
@@ -159,111 +170,60 @@ async def get_event_log():
 
 @app.post("/api/add_gm_action")
 async def add_gm_action(request: GmActionRequest):
-    event_data = load_json(EVENT_LOG_FILE)
-    if event_data is None:
-        event_data = {"history": []}
-
+    event_data = load_json(EVENT_LOG_FILE) or {"history": []}
     history = event_data.get("history", [])
     new_step_number = history[-1].get("step", 0) + 1 if history else 1
-
     new_action = {
         "step": new_step_number,
         "name": "Game Master",
         "action": request.text
     }
-
     history.append(new_action)
     event_data["history"] = history
-
     if save_json(EVENT_LOG_FILE, event_data):
-        return {"status": "success", "message": "GM action added to the log."}
+        return {"status": "success", "message": "GM action added."}
     else:
-        raise HTTPException(status_code=500, detail="Failed to save the event log.")
+        raise HTTPException(status_code=500, detail="Failed to save event log.")
 
 # --- MAIN GAME LOGIC ---
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
     char_key = request.character_key
-
-    # Load all characters to find the requested one
     all_chars_data = await get_all_characters()
-
     if char_key not in all_chars_data:
         raise HTTPException(status_code=404, detail=f"Character '{char_key}' not found.")
-
+    
     char = all_chars_data[char_key]
     meta = char.get("meta", {})
     identity = char.get("identity", {})
     stats = char.get("stats", {})
     inventory = char.get("inventory", [])
     memory = char.get("memory", {})
-
     event_data = load_json(EVENT_LOG_FILE)
     history = event_data.get("history", []) if event_data else []
 
-    bio_block = (
-        f"Роль: {meta.get('role', 'Unknown')}\n"
-        f"Имя: {identity.get('name', 'Unknown')}\n"
-        f"Биография: {identity.get('bio', '')}"
-    )
-
-    hp_curr = stats.get('hp', {}).get('current', '?')
-    hp_max = stats.get('hp', {}).get('max', '?')
-    mp_curr = stats.get('mp', {}).get('current', '?')
-    mp_max = stats.get('mp', {}).get('max', '?')
-
-    attributes_dict = stats.get('attributes', {})
-    attributes_list = [f"{k}: {v}" for k, v in attributes_dict.items()]
-    attributes_str = ", ".join(attributes_list)
-
-    effects_list = stats.get('status_effects', [])
-    effects_str = ", ".join(effects_list) if effects_list else "Нет"
-
-    stats_str = (
-        f"Здоровье (HP): {hp_curr}/{hp_max} | Мана (MP): {mp_curr}/{mp_max}\n"
-        f"Атрибуты: {attributes_str}\n"
-        f"Эффекты: {effects_str}"
-    )
-
-    inv_str = "Инвентарь:\n"
-    if inventory:
-        for item in inventory:
-            inv_str += f"- {item.get('name')} ({item.get('quantity')} шт): {item.get('description')}\n"
-    else:
-        inv_str += "Пусто."
-
+    bio_block = f"Роль: {meta.get('role', 'Unknown')}\nИмя: {identity.get('name', 'Unknown')}\nБиография: {identity.get('bio', '')}"
+    hp_curr, hp_max = stats.get('hp', {}).get('current', '?'), stats.get('hp', {}).get('max', '?')
+    mp_curr, mp_max = stats.get('mp', {}).get('current', '?'), stats.get('mp', {}).get('max', '?')
+    attributes_str = ", ".join([f"{k}: {v}" for k, v in stats.get('attributes', {}).items()])
+    effects_str = ", ".join(stats.get('status_effects', [])) or "Нет"
+    stats_str = f"Здоровье (HP): {hp_curr}/{hp_max} | Мана (MP): {mp_curr}/{mp_max}\nАтрибуты: {attributes_str}\nЭффекты: {effects_str}"
+    
+    inv_str = "Инвентарь:\n" + ("\n".join([f"- {item.get('name')} ({item.get('quantity')} шт): {item.get('description')}" for item in inventory]) if inventory else "Пусто.")
     state_block = f"{stats_str}\n{inv_str}"
 
     global_mem = "\n".join(memory.get("global_chronicle", []))
     private_mem = "\n".join(memory.get("private_notes", []))
     memory_block = f"Глобальные знания:\n{global_mem}\n\nЛичные заметки:\n{private_mem}"
 
-    context_lines = []
-    for event in history:
-        step_info = f"[Шаг {event.get('step')}] {event.get('name')}:"
-        action_text = f"Действие/Речь: {event.get('action')}"
-        context_lines.append(f"{step_info} {action_text}")
-
+    context_lines = [f"[Шаг {e.get('step')}] {e.get('name')}: Действие/Речь: {e.get('action')}" for e in history]
     context_block = "История событий (Лог):\n" + "\n".join(context_lines)
 
     goal_block = "Твоя задача — отыгрывать роль своего персонажа, опираясь на его характер, состояние и историю событий."
+    format_block = "Твой ответ должен быть простым текстом, четко разделенным специальными тегами на два блока\n[THOUGHTS] Мысли и [ACTION] Действие / Речь.\nСтрого следуй формату.\nСначала напиши скрытые мысли персонажа, затем то, что он делает и (или) говорит вслух."
 
-    format_block = (
-    '''Твой ответ должен быть простым текстом, четко разделенным специальными тегами на два блока
-    [THOUGHTS] Мысли и [ACTION] Действие / Речь.
-    Строго следуй формату.
-    Сначала напиши скрытые мысли персонажа, затем то, что он делает и (или) говорит вслух.'''
-    )
-
-    final_prompt = (
-        f"--- ИНФОРМАЦИЯ О ПЕРСОНАЖЕ ---\n{bio_block}\n\n"
-        f"--- СОСТОЯНИЕ ---\n{state_block}\n\n"
-        f"--- ПАМЯТЬ ---\n{memory_block}\n\n"
-        f"--- КОНТЕКСТ ИГРЫ ---\n{context_block}\n\n"
-        f"--- ЦЕЛЬ ---\n{goal_block}\n\n"
-        f"--- ФОРМАТ ОТВЕТА ---\n{format_block}"
-    )
+    final_prompt = f"--- ИНФОРМАЦИЯ О ПЕРСОНАЖЕ ---\n{bio_block}\n\n--- СОСТОЯНИЕ ---\n{state_block}\n\n--- ПАМЯТЬ ---\n{memory_block}\n\n--- КОНТЕКСТ ИГРЫ ---\n{context_block}\n\n--- ЦЕЛЬ ---\n{goal_block}\n\n--- ФОРМАТ ОТВЕТА ---\n{format_block}"
 
     print(f"Запрос к модели: {meta.get('model_id')}")
     save_prompt_to_log(char_key, final_prompt)
@@ -276,20 +236,12 @@ async def generate_action(request: ActionRequest):
                 {"role": "user", "content": final_prompt}
             ]
         )
-
         ai_response = response.choices[0].message.content
-
-        event_data = load_json(EVENT_LOG_FILE)
-        if event_data is None:
-            event_data = {"history": []}
-
+        event_data = load_json(EVENT_LOG_FILE) or {"history": []}
         character_name = identity.get('name', 'Unknown')
         updated_event_data = handle_response(ai_response, event_data, character_name)
-
         save_json(EVENT_LOG_FILE, updated_event_data)
-
         return {"response": ai_response}
-
     except Exception as e:
         print(f"Error calling API: {e}")
         raise HTTPException(status_code=500, detail=str(e))

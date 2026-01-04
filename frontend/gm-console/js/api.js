@@ -31,7 +31,7 @@ export async function fetchNpcs() {
 }
 
 /**
- * Запрашивает и возвращает историю событий.
+ * Запрашивает и возвращает историю событий. (Используется для первоначальной загрузки)
  * @returns {Promise<object>} История событий.
  */
 export async function fetchEventLog() {
@@ -41,37 +41,23 @@ export async function fetchEventLog() {
 }
 
 /**
- * Отправляет действие персонажа на сервер.
- * @param {string} character_key - Ключ (ID) персонажа.
- * @returns {Promise<object>} Ответ сервера.
+ * Подписывается на обновления журнала событий с сервера.
+ * @param {function(object): void} onUpdate - Колбэк-функция, которая будет вызываться с новыми данными журнала.
  */
-export async function postAction(character_key) {
-    const response = await fetch(`${API_BASE_URL}/act`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ character_key })
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `Server error: ${response.status}`);
-    }
-    return await response.json();
-}
+export function subscribeToEventLog(onUpdate) {
+    const eventSource = new EventSource(`${API_BASE_URL}/api/event_stream`);
 
-/**
- * Отправляет действие Мастера Игры на сервер.
- * @param {string} text - Текст действия.
- * @returns {Promise<object>} Ответ сервера.
- */
-export async function postGmAction(text) {
-    const response = await fetch(`${API_BASE_URL}/api/add_gm_action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `Server error: ${response.status}`);
-    }
-    return await response.json();
+    eventSource.onmessage = function(event) {
+        const eventData = JSON.parse(event.data);
+        onUpdate(eventData);
+    };
+
+    eventSource.onerror = function(err) {
+        console.error("EventSource failed:", err);
+        // Можно добавить логику переподключения здесь
+        eventSource.close();
+    };
+
+    // Возвращаем объект EventSource, чтобы можно было закрыть соединение при необходимости
+    return eventSource;
 }
