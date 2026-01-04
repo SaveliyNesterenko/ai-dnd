@@ -106,34 +106,70 @@ def save_prompt_to_log(char_key, prompt_text):
     except Exception as e:
         print(f"⚠️ Ошибка при сохранении лога: {e}")
 
-# --- SSE (Server-Sent Events) Endpoint ---
+# --- SSE (Server-Sent Events) Endpoints ---
 
-last_known_data = {}
+last_known_event_data = {}
+last_known_character_data = {}
 
 async def event_stream_generator():
     """
     Генератор, который следит за изменениями в event_log.json
     и отправляет обновления клиенту.
     """
-    global last_known_data
+    global last_known_event_data
     while True:
         try:
-            with open(EVENT_LOG_FILE, 'r', encoding='utf-8') as f:
-                current_data = json.load(f)
-            if current_data != last_known_data:
-                last_known_data = current_data
+            current_data = load_json(EVENT_LOG_FILE)
+            if current_data and current_data != last_known_event_data:
+                last_known_event_data = current_data
                 yield f"data: {json.dumps(current_data)}\n\n"
-        except (IOError, json.JSONDecodeError):
-            pass
+        except Exception as e:
+            print(f"Error in event_stream_generator: {e}")
+        await asyncio.sleep(1)
+
+async def character_stream_generator():
+    """
+    Генератор, который следит за изменениями в файлах персонажей
+    и отправляет обновления клиенту.
+    """
+    global last_known_character_data
+    # При первом запуске, кешируем начальное состояние без отправки
+    initial_chars = await get_all_characters()
+    if initial_chars:
+        last_known_character_data = initial_chars
+    
+    while True:
+        try:
+            all_chars = await get_all_characters()
+            if all_chars and all_chars != last_known_character_data:
+                # Определяем, какие персонажи изменились
+                for char_id, char_data in all_chars.items():
+                    if char_id not in last_known_character_data or \
+                       last_known_character_data[char_id] != char_data:
+                        update_payload = {
+                            "id": char_id,
+                            "data": char_data
+                        }
+                        print(f"SENDING CHARACTER UPDATE: {char_id}")
+                        yield f"data: {json.dumps(update_payload)}\n\n"
+                last_known_character_data = all_chars
+        except Exception as e:
+            print(f"Error in character_stream_generator: {e}")
         await asyncio.sleep(1)
 
 @app.get("/api/event_stream")
 async def event_stream():
     """
-    Эндпоинт, к которому будет подключаться клиент для получения
-    обновлений журнала событий в реальном времени.
+    Эндпоинт для получения обновлений журнала событий.
     """
     return StreamingResponse(event_stream_generator(), media_type="text/event-stream")
+
+@app.get("/api/character_stream")
+async def character_stream():
+    """
+    Эндпоинт для получения обновлений данных персонажей.
+    """
+    return StreamingResponse(character_stream_generator(), media_type="text/event-stream")
 
 
 # --- Standard API Endpoints ---
@@ -157,8 +193,7 @@ async def get_all_characters():
     characters_data = load_json(CHARACTERS_FILE) or {}
     npc_data = load_json(NPC_FILE) or {}
     combined_data = {**characters_data, **npc_data}
-    if not combined_data:
-        raise HTTPException(status_code=404, detail="No character or NPC data found.")
+    # Не вызываем HTTPException, чтобы стрим работал, даже если файлы пусты
     return combined_data
 
 @app.get("/api/event_log")

@@ -1,6 +1,7 @@
-import { cacheAllCharacters } from './js/state.js';
+import { state, cacheAllCharacters } from './js/state.js';
 import * as api from './js/api.js';
 import * as panels from './js/ui/panels.js';
+import { updateCharacterCard } from './js/ui/characterCard.js';
 import './js/ui/inventoryModal.js'; // Просто импортируем, чтобы код был доступен
 
 const ROLE_COLORS = {
@@ -50,6 +51,28 @@ function renderEventLog(history) {
     eventLogPanel.scrollTop = eventLogPanel.scrollHeight;
 }
 
+/**
+ * Обрабатывает входящие обновления данных персонажа.
+ * @param {object} updatedCharData - Обновленные данные персонажа.
+ */
+function handleCharacterUpdate(updatedCharData) {
+    const charId = updatedCharData.id;
+    const newData = updatedCharData.data;
+
+    // 1. Обновить кэш
+    if (state.allCharactersData[charId]) {
+        Object.assign(state.allCharactersData[charId], newData);
+    }
+
+    // 2. Обновить видимую карточку, если она есть
+    if (state.visibleCharacterIds.has(charId)) {
+        const cardElement = document.querySelector(`[data-char-key='${charId}']`);
+        if (cardElement) {
+            console.log(`Updating card for ${charId}`);
+            updateCharacterCard(cardElement, state.allCharactersData[charId]);
+        }
+    }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
@@ -60,26 +83,14 @@ document.addEventListener("DOMContentLoaded", () => {
         "bottom-panel": "panels/bottom-panel.html"
     };
 
-    /**
-     * Загружает HTML-содержимое для указанной панели и вставляет его в DOM.
-     * После загрузки вызывает соответствующую функцию инициализации для этой панели.
-     * @param {string} panelId - ID HTML-элемента панели.
-     * @param {string} url - URL HTML-файла панели.
-     */
     function loadPanel(panelId, url) {
         fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.text();
-            })
+            .then(response => response.text())
             .then(html => {
                 const panelElement = document.getElementById(panelId);
                 if (!panelElement) return;
                 panelElement.innerHTML = html;
 
-                // Вызов инициализаторов в зависимости от панели
                 if (panelId === "center-panel") panels.initializeCenterPanel();
                 if (panelId === "top-panel") panels.initializeTopPanel();
                 if (panelId === "bottom-panel") panels.initializeBottomPanel();
@@ -88,28 +99,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => console.warn(`Could not load panel ${panelId}:`, err));
     }
 
-    /**
-     * Главная функция приложения.
-     * Кэширует все данные персонажей, а затем загружает все UI-панели.
-     */
     async function main() {
         try {
-            // Сначала кэшируем все данные, необходимые для создания карточек
             const allChars = await api.fetchAllCharacters();
             cacheAllCharacters(allChars);
             console.log("Character data cached.");
             
-            // Затем загружаем все панели пользовательского интерфейса
             Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
 
-            // 1. Загружаем лог в первый раз при загрузке страницы
             const initialLogData = await api.fetchEventLog();
             renderEventLog(initialLogData.history || []);
 
-            // 2. Подписываемся на живые обновления через SSE
             api.subscribeToEventLog(eventLogData => {
                 console.log('Received event log update via SSE');
                 renderEventLog(eventLogData.history || []);
+            });
+
+            api.subscribeToCharacterUpdates(characterUpdateData => {
+                console.log('Received character update via SSE:', characterUpdateData);
+                handleCharacterUpdate(characterUpdateData);
             });
 
         } catch (error) {

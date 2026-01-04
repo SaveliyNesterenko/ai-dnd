@@ -56,7 +56,8 @@ export async function fetchAllCharacters() {
  * @returns {Promise<object>} Данные PC.
  */
 export async function fetchCharacters() {
-    const response = await fetch(`${API_BASE_URL}/api/characters`);
+    const response = await fetch(`${API_
+BASE_URL}/api/characters`);
     if (!response.ok) throw new Error('Failed to load characters');
     return await response.json();
 }
@@ -100,5 +101,25 @@ export function subscribeToEventLog(onUpdate) {
     };
 
     // Возвращаем объект EventSource, чтобы можно было закрыть соединение при необходимости
+    return eventSource;
+}
+
+/**
+ * Подписывается на обновления данных персонажей с сервера.
+ * @param {function(object): void} onUpdate - Колбэк-функция для обработки обновлений.
+ */
+export function subscribeToCharacterUpdates(onUpdate) {
+    const eventSource = new EventSource(`${API_BASE_URL}/api/character_stream`);
+
+    eventSource.onmessage = function(event) {
+        const characterData = JSON.parse(event.data);
+        onUpdate(characterData);
+    };
+
+    eventSource.onerror = function(err) {
+        console.error("Character update EventSource failed:", err);
+        eventSource.close();
+    };
+
     return eventSource;
 }

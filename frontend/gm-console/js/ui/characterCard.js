@@ -2,6 +2,58 @@ import { state, addVisibleCharacter, removeVisibleCharacter, setSelectedCharacte
 import { showInventoryModal } from './inventoryModal.js';
 
 /**
+ * Обновляет существующую карточку персонажа новыми данными.
+ * @param {HTMLElement} cardElement - DOM-элемент карточки для обновления.
+ * @param {object} charData - Новые данные персонажа.
+ */
+export function updateCharacterCard(cardElement, charData) {
+    if (!cardElement || !charData) return;
+
+    // Обновление имени и роли
+    cardElement.querySelector('h3').textContent = charData.identity ? charData.identity.name : 'Unknown';
+    cardElement.querySelector('.role').textContent = charData.meta ? charData.meta.role : 'No Role';
+
+    // Обновление HP и MP
+    if (charData.stats) {
+        const hp = charData.stats.hp ? `${charData.stats.hp.current} / ${charData.stats.hp.max}` : 'N/A';
+        const mp = charData.stats.mp ? `${charData.stats.mp.current} / ${charData.stats.mp.max}` : 'N/A';
+        cardElement.querySelector('.stats-grid').innerHTML = `
+            <div class="stat-item"><span>HP</span><span>${hp}</span></div>
+            <div class="stat-item"><span>MP</span><span>${mp}</span></div>
+        `;
+    }
+
+    // Обновление атрибутов на обратной стороне
+    let attributesHtml = '<div class="attributes-grid">';
+    if (charData.stats && charData.stats.attributes) {
+        for (const attr in charData.stats.attributes) {
+            attributesHtml += `<div class="attribute-item"><span>${attr}</span><span>${charData.stats.attributes[attr]}</span></div>`;
+        }
+    }
+    attributesHtml += '</div>';
+    const attributesContent = cardElement.querySelector('.attributes-content');
+    if (attributesContent) {
+        attributesContent.innerHTML = attributesHtml;
+    }
+
+    // Обновление эффектов статуса на обратной стороне
+    let statusEffectsHtml = '<div class="status-effects-list">';
+    if (charData.stats && charData.stats.status_effects && charData.stats.status_effects.length > 0) {
+        charData.stats.status_effects.forEach(effect => {
+            statusEffectsHtml += `<div class="status-effect-item">${effect}</div>`;
+        });
+    } else {
+        statusEffectsHtml += '<p>No active effects</p>';
+    }
+    statusEffectsHtml += '</div>';
+    const statusEffectsContent = cardElement.querySelector('.status-effects-content');
+    if (statusEffectsContent) {
+        statusEffectsContent.innerHTML = statusEffectsHtml;
+    }
+}
+
+
+/**
  * Устанавливает персонажа как "выбранного".
  * Обновляет класс 'active' на карточке и вносит ID в соответствующее поле ввода.
  * @param {HTMLElement | null} cardElement - DOM-элемент карточки персонажа или null для сброса выбора.
