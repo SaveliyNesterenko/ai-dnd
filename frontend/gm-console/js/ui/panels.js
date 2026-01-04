@@ -1,5 +1,6 @@
 import * as api from '../api.js';
 import { toggleCharacterCard, selectCharacter } from './characterCard.js';
+import { state } from '../state.js';
 
 /**
  * Safely access nested properties of an object.
@@ -147,19 +148,51 @@ export async function initializeTopPanel() {
     await populateSelect(api.fetchNpcs, 'npc-select', 'NPCs', 'identity.name');
     await populateSelect(api.fetchLocations, 'location-select', 'Locations');
 
+    const eventButton = document.getElementById('event-button');
+    const locationSelect = document.getElementById('location-select');
+    const bottomPanelContainer = document.querySelector('#bottom-panel .characters-container');
+
+    const updateEventButtonState = () => {
+        const charactersCount = state.visibleCharacterIds.size;
+        const locationSelected = locationSelect.value !== 'Locations' && locationSelect.value !== '';
+        eventButton.disabled = !(charactersCount > 0 && locationSelected);
+    };
+
     const handleCharacterDropdownChange = (event) => {
         const selectedId = event.target.value;
-        if (selectedId) toggleCharacterCard(selectedId);
+        if (selectedId) {
+            toggleCharacterCard(selectedId);
+            // We need a slight delay to allow the DOM to update
+            setTimeout(updateEventButtonState, 100);
+        }
     };
 
     const handleLocationDropdownChange = (event) => {
         const selectedLocation = event.target.value;
         console.log(`Location selected: ${selectedLocation}`);
+        updateEventButtonState();
     };
-
+    
     document.getElementById('character-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('npc-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('location-select')?.addEventListener('change', handleLocationDropdownChange);
+
+    eventButton.addEventListener('click', async () => {
+        if (eventButton.textContent === 'Запустить событие') {
+            const characterIds = Array.from(state.visibleCharacterIds);
+            try {
+                await api.updateActiveCharacters({ characters_id: characterIds });
+                eventButton.textContent = 'Завершить событие';
+            } catch (error) {
+                console.error('Failed to update active characters:', error);
+            }
+        } else {
+            eventButton.textContent = 'Запустить событие';
+        }
+    });
+
+    // Initial check
+    updateEventButtonState();
 }
 
 /**
