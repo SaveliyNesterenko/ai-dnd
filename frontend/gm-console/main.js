@@ -5,10 +5,10 @@ import { updateCharacterCard } from './js/ui/characterCard.js';
 import './js/ui/inventoryModal.js';
 
 const ROLE_COLORS = {
-    player: 'green',
+    Player: 'green',
     gm: 'blue',
     npc: 'yellow',
-    enemy: 'red'
+    Enemy: 'red'
 };
 
 function renderEventLog(history) {
@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const allChars = await api.fetchAllCharacters();
             cacheAllCharacters(allChars);
             console.log("Character data cached.");
-            
+
             Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
 
             const initialLogData = await api.fetchEventLog();
@@ -154,9 +154,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderEventLog(eventLogData.history || []);
 
                 const lastEvent = eventLogData.history[eventLogData.history.length - 1];
-                if(lastEvent && lastEvent.name !== 'Game Master') {
+                if (lastEvent && lastEvent.name !== 'Game Master') {
                     const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
-                    if(actionMatch && actionMatch[1]) {
+                    if (actionMatch && actionMatch[1]) {
                         triggerObserver(actionMatch[1].trim());
                     }
                 }
