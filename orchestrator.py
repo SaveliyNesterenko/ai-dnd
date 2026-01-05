@@ -22,6 +22,7 @@ from response_handler import handle_response
 from utils.file_utils import load_json, save_json
 from utils.logger import save_prompt_to_log
 from prompt_builder import build_prompt, build_observer_prompt
+from archivist import archive_current_event
 
 # Загрузка переменных окружения из файла .env.
 load_dotenv()
@@ -141,6 +142,16 @@ async def character_stream():
 
 
 # --- Standard API Endpoints ---
+
+@app.post("/archive_event")
+async def handle_archive_event():
+    """
+    Эндпоинт для архивации текущего события.
+    """
+    result = archive_current_event()
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    return result
 
 @app.post("/api/update_active_characters")
 async def update_active_characters(request: ActiveCharactersRequest):

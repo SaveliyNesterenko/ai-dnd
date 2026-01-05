@@ -102,7 +102,6 @@ export async function applyJsonPatch(patch) {
     return await response.json();
 }
 
-
 /**
  * Запрашивает и возвращает данные всех персонажей.
  * @returns {Promise<object>} Данные всех персонажей.
@@ -193,4 +192,22 @@ export function subscribeToCharacterUpdates(onUpdate) {
     };
 
     return eventSource;
+}
+
+/**
+ * Отправляет запрос на архивацию текущего события.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function archiveEvent() {
+    const response = await fetch(`${API_BASE_URL}/archive_event`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to archive event');
+    }
+    return await response.json();
 }

@@ -164,7 +164,13 @@ export async function initializeTopPanel() {
                 console.error('Failed to update active characters:', error);
             }
         } else {
-            eventButton.textContent = 'Запустить событие';
+            try {
+                await api.archiveEvent();
+                eventButton.textContent = 'Запустить событие';
+            } catch (error) {
+                console.error('Failed to archive event:', error);
+                alert('Ошибка архивации события!');
+            }
         }
     });
 
