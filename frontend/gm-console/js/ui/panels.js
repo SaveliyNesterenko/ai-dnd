@@ -130,12 +130,18 @@ export async function initializeTopPanel() {
     await populateSelect(api.fetchLocations, 'location-select', 'Locations');
 
     const eventButton = document.getElementById('event-button');
+    const compressButton = document.getElementById('compress-context-btn');
     const locationSelect = document.getElementById('location-select');
     
     const updateEventButtonState = () => {
         const charactersCount = state.visibleCharacterIds.size;
         const locationSelected = locationSelect.value !== 'Locations' && locationSelect.value !== '';
         eventButton.disabled = !(charactersCount > 0 && locationSelected);
+    };
+
+    const updateCompressButtonState = () => {
+        const history = state.eventLog.history || [];
+        compressButton.disabled = history.length <= 10;
     };
 
     const handleCharacterDropdownChange = (event) => {
@@ -180,6 +186,35 @@ export async function initializeTopPanel() {
                 eventButton.style.backgroundColor = ''; // Сброс цвета
             }
         }
+    });
+
+    compressButton.addEventListener('click', async () => {
+        compressButton.disabled = true;
+        compressButton.style.backgroundColor = '#6c757d';
+        console.log("Отправка запроса на сжатие контекста...");
+
+        try {
+            const response = await api.compressContext();
+            console.log("Контекст успешно сжат:", response.message);
+            // Кнопка останется заблокированной, если шагов станет <= 10, 
+            // и активируется при следующем обновлении event_log
+        } catch (error) {
+            console.error('Failed to compress context:', error);
+            alert('Ошибка сжатия контекста!');
+        } finally {
+            compressButton.style.backgroundColor = ''; // Сброс цвета в любом случае
+            updateCompressButtonState(); // Перепроверяем состояние кнопки
+        }
+    });
+
+    // Инициализация и подписка на обновления event_log
+    const initialLog = await api.fetchEventLog();
+    state.eventLog = initialLog;
+    updateCompressButtonState();
+
+    api.subscribeToEventLog(log => {
+        state.eventLog = log;
+        updateCompressButtonState();
     });
 
     updateEventButtonState();

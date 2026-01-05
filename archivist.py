@@ -5,7 +5,7 @@ from openai import OpenAI
 from fastapi import APIRouter, HTTPException
 
 from utils.file_utils import load_json, save_json
-from utils.logger import save_prompt_to_log  # Импортируем логгер
+from utils.logger import save_prompt_to_log
 from prompt_builder import create_archivist_prompt
 
 # Инициализация роутера
@@ -32,18 +32,13 @@ async def handle_archive_event():
         if not event_log or not event_log.get("history"):
             return {"status": "success", "message": "Нет событий для архивации."}
 
-        # Подготовка данных для промта
         event_summary = ""
         for event in event_log["history"]:
             event_summary += f'Ход {event["step"]}: [{event["name"]}]\n{event["action"]}\n\n'
 
-        # Формирование промта
         prompt = create_archivist_prompt(event_summary)
-        
-        # Логирование промта
         save_prompt_to_log("archivist", prompt)
 
-        # Вызов API языковой модели
         response = client.chat.completions.create(
             model="deepseek/deepseek-v3.2",
             messages=[
@@ -53,13 +48,9 @@ async def handle_archive_event():
         )
         summary = response.choices[0].message.content
 
-        # Обновление персонажей из characters.json
         active_characters_data = load_json("data/active_characters.json")
         active_character_keys = active_characters_data.get("characters_id", [])
-
-        characters = load_json("data/characters.json")
-        if not characters:
-            characters = {}
+        characters = load_json("data/characters.json") or {}
 
         formatted_summary = f"Событие от {datetime.now().strftime('%Y-%m-%d')}:\n{summary}"
 
@@ -77,17 +68,74 @@ async def handle_archive_event():
 
         save_json("data/characters.json", characters)
 
-        # Логирование самого события (перенос старого лога)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_file_name = f"logs/event_log_{timestamp}.json"
         save_json(log_file_name, event_log)
 
-        # Очистка event_log.json
         event_log["history"] = []
         save_json("data/event_log.json", event_log)
 
-        return {"status": "success", "message": "Событие успешно заархивировано. Хроника персонажей обновлена."}
+        return {"status": "success", "message": "Событие успешно заархивировано."}
 
     except Exception as e:
-        print(f"Ошибка при архивации события: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/compress_context", tags=["Archivist"])
+async def handle_compress_context():
+    """
+    Сжимает историю событий, заменяя старые записи (все, кроме последних 10)
+    одним конспектом.
+    """
+    try:
+        event_log = load_json("data/event_log.json")
+        history = event_log.get("history", [])
+
+        if len(history) <= 10:
+            return {"status": "skipped", "message": "Недостаточно событий для сжатия (нужно больше 10)."}
+
+        history_to_compress = history[:-10]
+        recent_history = history[-10:]
+
+        event_summary = ""
+        for event in history_to_compress:
+            step = event.get("step", "N/A")
+            name = event.get("name", "Game Master")
+            action = event.get("action", "")
+            event_summary += f'Ход {step}: [{name}]\n{action}\n\n'
+
+        prompt = create_archivist_prompt(event_summary)
+        save_prompt_to_log("context_compressor", prompt)
+
+        response = client.chat.completions.create(
+            model="deepseek/deepseek-v3.2",
+            messages=[
+                {"role": "system", "content": "Ты — Синтезатор Хроники. Твоя задача - сделать краткий конспект событий."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        summary = response.choices[0].message.content
+
+        first_step = history_to_compress[0].get('step')
+        last_step = history_to_compress[-1].get('step')
+        
+        if isinstance(first_step, str) and '-' in first_step:
+            first_step = first_step.split('-')[0]
+
+        compressed_step_label = f"{first_step}-{last_step}"
+
+        compressed_event = {
+            "step": compressed_step_label,
+            "name": "Game Master",
+            "action": summary
+        }
+
+        new_history = [compressed_event] + recent_history
+        event_log["history"] = new_history
+        save_json("data/event_log.json", event_log)
+
+        return {"status": "success", "message": f"История событий с шага {first_step} по {last_step} была сжата."}
+
+    except Exception as e:
+        print(f"Ошибка при сжатии контекста: {e}")
         raise HTTPException(status_code=500, detail=str(e))

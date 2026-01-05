@@ -211,3 +211,21 @@ export async function archiveEvent() {
     }
     return await response.json();
 }
+
+/**
+ * Отправляет запрос на сжатие истории событий.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function compressContext() {
+    const response = await fetch(`${API_BASE_URL}/api/compress_context`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to compress context');
+    }
+    return await response.json();
+}
