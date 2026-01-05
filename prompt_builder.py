@@ -1,3 +1,4 @@
+import json
 
 def build_prompt(char, history):
     meta = char.get("meta", {})
@@ -20,7 +21,7 @@ def build_prompt(char, history):
     private_mem = "\n".join(memory.get("private_notes", []))
     memory_block = f"Глобальные знания:\n{global_mem}\n\nЛичные заметки:\n{private_mem}"
 
-    context_lines = [f"[Шаг {e.get('step')}] {e.get('name')}: Действие/Речь: {e.get('action')}" for e in history]
+    context_lines = [f"[Ход {e.get('step')}] {e.get('name')}: Действие/Речь: {e.get('action')}" for e in history]
     context_block = "История событий (Лог):\n" + "\n".join(context_lines)
 
     goal_block = "Твоя задача — отыгрывать роль своего персонажа, опираясь на его характер, состояние и историю событий."
@@ -44,4 +45,33 @@ def build_prompt(char, history):
 --- ФОРМАТ ОТВЕТА ---
 {format_block}"""
 
+    return final_prompt
+
+def build_observer_prompt(action, dice_roll, characters):
+    """
+    Формирует промт для "Наблюдателя".
+    """
+    # Системная инструкция для модели
+    instruction_block = """Ты — Процессор Игровой Логики (Game Logic Engine) и эксперт по механикам D&D 5e. Твоя основная задача — технический анализ игровых событий, расчет изменений характеристик персонажей и подготовка данных для обновления системы. Каждый твой ответ должен строго следовать структуре из двух блоков:
+[GM BRIEF]
+Краткая сводка для ГМ-а: что произошло технически, какие ресурсы потрачены, какие изменения внесены.
+[JSON PATCH]
+Фрагмент кода в формате JSON, содержащий только обновленные поля персонажей."""
+
+    # Блок с описанием события
+    event_block = f"Событие: {action}"
+    if dice_roll:
+        event_block += f"\nБросок кубика d20: {dice_roll}"
+
+    # Блок с данными персонажей в формате JSON
+    characters_json = json.dumps(characters, indent=2, ensure_ascii=False)
+    characters_block = f"Текущие данные персонажей:\n{characters_json}"
+
+    # Финальный промт
+    final_prompt = f"""{instruction_block}
+
+--- ВХОДНЫЕ ДАННЫЕ ---
+{event_block}
+{characters_block}
+"""
     return final_prompt

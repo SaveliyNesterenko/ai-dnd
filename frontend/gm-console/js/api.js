@@ -60,6 +60,48 @@ export async function updateActiveCharacters(data) {
     return await response.json();
 }
 
+/**
+ * Отправляет данные для анализа "Наблюдателем".
+ * @param {string} action - Строка действия.
+ * @param {number|null} diceRoll - Результат броска кубика d20 (или null).
+ * @returns {Promise<object>} Ответ от сервера с анализом.
+ */
+export async function getObserverAnalysis(action, diceRoll) {
+    const payload = { action, dice_roll: diceRoll };
+    const response = await fetch(`${API_BASE_URL}/api/observer_analysis`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to get observer analysis');
+    }
+    return await response.json();
+}
+
+/**
+ * Отправляет JSON Patch на сервер для обновления данных персонажей.
+ * @param {object} patch - JSON Patch объект.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function applyJsonPatch(patch) {
+    const response = await fetch(`${API_BASE_URL}/api/apply_json_patch`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ patch: patch }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to apply JSON patch');
+    }
+    return await response.json();
+}
+
 
 /**
  * Запрашивает и возвращает данные всех персонажей.

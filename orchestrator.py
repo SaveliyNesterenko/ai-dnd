@@ -15,13 +15,13 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from openai import OpenAI
 from response_handler import handle_response
 from utils.file_utils import load_json, save_json
 from utils.logger import save_prompt_to_log
-from prompt_builder import build_prompt
+from prompt_builder import build_prompt, build_observer_prompt
 
 # Загрузка переменных окружения из файла .env.
 load_dotenv()
@@ -59,6 +59,13 @@ class GmActionRequest(BaseModel):
 
 class ActiveCharactersRequest(BaseModel):
     characters_id: List[str]
+
+class ObserverRequest(BaseModel):
+    action: str
+    dice_roll: Optional[int] = None
+
+class JsonPatchRequest(BaseModel):
+    patch: Dict[str, Any]
 
 
 CHARACTERS_FILE = "./data/characters.json"
@@ -202,6 +209,82 @@ async def add_gm_action(request: GmActionRequest):
         return {"status": "success", "message": "GM action added."}
     else:
         raise HTTPException(status_code=500, detail="Failed to save event log.")
+
+# --- OBSERVER LOGIC ---
+
+@app.post("/api/observer_analysis")
+async def observer_analysis(request: ObserverRequest):
+    try:
+        # 1. Загружаем ID активных персонажей
+        active_chars_data = load_json(ACTIVE_CHARACTERS_FILE)
+        if not active_chars_data or not active_chars_data.get("characters_id"):
+            raise HTTPException(status_code=404, detail="Active characters not found or empty.")
+        active_ids = active_chars_data.get("characters_id")
+
+        # 2. Загружаем полные данные персонажей
+        all_chars = await get_all_characters()
+        active_chars_details = {char_id: all_chars[char_id] for char_id in active_ids if char_id in all_chars}
+
+        if not active_chars_details:
+             raise HTTPException(status_code=404, detail="No active characters with valid data found.")
+
+        # 3. Формируем промт
+        prompt = build_observer_prompt(request.action, request.dice_roll, active_chars_details)
+        save_prompt_to_log("observer", prompt) # Сохраняем промт для дебага
+
+        # 4. Отправляем запрос к модели
+        response = client.chat.completions.create(
+            model="deepseek/deepseek-v3.2", # Или другая модель по выбору
+            messages=[
+                {"role": "system", "content": "Ты — Процессор Игровой Логики."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        observer_response = response.choices[0].message.content
+        return {"response": observer_response}
+
+    except Exception as e:
+        print(f"Error in observer_analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/apply_json_patch")
+async def apply_json_patch(request: JsonPatchRequest):
+    try:
+        patch_data = request.patch
+        
+        # Загружаем текущие данные
+        characters_data = load_json(CHARACTERS_FILE) or {}
+        npc_data = load_json(NPC_FILE) or {}
+
+        # Применяем изменения
+        for char_id, updates in patch_data.items():
+            if char_id in characters_data:
+                # Глубокое обновление словаря
+                for key, value in updates.items():
+                    if isinstance(value, dict) and key in characters_data[char_id]:
+                        characters_data[char_id][key].update(value)
+                    else:
+                        characters_data[char_id][key] = value
+            elif char_id in npc_data:
+                 for key, value in updates.items():
+                    if isinstance(value, dict) and key in npc_data[char_id]:
+                        npc_data[char_id][key].update(value)
+                    else:
+                        npc_data[char_id][key] = value
+
+        # Сохраняем обновленные данные
+        save_json(CHARACTERS_FILE, characters_data)
+        save_json(NPC_FILE, npc_data)
+
+        return {"status": "success", "message": "Characters and NPCs updated successfully."}
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format in patch.")
+    except Exception as e:
+        print(f"Error applying JSON patch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # --- MAIN GAME LOGIC ---
 
