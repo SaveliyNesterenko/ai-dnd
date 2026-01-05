@@ -235,6 +235,6 @@ export function initializeBottomPanel() {
                 event.preventDefault();
                 container.scrollLeft += event.deltaY;
             }
-        });
+        }, { passive: false });
     }
 }
