@@ -61,32 +61,6 @@ export function initializeCenterPanel(triggerObserver) {
         triggerObserver(actionText, diceRoll);
         resetToActionGenerator();
     });
-
-    // === GM Console Logic ===
-    const gmInput = document.getElementById('gm-input');
-    const sendGmBtn = document.getElementById('send-gm-action');
-    const sendGmWithDiceRollBtn = document.getElementById('send-gm-action-dice');
-
-    if (!gmInput || !sendGmBtn || !sendGmWithDiceRollBtn) return;
-
-    const handleGmAction = async (withDiceRoll) => {
-        const text = gmInput.value.trim();
-        if (!text) return;
-
-        const diceRoll = withDiceRoll ? Math.floor(Math.random() * 20) + 1 : null;
-        triggerObserver(text, diceRoll);
-
-        try {
-            await api.postGmAction(text);
-            gmInput.value = ''; 
-        } catch (error) {
-            console.error('Failed to post GM action:', error);
-            alert('Failed to send GM action.');
-        }
-    };
-
-    sendGmBtn.addEventListener('click', () => handleGmAction(false));
-    sendGmWithDiceRollBtn.addEventListener('click', () => handleGmAction(true));
 }
 
 export function initializeLeftPanel() {
