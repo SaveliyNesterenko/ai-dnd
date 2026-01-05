@@ -264,7 +264,8 @@ async def generate_action(request: ActionRequest):
         
         event_data = load_json(EVENT_LOG_FILE) or {"history": []}
         char_name = char.get("identity", {}).get('name', 'Unknown')
-        updated_event_data = handle_response(ai_response, event_data, char_name)
+        char_role = char.get("meta", {}).get('role', 'Unknown')
+        updated_event_data = handle_response(ai_response, event_data, char_name, char_role)
         save_json(EVENT_LOG_FILE, updated_event_data)
         
         return {"response": ai_response}
