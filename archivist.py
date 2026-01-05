@@ -1,5 +1,4 @@
 import os
-import json
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -19,7 +18,7 @@ client = OpenAI(
 
 def archive_current_event():
     """
-    Архивирует текущее игровое событие.
+    Архивирует текущее игровое событие, обновляя хронику только для персонажей (не NPC).
     """
     try:
         event_log = load_json("data/event_log.json")
@@ -45,32 +44,32 @@ def archive_current_event():
         )
         summary = response.choices[0].message.content
 
-        # Обновление персонажей
+        # Обновление персонажей из characters.json
         active_characters_data = load_json("data/active_characters.json")
-        active_character_keys = active_characters_data["characters_id"]
+        active_character_keys = active_characters_data.get("characters_id", [])
 
         characters = load_json("data/characters.json")
-        npcs = load_json("data/npc.json")
+        if not characters:
+            characters = {}
+
+        formatted_summary = f"Событие от {datetime.now().strftime('%Y-%m-%d')}:\n{summary}"
 
         for char_key in active_character_keys:
-            # Определяем, в каком словаре находится персонаж
-            char_dict = None
             if char_key in characters:
-                char_dict = characters
-            elif char_key in npcs:
-                char_dict = npcs
-            
-            if char_dict:
-                if "memory" not in char_dict[char_key]:
-                    char_dict[char_key]["memory"] = {}
-                if "global_chronicle" not in char_dict[char_key]["memory"]:
-                    char_dict[char_key]["memory"]["global_chronicle"] = ""
-                
-                # Добавляем конспект в хронику
-                char_dict[char_key]["memory"]["global_chronicle"] += f"\n\n---\nСобытие от {datetime.now().strftime('%Y-%m-%d')}:\n{summary}"
+                # Убедимся, что все необходимые ключи существуют
+                char = characters[char_key]
+                if "memory" not in char: char["memory"] = {}
+                if "global_chronicle" not in char["memory"]: char["memory"]["global_chronicle"] = []
+
+                # Добавляем конспект как новый элемент в список
+                if isinstance(char["memory"]["global_chronicle"], list):
+                    char["memory"]["global_chronicle"].append(formatted_summary)
+                else:
+                    # На случай, если поле было строкой из-за старой логики
+                    old_data = char["memory"]["global_chronicle"]
+                    char["memory"]["global_chronicle"] = [old_data, formatted_summary]
 
         save_json("data/characters.json", characters)
-        save_json("data/npc.json", npcs)
 
         # Логирование
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -81,7 +80,7 @@ def archive_current_event():
         event_log["history"] = []
         save_json("data/event_log.json", event_log)
 
-        return {"status": "success", "message": "Событие успешно заархивировано."}
+        return {"status": "success", "message": "Событие успешно заархивировано. Хроника персонажей обновлена."}
 
     except Exception as e:
         print(f"Ошибка при архивации события: {e}")
