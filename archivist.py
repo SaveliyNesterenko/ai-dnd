@@ -2,21 +2,26 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
+from fastapi import APIRouter, HTTPException
+
 from utils.file_utils import load_json, save_json
 from prompt_builder import create_archivist_prompt
 
-# Загрузка переменных окружения
+# Инициализация роутера
+router = APIRouter()
+
+# Загрузка переменных окружения и инициализация клиента OpenAI
 load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_URL = os.getenv("OPENAI_BASE_URL", "https://routerai.ru/api/v1")
 
-# Инициализация клиента OpenAI
 client = OpenAI(
     api_key=API_KEY,
     base_url=BASE_URL
 )
 
-def archive_current_event():
+@router.post("/archive_event", tags=["Archivist"])
+async def handle_archive_event():
     """
     Архивирует текущее игровое событие, обновляя хронику только для персонажей (не NPC).
     """
@@ -56,16 +61,13 @@ def archive_current_event():
 
         for char_key in active_character_keys:
             if char_key in characters:
-                # Убедимся, что все необходимые ключи существуют
                 char = characters[char_key]
                 if "memory" not in char: char["memory"] = {}
                 if "global_chronicle" not in char["memory"]: char["memory"]["global_chronicle"] = []
 
-                # Добавляем конспект как новый элемент в список
                 if isinstance(char["memory"]["global_chronicle"], list):
                     char["memory"]["global_chronicle"].append(formatted_summary)
                 else:
-                    # На случай, если поле было строкой из-за старой логики
                     old_data = char["memory"]["global_chronicle"]
                     char["memory"]["global_chronicle"] = [old_data, formatted_summary]
 
@@ -84,4 +86,4 @@ def archive_current_event():
 
     except Exception as e:
         print(f"Ошибка при архивации события: {e}")
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))

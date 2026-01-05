@@ -199,7 +199,7 @@ export function subscribeToCharacterUpdates(onUpdate) {
  * @returns {Promise<object>} Ответ от сервера.
  */
 export async function archiveEvent() {
-    const response = await fetch(`${API_BASE_URL}/archive_event`, {
+    const response = await fetch(`${API_BASE_URL}/api/archive_event`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
