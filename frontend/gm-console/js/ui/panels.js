@@ -164,12 +164,20 @@ export async function initializeTopPanel() {
                 console.error('Failed to update active characters:', error);
             }
         } else {
+            eventButton.disabled = true;
+            eventButton.style.backgroundColor = '#6c757d'; // Серый цвет
+            console.log("Отправка запроса на архивацию события...");
+
             try {
                 await api.archiveEvent();
+                console.log("Событие успешно заархивировано.");
                 eventButton.textContent = 'Запустить событие';
             } catch (error) {
                 console.error('Failed to archive event:', error);
                 alert('Ошибка архивации события!');
+            } finally {
+                eventButton.disabled = false;
+                eventButton.style.backgroundColor = ''; // Сброс цвета
             }
         }
     });
