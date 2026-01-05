@@ -174,7 +174,7 @@ async def add_gm_action(request: GmActionRequest):
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
     history = event_data.get("history", [])
     new_step = history[-1].get("step", 0) + 1 if history else 1
-    new_action = {"step": new_step, "name": "Game Master", "action": request.text}
+    new_action = {"step": new_step, "name": "Game Master", "role": "gm", "action": request.text}
     history.append(new_action)
     event_data["history"] = history
     if save_json(EVENT_LOG_FILE, event_data):
