@@ -5,6 +5,7 @@ from openai import OpenAI
 from fastapi import APIRouter, HTTPException
 
 from utils.file_utils import load_json, save_json
+from utils.logger import save_prompt_to_log  # Импортируем логгер
 from prompt_builder import create_archivist_prompt
 
 # Инициализация роутера
@@ -38,6 +39,9 @@ async def handle_archive_event():
 
         # Формирование промта
         prompt = create_archivist_prompt(event_summary)
+        
+        # Логирование промта
+        save_prompt_to_log("archivist", prompt)
 
         # Вызов API языковой модели
         response = client.chat.completions.create(
@@ -73,7 +77,7 @@ async def handle_archive_event():
 
         save_json("data/characters.json", characters)
 
-        # Логирование
+        # Логирование самого события (перенос старого лога)
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_file_name = f"logs/event_log_{timestamp}.json"
         save_json(log_file_name, event_log)
