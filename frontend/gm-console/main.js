@@ -107,7 +107,6 @@ function initializeObserver() {
     });
 }
 
-
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
         "top-panel": "panels/top-panel.html",
@@ -125,9 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!panelElement) return;
                 panelElement.innerHTML = html;
 
-                if (panelId === "center-panel") panels.initializeCenterPanel();
+                if (panelId === "center-panel") panels.initializeCenterPanel(triggerObserver); // Pass trigger function
                 if (panelId === "top-panel") panels.initializeTopPanel();
-                if (panelId === "bottom-panel") panels.initializeBottomPanel(triggerObserver); // Pass trigger function
+                if (panelId === "bottom-panel") panels.initializeBottomPanel();
                 if (panelId === "left-panel") panels.initializeLeftPanel();
                 if (panelId === "right-panel") initializeObserver(); // Initialize observer buttons
             })
@@ -150,10 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 renderEventLog(eventLogData.history || []);
 
                 const lastEvent = eventLogData.history[eventLogData.history.length - 1];
-                // Automatically trigger observer for non-GM actions
                 if(lastEvent && lastEvent.name !== 'Game Master') {
-                    // Extract the ACTION part from the response for the observer
-                    const actionMatch = lastEvent.action.match(/\[ACTION\]([\s\S]*)/);
+                    const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
                     if(actionMatch && actionMatch[1]) {
                         triggerObserver(actionMatch[1].trim());
                     }

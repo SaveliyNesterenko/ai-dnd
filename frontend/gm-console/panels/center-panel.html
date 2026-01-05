@@ -1,22 +1,28 @@
-<div class="editor-container">
-    <h1>GM Console</h1>
-
-    <!-- Поле для ID персонажа -->
-    <div class="input-group">
-        <label for="charKey">ID Персонажа:</label>
-        <input type="text" id="charKey" placeholder="Например, grommash">
-    </div>
-
-    <!-- Текстовое поле для ответа -->
-    <textarea class="model response" id="modelOutput" placeholder="Здесь появится ответ нейросети..."></textarea>
-
+<!-- Character Action Generator -->
+<div id="character-action-generator">
+    <h2>Generate Character Action</h2>
+    <input type="text" id="charKey" placeholder="Enter Character ID">
     <div id="generate-button-container">
-        <button class="generate-btn" id="sendBtn">Сгенерировать ответ</button>
+        <button id="sendBtn">Generate</button>
     </div>
-
+    <textarea id="modelOutput" rows="8" cols="50" readonly></textarea>
     <div id="response-buttons" style="display: none;">
-        <button id="retryBtn" class="response-btn">Повторить</button>
-        <button id="sendResponseBtn" class="response-btn">Отправить</button>
-        <button id="sendWithDiceRollBtn" class="response-btn">Отправить с Dice Roll</button>
+        <button id="retryBtn">Retry</button>
+        <button id="sendResponseBtn">Send for Analysis</button>
+        <button id="sendWithDiceRollBtn">Send for Analysis with Dice Roll</button>
+    </div>
+</div>
+
+<hr style="margin: 20px 0;">
+
+<!-- GM Console -->
+<div id="gm-console">
+    <h2>GM Console</h2>
+    <div class="gm-input-container">
+        <textarea id="gm-input" placeholder="Введите действие от имени ГМ..."></textarea>
+        <div class="gm-buttons">
+            <button id="send-gm-action">Отправить</button>
+            <button id="send-gm-action-dice">Отправить с Dice Roll</button>
+        </div>
     </div>
 </div>
