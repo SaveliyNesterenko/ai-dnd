@@ -80,6 +80,7 @@ async function triggerObserver(action, diceRoll = null) {
 function initializeObserver() {
     const confirmButton = document.getElementById('confirm-button');
     const retryButton = document.getElementById('retry-button');
+    const resetButton = document.getElementById('reset-button');
     const observerTextarea = document.getElementById('observer-textarea');
 
     confirmButton.addEventListener('click', async () => {
@@ -104,6 +105,10 @@ function initializeObserver() {
         if (state.lastAction) {
             triggerObserver(state.lastAction, state.lastDiceRoll);
         }
+    });
+
+    resetButton.addEventListener('click', () => {
+        observerTextarea.value = '';
     });
 }
 
