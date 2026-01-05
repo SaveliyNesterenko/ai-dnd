@@ -26,8 +26,7 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
-#event-button {
-    background-color: #007bff;
+#event-button, #compress-context-btn {
     color: white;
     border: none;
     padding: 9px 15px;
@@ -38,11 +37,23 @@
     transition: background-color 0.2s ease;
 }
 
+#event-button {
+    background-color: #007bff;
+}
+
+#compress-context-btn {
+    background-color: #20c997; /* бирюзовый */
+}
+
 #event-button:not(:disabled):hover {
     background-color: #0056b3;
 }
 
-#event-button:disabled {
+#compress-context-btn:not(:disabled):hover {
+    background-color: #17a2b8; /* более темный бирюзовый */
+}
+
+#event-button:disabled, #compress-context-btn:disabled {
     background-color: #555;
     color: #aaa;
     cursor: not-allowed;
