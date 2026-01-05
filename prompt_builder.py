@@ -1,4 +1,5 @@
 import json
+from utils.logger import save_prompt_to_log
 
 def build_prompt(char, history):
     meta = char.get("meta", {})
@@ -74,4 +75,7 @@ def build_observer_prompt(action, dice_roll, characters):
 {event_block}
 {characters_block}
 """
+    
+    save_prompt_to_log("observer", final_prompt)
+
     return final_prompt
