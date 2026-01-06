@@ -1,70 +1,49 @@
-
 import subprocess
 import webbrowser
 import time
-import os
 import sys
 
-# --- Configuration ---
-# The backend command is modified to include the --reload flag for development
-BACKEND_COMMAND = ["uvicorn", "orchestrator:app", "--host", "127.0.0.1", "--port", "8000", "--reload"]
-FRONTEND_COMMAND = ["python", "-m", "http.server", "8080"]
-FRONTEND_DIR = os.path.join("frontend", "gm-console")
-BROWSER_URL = "http://localhost:8080/console-gm.html"
+# --- Конфигурация ---
+ORCHESTRATOR_HOST = "127.0.0.1"
+ORCHESTRATOR_PORT = 8000
 
-# --- Main Execution ---
-backend_process = None
-frontend_process = None
+# URL-адреса для открытия
+GM_CONSOLE_URL = f"http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}"
+SPECTATOR_URL = f"http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}/spectator"
 
-try:
-    print("🚀 Starting backend server in DEV MODE (with --reload)...")
-    # Use CREATE_NO_WINDOW flag on Windows to avoid opening new console windows
-    creationflags = 0
-    if sys.platform == "win32":
-        # On Windows, the reloader process starts a child process.
-        # We don't use CREATE_NO_WINDOW here to see the reloader's output.
-        pass
+def main():
+    """
+    Запускает сервер FastAPI и открывает фронтенд-панели в браузере.
+    """
+    print("--- Запуск среды разработки ---")
 
-    backend_process = subprocess.Popen(BACKEND_COMMAND, creationflags=creationflags)
-    print(f"✅ Backend server started with PID: {backend_process.pid}")
+    # Запуск основного сервера (orchestrator.py)
+    print(f"Запускаем основной сервер на {GM_CONSOLE_URL}...")
+    # Используем sys.executable для гарантии запуска с тем же Python, что и у start_dev.py
+    orchestrator_process = subprocess.Popen([sys.executable, "orchestrator.py"])
 
-    print("\n🚀 Starting frontend server...")
-    # Change the current working directory for the frontend server
-    if sys.platform == "win32":
-        creationflags = subprocess.CREATE_NO_WINDOW
-
-    frontend_process = subprocess.Popen(
-        FRONTEND_COMMAND,
-        cwd=FRONTEND_DIR,
-        creationflags=creationflags
-    )
-    print(f"✅ Frontend server started in '{FRONTEND_DIR}' with PID: {frontend_process.pid}")
-
-    # Give servers a moment to initialize
-    print("\n⏳ Waiting for servers to be ready...")
+    # Небольшая задержка, чтобы сервер успел запуститься
+    print("Ждем запуск сервера...")
     time.sleep(3)
 
-    print(f"\n🌐 Opening browser at: {BROWSER_URL}")
-    webbrowser.open(BROWSER_URL)
+    # Открытие панелей в браузере
+    print("Открываем GM-консоль и Зрительский экран в браузере...")
+    webbrowser.open(GM_CONSOLE_URL, new=1)       # new=1: новая вкладка
+    webbrowser.open(SPECTATOR_URL, new=2)      # new=2: новое окно (или вкладка)
 
-    print("\n✨ All systems go! The backend will auto-reload on code changes.")
-    print("✨ Press Ctrl+C in this window to shut down all services.")
+    print("--- Среда разработки готова! ---")
+    print("GM-консоль доступна по адресу:", GM_CONSOLE_URL)
+    print("Зрительский экран доступен по адресу:", SPECTATOR_URL)
+    print("Для остановки серверов нажмите Ctrl+C в этом окне.")
 
-    # Keep the main script alive, waiting for user interruption
-    while True:
-        time.sleep(1)
+    try:
+        # Ожидаем завершения дочернего процесса
+        orchestrator_process.wait()
+    except KeyboardInterrupt:
+        # Обработка Ctrl+C для корректного завершения
+        print("\n--- Завершение работы ---")
+        orchestrator_process.terminate() # или .kill()
+        print("Сервер остановлен.")
 
-except KeyboardInterrupt:
-    print("\n🛑 Shutting down services...")
-
-finally:
-    if frontend_process and frontend_process.poll() is None:
-        print("   - Terminating frontend server...")
-        frontend_process.terminate()
-        frontend_process.wait()
-    if backend_process and backend_process.poll() is None:
-        print("   - Terminating backend server...")
-        backend_process.terminate()
-        backend_process.wait()
-    print("✅ All services stopped. Goodbye!")
-
+if __name__ == "__main__":
+    main()
