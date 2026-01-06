@@ -1,64 +1,140 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-const spectatorView = document.getElementById('spectator-view');
+// --- DOM Элементы ---
+const backgroundContainer = document.getElementById('background-container');
+const avatarsContainer = document.getElementById('avatars-container');
 
-/**
- * Обновляет отображение на основе полученного состояния игры.
- * @param {object} gameState - Состояние игры.
- */
-function updateView(gameState) {
+// --- Состояние для Drag-and-Drop ---
+let activeDrag = null;
+
+// --- Логика обновления фона локации (старая логика) ---
+
+function updateBackground(gameState) {
     if (!gameState || !gameState.current_location) {
-        spectatorView.style.backgroundImage = 'none';
+        backgroundContainer.style.backgroundImage = 'none';
         return;
     }
-
     const location = gameState.current_location;
-    // Сервер уже отдает готовый путь, поэтому просто используем его
     const imageUrl = `${API_BASE_URL}/${location.image_url}`;
 
-    if (spectatorView.style.backgroundImage !== `url("${imageUrl}")`) {
-        console.log(`Меняем локацию на: ${location.name}`);
-        spectatorView.style.backgroundImage = `url('${imageUrl}')`;
+    if (backgroundContainer.style.backgroundImage !== `url("${imageUrl}")`) {
+        console.log(`Changing location to: ${location.name}`);
+        backgroundContainer.style.backgroundImage = `url('${imageUrl}')`;
     }
 }
 
-/**
- * Подписывается на серверные события для получения обновлений состояния игры.
- */
 function subscribeToGameStateUpdates() {
     const eventSource = new EventSource(`${API_BASE_URL}/api/game_state_stream`);
-
     eventSource.onmessage = function(event) {
-        console.log("Получено обновление состояния игры через SSE.");
         const gameState = JSON.parse(event.data);
-        updateView(gameState);
+        updateBackground(gameState);
     };
+    eventSource.onerror = (err) => console.error("GameState EventSource failed:", err);
+}
+
+// --- Логика аватаров (новая логика) ---
+
+function makeDraggable(element) {
+    element.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        activeDrag = {
+            element,
+            offsetX: e.clientX - element.getBoundingClientRect().left,
+            offsetY: e.clientY - element.getBoundingClientRect().top
+        };
+        element.classList.add('dragging'); 
+    });
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (!activeDrag) return;
+    e.preventDefault();
+    const newX = e.clientX - activeDrag.offsetX;
+    const newY = e.clientY - activeDrag.offsetY;
+
+    activeDrag.element.style.left = `${newX}px`;
+    activeDrag.element.style.top = `${newY}px`;
+});
+
+document.addEventListener('mouseup', (e) => {
+    if (activeDrag) {
+        activeDrag.element.classList.remove('dragging');
+        activeDrag = null;
+    }
+});
+
+function renderAvatars(characters) {
+    // Удаляем аватары, которых больше нет в списке
+    const existingAvatars = avatarsContainer.querySelectorAll('.character-avatar');
+    const characterIds = new Set(characters.map(c => c.id));
+
+    existingAvatars.forEach(avatar => {
+        if (!characterIds.has(avatar.dataset.id)) {
+            avatar.remove();
+        }
+    });
+
+    // Добавляем или обновляем аватары
+    characters.forEach((char, index) => {
+        let avatarElement = document.getElementById(`avatar-${char.id}`);
+        if (!avatarElement) {
+            avatarElement = document.createElement('img');
+            avatarElement.id = `avatar-${char.id}`;
+            avatarElement.dataset.id = char.id;
+            avatarElement.className = 'character-avatar';
+            avatarElement.src = `${API_BASE_URL}/${char.avatar}`;
+            
+            // Начальное позиционирование (чтобы они не были все в одном углу)
+            avatarElement.style.left = `${100 + index * 120}px`;
+            avatarElement.style.top = `100px`;
+
+            avatarsContainer.appendChild(avatarElement);
+            makeDraggable(avatarElement);
+        }
+    });
+}
+
+function subscribeToActiveCharacterUpdates() {
+    const eventSource = new EventSource(`${API_BASE_URL}/api/active_characters_stream`);
+    
+    eventSource.addEventListener('active_characters_updated', function(event) {
+        console.log("Received active characters update via SSE.");
+        const characters = JSON.parse(event.data);
+        renderAvatars(characters);
+    });
 
     eventSource.onerror = function(err) {
-        console.error("Ошибка EventSource:", err);
-        // EventSource автоматически попытается переподключиться
+        console.error("ActiveCharacters EventSource failed:", err);
     };
 }
 
-/**
- * Основная функция инициализации.
- */
-async function main() {
-    console.log("Зрительский экран запущен в режиме SSE.");
+// --- Инициализация ---
 
-    // Запрашиваем начальное состояние один раз при загрузке
+async function main() {
+    console.log("Spectator screen initializing...");
+
+    // 1. Загрузка и настройка фона
     try {
         const response = await fetch(`${API_BASE_URL}/api/game_state`);
-        if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
         const initialState = await response.json();
-        updateView(initialState);
+        updateBackground(initialState);
     } catch (error) {
-        console.error("Не удалось получить начальное состояние игры:", error);
+        console.error("Failed to get initial game state:", error);
     }
-
-    // Подписываемся на будущие обновления
     subscribeToGameStateUpdates();
+
+    // 2. Загрузка и настройка аватаров
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/active_characters`); // Предполагаем, что такой эндпоинт существует
+        const initialCharacters = await response.json();
+        if(initialCharacters) renderAvatars(initialCharacters);
+    } catch (error) {
+       // Мы не создавали GET эндпоинт для active_characters, так что эта ошибка ожидаема при первом запуске
+       console.warn("Could not fetch initial active characters. This is expected if the list is empty.");
+    }
+    subscribeToActiveCharacterUpdates();
+    
+    console.log("Spectator screen initialized.");
 }
 
-// Запускаем!
 main();

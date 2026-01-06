@@ -146,10 +146,22 @@ export async function initializeTopPanel() {
 
     const handleCharacterDropdownChange = (event) => {
         const selectedId = event.target.value;
-        if (selectedId) {
-            toggleCharacterCard(selectedId);
-            setTimeout(updateEventButtonState, 100);
+        if (!selectedId) return;
+
+        const isVisible = state.visibleCharacterIds.has(selectedId);
+
+        // Toggle card visibility
+        toggleCharacterCard(selectedId);
+
+        // Activate or deactivate the character for the spectator view
+        if (!isVisible) {
+            api.activateCharacter(selectedId).catch(err => console.error(`Failed to activate ${selectedId}:`, err));
+        } else {
+            api.deactivateCharacter(selectedId).catch(err => console.error(`Failed to deactivate ${selectedId}:`, err));
         }
+        
+        // We use a timeout to ensure the state has been updated by toggleCharacterCard
+        setTimeout(updateEventButtonState, 100);
     };
 
     const handleLocationDropdownChange = (event) => {
@@ -171,7 +183,7 @@ export async function initializeTopPanel() {
         if (eventButton.textContent === 'Запустить событие') {
             const characterIds = Array.from(state.visibleCharacterIds);
             try {
-                await api.updateActiveCharacters({ characters_id: characterIds });
+                await api.updateActiveCharacters({ characters_id: characterIds }); // This might be deprecated now
                 eventButton.textContent = 'Завершить событие';
             } catch (error) {
                 console.error('Failed to update active characters:', error);
@@ -203,18 +215,16 @@ export async function initializeTopPanel() {
         try {
             const response = await api.compressContext();
             console.log("Контекст успешно сжат:", response.message);
-            // Кнопка останется заблокированной, если шагов станет <= 10, 
-            // и активируется при следующем обновлении event_log
         } catch (error) {
             console.error('Failed to compress context:', error);
             alert('Ошибка сжатия контекста!');
         } finally {
-            compressButton.style.backgroundColor = ''; // Сброс цвета в любом случае
-            updateCompressButtonState(); // Перепроверяем состояние кнопки
+            compressButton.style.backgroundColor = ''; 
+            updateCompressButtonState();
         }
     });
 
-    // Инициализация и подписка на обновления event_log
+    // Initialization and subscription to event_log updates
     const initialLog = await api.fetchEventLog();
     state.eventLog = initialLog;
     updateCompressButtonState();

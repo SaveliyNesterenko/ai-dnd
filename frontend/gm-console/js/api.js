@@ -1,6 +1,46 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
+ * Активирует персонажа, добавляя его на зрительский экран.
+ * @param {string} characterId - ID персонажа.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function activateCharacter(characterId) {
+    const response = await fetch(`${API_BASE_URL}/api/characters/activate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ character_id: characterId }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to activate character');
+    }
+    return await response.json();
+}
+
+/**
+ * Деактивирует персонажа, убирая его с зрительского экрана.
+ * @param {string} characterId - ID персонажа.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function deactivateCharacter(characterId) {
+    const response = await fetch(`${API_BASE_URL}/api/characters/deactivate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ character_id: characterId }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to deactivate character');
+    }
+    return await response.json();
+}
+
+/**
  * Отправляет действие персонажа на сервер для генерации ответа модели.
  * @param {string} characterKey - Ключ персонажа, который совершает действие.
  * @returns {Promise<object>} Ответ от сервера.

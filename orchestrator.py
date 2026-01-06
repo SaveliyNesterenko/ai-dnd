@@ -61,8 +61,8 @@ class ActionRequest(BaseModel):
 class GmActionRequest(BaseModel): 
     text: str
 
-class ActiveCharactersRequest(BaseModel): 
-    characters_id: List[str]
+class CharacterActionRequest(BaseModel):
+    character_id: str
 
 class ObserverRequest(BaseModel): 
     action: str
@@ -86,6 +86,7 @@ PUBLIC_STATE_FILE = "./data/public_state.json"
 last_known_event_data = {}
 last_known_character_data = {}
 last_known_game_state = {}
+last_known_active_characters = []
 
 async def event_stream_generator():
     global last_known_event_data
@@ -132,6 +133,19 @@ async def game_state_stream_generator():
             print(f"Error in game_state_stream_generator: {e}")
         await asyncio.sleep(1)
 
+async def active_characters_stream_generator():
+    global last_known_active_characters
+    while True:
+        try:
+            current_active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
+            if current_active_characters != last_known_active_characters:
+                last_known_active_characters = current_active_characters
+                yield f"event: active_characters_updated\ndata: {json.dumps(current_active_characters)}\n\n"
+        except Exception as e:
+            print(f"Error in active_characters_stream_generator: {e}")
+        await asyncio.sleep(1)
+
+
 @app.get("/api/event_stream")
 async def event_stream():
     return StreamingResponse(event_stream_generator(), media_type="text/event-stream")
@@ -144,13 +158,46 @@ async def character_stream():
 async def game_state_stream():
     return StreamingResponse(game_state_stream_generator(), media_type="text/event-stream")
 
+@app.get("/api/active_characters_stream")
+async def active_characters_stream():
+    return StreamingResponse(active_characters_stream_generator(), media_type="text/event-stream")
+
+
 # --- Основные API эндпоинты ---
-@app.post("/api/update_active_characters")
-async def update_active_characters(request: ActiveCharactersRequest):
-    if save_json(ACTIVE_CHARACTERS_FILE, request.dict()):
+@app.post("/api/characters/activate")
+async def activate_character(request: CharacterActionRequest):
+    character_id = request.character_id
+    active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
+
+    if any(char.get("id") == character_id for char in active_characters):
+        return {"status": "success", "message": f"Character {character_id} is already active."}
+
+    avatar_path = f"assets/characters/{character_id}.png"
+    active_characters.append({"id": character_id, "avatar": avatar_path})
+    
+    if save_json(ACTIVE_CHARACTERS_FILE, active_characters):
         return {"status": "success"}
     else:
         raise HTTPException(status_code=500, detail="Failed to save active characters.")
+
+@app.post("/api/characters/deactivate")
+async def deactivate_character(request: CharacterActionRequest):
+    character_id = request.character_id
+    active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
+    
+    updated_characters = [char for char in active_characters if char.get("id") != character_id]
+    
+    if len(updated_characters) == len(active_characters):
+        return {"status": "success", "message": f"Character {character_id} was not active."}
+
+    if save_json(ACTIVE_CHARACTERS_FILE, updated_characters):
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save active characters.")
+
+@app.get("/api/active_characters")
+async def get_active_characters():
+    return load_json(ACTIVE_CHARACTERS_FILE) or []
 
 @app.get("/api/characters")
 async def get_characters():
@@ -219,7 +266,7 @@ async def add_gm_action(request: GmActionRequest):
 @app.post("/api/observer_analysis")
 async def observer_analysis(request: ObserverRequest):
     active_data = load_json(ACTIVE_CHARACTERS_FILE)
-    active_ids = active_data.get("characters_id", []) if active_data else []
+    active_ids = [char['id'] for char in active_data] if active_data else []
     if not active_ids: raise HTTPException(404, "Active characters not set.")
     
     all_chars = await get_all_characters()
