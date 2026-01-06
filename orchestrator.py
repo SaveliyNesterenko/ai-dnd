@@ -11,7 +11,7 @@ import json
 import asyncio
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -51,8 +51,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Монтирование статичной папки
+# Монтирование статичных папок
 app.mount("/data", StaticFiles(directory="data"), name="data")
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+app.mount("/spectator-static", StaticFiles(directory="frontend/spectator"), name="spectator-static")
+
 
 # --- Модели данных ---
 
@@ -72,6 +75,10 @@ class ObserverRequest(BaseModel):
 class JsonPatchRequest(BaseModel):
     patch: Dict[str, Any]
 
+class SetLocationRequest(BaseModel):
+    location_id: str
+
+
 # --- Константы файлов ---
 
 CHARACTERS_FILE = "./data/characters.json"
@@ -79,6 +86,7 @@ NPC_FILE = "./data/npc.json"
 EVENT_LOG_FILE = "./data/event_log.json"
 LOCATIONS_FILE = "./data/locations.json"
 ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
+PUBLIC_STATE_FILE = "./data/public_state.json"
 
 # --- SSE (Server-Sent Events) --- 
 
@@ -128,6 +136,9 @@ async def character_stream():
 
 
 # --- Основные API эндпоинты ---
+@app.get("/spectator", response_class=FileResponse)
+async def get_spectator_page():
+    return "frontend/spectator/spectator.html"
 
 @app.post("/api/update_active_characters")
 async def update_active_characters(request: ActiveCharactersRequest):
@@ -156,6 +167,51 @@ async def get_locations():
     data = load_json(LOCATIONS_FILE)
     if data is None: raise HTTPException(status_code=404, detail="Not found.")
     return data.get("locations", {})
+
+@app.get("/api/game_state")
+async def get_game_state():
+    """
+    Возвращает публичное состояние игры (например, текущую локацию).
+    """
+    data = load_json(PUBLIC_STATE_FILE)
+    if data is None:
+        # Если файл еще не создан, возвращаем пустое состояние
+        return {"current_location": None}
+    return data
+
+@app.post("/api/set_location")
+async def set_location(request: SetLocationRequest):
+    """
+    Устанавливает текущую локацию и сохраняет ее в публичное состояние.
+    """
+    location_id = request.location_id
+    locations_data = load_json(LOCATIONS_FILE)
+
+    if not locations_data or location_id not in locations_data.get("locations", {}):
+        raise HTTPException(status_code=404, detail=f"Location with id '{location_id}' not found.")
+
+    # Получаем путь к изображению из locations.json
+    image_path = locations_data["locations"][location_id]
+
+    # Убираем `../` из пути, чтобы он был корректным для клиента
+    client_safe_path = image_path.replace("../", "")
+
+    # Формируем новый объект с деталями локации
+    location_details = {
+        "id": location_id,
+        "name": location_id,  # Имя пока берем из ID
+        "image_url": client_safe_path
+    }
+
+    # Обновляем публичное состояние
+    public_state = load_json(PUBLIC_STATE_FILE) or {}
+    public_state["current_location"] = location_details
+
+    if save_json(PUBLIC_STATE_FILE, public_state):
+        return {"status": "success", "message": f"Location set to '{location_id}'"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save public state file.")
+
 
 @app.get("/api/all_characters")
 async def get_all_characters():

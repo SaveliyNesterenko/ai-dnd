@@ -152,7 +152,14 @@ export async function initializeTopPanel() {
         }
     };
 
-    const handleLocationDropdownChange = () => {
+    const handleLocationDropdownChange = (event) => {
+        const selectedLocationId = event.target.value;
+        if (selectedLocationId) {
+            api.setLocation(selectedLocationId).catch(error => {
+                console.error("Failed to set location:", error);
+                alert("Ошибка установки локации!");
+            });
+        }
         updateEventButtonState();
     };
     

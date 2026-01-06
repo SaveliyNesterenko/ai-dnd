@@ -61,6 +61,26 @@ export async function updateActiveCharacters(data) {
 }
 
 /**
+ * Устанавливает текущую локацию для зрительского экрана.
+ * @param {string} locationId - ID выбранной локации.
+ * @returns {Promise<object>} Ответ от сервера.
+ */
+export async function setLocation(locationId) {
+    const response = await fetch(`${API_BASE_URL}/api/set_location`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ location_id: locationId }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to set location');
+    }
+    return await response.json();
+}
+
+/**
  * Отправляет данные для анализа "Наблюдателем".
  * @param {string} action - Строка действия.
  * @param {number|null} diceRoll - Результат броска кубика d20 (или null).
