@@ -85,6 +85,7 @@ PUBLIC_STATE_FILE = "./data/public_state.json"
 # --- Server-Sent Events (SSE) --- 
 last_known_event_data = {}
 last_known_character_data = {}
+last_known_game_state = {}
 
 async def event_stream_generator():
     global last_known_event_data
@@ -100,7 +101,6 @@ async def event_stream_generator():
 
 async def character_stream_generator():
     global last_known_character_data
-    # При первом запуске, инициализируем состояние
     initial_chars = await get_all_characters()
     if initial_chars:
         last_known_character_data = initial_chars
@@ -108,19 +108,28 @@ async def character_stream_generator():
     while True:
         try:
             all_chars = await get_all_characters()
-            # Проверяем, есть ли изменения
             if all_chars and all_chars != last_known_character_data:
-                # Если есть, ищем, у кого именно
                 for char_id, char_data in all_chars.items():
                     if char_id not in last_known_character_data or \
                        last_known_character_data[char_id] != char_data:
                         update_payload = {"id": char_id, "data": char_data}
                         print(f"SENDING CHARACTER UPDATE: {char_id}")
                         yield f"data: {json.dumps(update_payload)}\n\n"
-                # Обновляем сохраненное состояние
                 last_known_character_data = all_chars
         except Exception as e:
             print(f"Error in character_stream_generator: {e}")
+        await asyncio.sleep(1)
+
+async def game_state_stream_generator():
+    global last_known_game_state
+    while True:
+        try:
+            current_state = load_json(PUBLIC_STATE_FILE) or {"current_location": None}
+            if current_state != last_known_game_state:
+                last_known_game_state = current_state
+                yield f"data: {json.dumps(current_state)}\n\n"
+        except Exception as e:
+            print(f"Error in game_state_stream_generator: {e}")
         await asyncio.sleep(1)
 
 @app.get("/api/event_stream")
@@ -130,6 +139,10 @@ async def event_stream():
 @app.get("/api/character_stream")
 async def character_stream():
     return StreamingResponse(character_stream_generator(), media_type="text/event-stream")
+
+@app.get("/api/game_state_stream")
+async def game_state_stream():
+    return StreamingResponse(game_state_stream_generator(), media_type="text/event-stream")
 
 # --- Основные API эндпоинты ---
 @app.post("/api/update_active_characters")
