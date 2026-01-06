@@ -87,6 +87,8 @@ function renderAvatars(characterIds) {
             
             // Обработчик ошибок загрузки изображения
             avatarElement.onerror = () => {
+                // Удаляем обработчик, чтобы избежать бесконечного цикла, если и default.png отсутствует
+                avatarElement.onerror = null; 
                 console.warn(`Could not load avatar for ${charId}. Using default.`);
                 avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`; // Путь к аватару по умолчанию
             };
