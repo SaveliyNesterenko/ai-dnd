@@ -9,7 +9,7 @@ import json
 import asyncio
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse, RedirectResponse
+from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ from utils.logger import save_prompt_to_log
 from prompt_builder import build_prompt, build_observer_prompt
 from archivist import router as archivist_router
 
-# --- Инициализация --- 
+# --- Инициализация ---
 load_dotenv()
 app = FastAPI()
 client = OpenAI(
@@ -31,7 +31,7 @@ client = OpenAI(
     base_url=os.getenv("OPENAI_BASE_URL", "https://routerai.ru/api/v1")
 )
 
-# --- Middleware --- 
+# --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -55,23 +55,26 @@ async def spectator_redirect():
     return "/sp/spectator.html"
 
 # --- Модели данных ---
-class ActionRequest(BaseModel): 
+class ActionRequest(BaseModel):
     character_key: str
 
-class GmActionRequest(BaseModel): 
+class GmActionRequest(BaseModel):
     text: str
 
 class CharacterActionRequest(BaseModel):
     character_id: str
 
-class ObserverRequest(BaseModel): 
+class UpdateCharactersRequest(BaseModel):
+    characters_id: List[str]
+
+class ObserverRequest(BaseModel):
     action: str
     dice_roll: Optional[int] = None
 
-class JsonPatchRequest(BaseModel): 
+class JsonPatchRequest(BaseModel):
     patch: Dict[str, Any]
 
-class SetLocationRequest(BaseModel): 
+class SetLocationRequest(BaseModel):
     location_id: str
 
 # --- Константы файлов ---
@@ -82,11 +85,12 @@ LOCATIONS_FILE = "./data/locations.json"
 ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 PUBLIC_STATE_FILE = "./data/public_state.json"
 
-# --- Server-Sent Events (SSE) --- 
+# --- Server-Sent Events (SSE) ---
 last_known_event_data = {}
 last_known_character_data = {}
 last_known_game_state = {}
-last_known_active_characters = []
+# Используем словарь для хранения ID, чтобы соответствовать формату JSON
+last_known_active_characters = {"characters_id": []}
 
 async def event_stream_generator():
     global last_known_event_data
@@ -105,7 +109,6 @@ async def character_stream_generator():
     initial_chars = await get_all_characters()
     if initial_chars:
         last_known_character_data = initial_chars
-
     while True:
         try:
             all_chars = await get_all_characters()
@@ -114,7 +117,6 @@ async def character_stream_generator():
                     if char_id not in last_known_character_data or \
                        last_known_character_data[char_id] != char_data:
                         update_payload = {"id": char_id, "data": char_data}
-                        print(f"SENDING CHARACTER UPDATE: {char_id}")
                         yield f"data: {json.dumps(update_payload)}\n\n"
                 last_known_character_data = all_chars
         except Exception as e:
@@ -137,14 +139,15 @@ async def active_characters_stream_generator():
     global last_known_active_characters
     while True:
         try:
-            current_active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
-            if current_active_characters != last_known_active_characters:
-                last_known_active_characters = current_active_characters
-                yield f"event: active_characters_updated\ndata: {json.dumps(current_active_characters)}\n\n"
+            current_data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+            if current_data != last_known_active_characters:
+                last_known_active_characters = current_data
+                # Отправляем только список ID
+                id_list = current_data.get("characters_id", [])
+                yield f"event: active_characters_updated\ndata: {json.dumps(id_list)}\n\n"
         except Exception as e:
             print(f"Error in active_characters_stream_generator: {e}")
         await asyncio.sleep(1)
-
 
 @app.get("/api/event_stream")
 async def event_stream():
@@ -162,42 +165,46 @@ async def game_state_stream():
 async def active_characters_stream():
     return StreamingResponse(active_characters_stream_generator(), media_type="text/event-stream")
 
-
 # --- Основные API эндпоинты ---
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):
     character_id = request.character_id
-    active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
+    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+    id_list = data.get("characters_id", [])
 
-    if any(char.get("id") == character_id for char in active_characters):
-        return {"status": "success", "message": f"Character {character_id} is already active."}
-
-    avatar_path = f"assets/characters/{character_id}.png"
-    active_characters.append({"id": character_id, "avatar": avatar_path})
-    
-    if save_json(ACTIVE_CHARACTERS_FILE, active_characters):
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save active characters.")
+    if character_id not in id_list:
+        id_list.append(character_id)
+        if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": id_list}):
+            return {"status": "success", "message": f"Character {character_id} activated."}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save active characters.")
+    return {"status": "success", "message": f"Character {character_id} is already active."}
 
 @app.post("/api/characters/deactivate")
 async def deactivate_character(request: CharacterActionRequest):
     character_id = request.character_id
-    active_characters = load_json(ACTIVE_CHARACTERS_FILE) or []
-    
-    updated_characters = [char for char in active_characters if char.get("id") != character_id]
-    
-    if len(updated_characters) == len(active_characters):
-        return {"status": "success", "message": f"Character {character_id} was not active."}
+    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+    id_list = data.get("characters_id", [])
 
-    if save_json(ACTIVE_CHARACTERS_FILE, updated_characters):
+    if character_id in id_list:
+        id_list.remove(character_id)
+        if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": id_list}):
+            return {"status": "success", "message": f"Character {character_id} deactivated."}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save active characters.")
+    return {"status": "success", "message": f"Character {character_id} was not active."}
+
+@app.post("/api/update_active_characters")
+async def update_active_characters(request: UpdateCharactersRequest):
+    if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": request.characters_id}):
         return {"status": "success"}
     else:
-        raise HTTPException(status_code=500, detail="Failed to save active characters.")
+        raise HTTPException(status_code=500, detail="Failed to update active characters.")
 
 @app.get("/api/active_characters")
 async def get_active_characters():
-    return load_json(ACTIVE_CHARACTERS_FILE) or []
+    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+    return data.get("characters_id", [])
 
 @app.get("/api/characters")
 async def get_characters():
@@ -242,7 +249,6 @@ async def set_location(request: SetLocationRequest):
     
     image_path = locations_data["locations"][location_id]
     client_safe_path = image_path.replace("../", "")
-    
     location_details = {"id": location_id, "name": location_id, "image_url": client_safe_path}
     
     public_state = load_json(PUBLIC_STATE_FILE) or {}
@@ -265,8 +271,8 @@ async def add_gm_action(request: GmActionRequest):
 
 @app.post("/api/observer_analysis")
 async def observer_analysis(request: ObserverRequest):
-    active_data = load_json(ACTIVE_CHARACTERS_FILE)
-    active_ids = [char['id'] for char in active_data] if active_data else []
+    active_data = load_json(ACTIVE_CHARACTERS_FILE) or {}
+    active_ids = active_data.get("characters_id", [])
     if not active_ids: raise HTTPException(404, "Active characters not set.")
     
     all_chars = await get_all_characters()

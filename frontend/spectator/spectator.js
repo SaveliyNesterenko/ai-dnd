@@ -7,7 +7,7 @@ const avatarsContainer = document.getElementById('avatars-container');
 // --- Состояние для Drag-and-Drop ---
 let activeDrag = null;
 
-// --- Логика обновления фона локации (старая логика) ---
+// --- Логика обновления фона локации ---
 
 function updateBackground(gameState) {
     if (!gameState || !gameState.current_location) {
@@ -32,7 +32,7 @@ function subscribeToGameStateUpdates() {
     eventSource.onerror = (err) => console.error("GameState EventSource failed:", err);
 }
 
-// --- Логика аватаров (новая логика) ---
+// --- Логика аватаров ---
 
 function makeDraggable(element) {
     element.addEventListener('mousedown', (e) => {
@@ -63,28 +63,35 @@ document.addEventListener('mouseup', (e) => {
     }
 });
 
-function renderAvatars(characters) {
+function renderAvatars(characterIds) {
+    const idSet = new Set(characterIds);
+
     // Удаляем аватары, которых больше нет в списке
     const existingAvatars = avatarsContainer.querySelectorAll('.character-avatar');
-    const characterIds = new Set(characters.map(c => c.id));
-
     existingAvatars.forEach(avatar => {
-        if (!characterIds.has(avatar.dataset.id)) {
+        if (!idSet.has(avatar.dataset.id)) {
             avatar.remove();
         }
     });
 
     // Добавляем или обновляем аватары
-    characters.forEach((char, index) => {
-        let avatarElement = document.getElementById(`avatar-${char.id}`);
+    characterIds.forEach((charId, index) => {
+        let avatarElement = document.getElementById(`avatar-${charId}`);
         if (!avatarElement) {
             avatarElement = document.createElement('img');
-            avatarElement.id = `avatar-${char.id}`;
-            avatarElement.dataset.id = char.id;
+            avatarElement.id = `avatar-${charId}`;
+            avatarElement.dataset.id = charId;
             avatarElement.className = 'character-avatar';
-            avatarElement.src = `${API_BASE_URL}/${char.avatar}`;
+            // Клиент сам конструирует путь к аватару
+            avatarElement.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
             
-            // Начальное позиционирование (чтобы они не были все в одном углу)
+            // Обработчик ошибок загрузки изображения
+            avatarElement.onerror = () => {
+                console.warn(`Could not load avatar for ${charId}. Using default.`);
+                avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`; // Путь к аватару по умолчанию
+            };
+
+            // Начальное позиционирование
             avatarElement.style.left = `${100 + index * 120}px`;
             avatarElement.style.top = `100px`;
 
@@ -99,8 +106,8 @@ function subscribeToActiveCharacterUpdates() {
     
     eventSource.addEventListener('active_characters_updated', function(event) {
         console.log("Received active characters update via SSE.");
-        const characters = JSON.parse(event.data);
-        renderAvatars(characters);
+        const characterIds = JSON.parse(event.data);
+        renderAvatars(characterIds);
     });
 
     eventSource.onerror = function(err) {
@@ -125,11 +132,10 @@ async function main() {
 
     // 2. Загрузка и настройка аватаров
     try {
-        const response = await fetch(`${API_BASE_URL}/api/active_characters`); // Предполагаем, что такой эндпоинт существует
-        const initialCharacters = await response.json();
-        if(initialCharacters) renderAvatars(initialCharacters);
+        const response = await fetch(`${API_BASE_URL}/api/active_characters`);
+        const initialCharacterIds = await response.json(); // Получаем массив ID
+        if(initialCharacterIds) renderAvatars(initialCharacterIds);
     } catch (error) {
-       // Мы не создавали GET эндпоинт для active_characters, так что эта ошибка ожидаема при первом запуске
        console.warn("Could not fetch initial active characters. This is expected if the list is empty.");
     }
     subscribeToActiveCharacterUpdates();
