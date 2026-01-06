@@ -48,7 +48,7 @@ app.mount("/sp", StaticFiles(directory="frontend/spectator"), name="spectator")
 
 @app.get("/", response_class=RedirectResponse, include_in_schema=False)
 async def root():
-    return "/gm/gm-console.html"
+    return "/gm/console-gm.html"
 
 @app.get("/spectator", response_class=RedirectResponse, include_in_schema=False)
 async def spectator_redirect():
