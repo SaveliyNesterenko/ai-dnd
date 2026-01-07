@@ -22,65 +22,77 @@ function updateBackground(gameState) {
     }
 }
 
+// --- РЕФАКТОРИНГ: Шаг 1 --- 
 function renderAvatars(characterIds) {
     const idSet = new Set(characterIds);
-    const existingAvatars = avatarsContainer.querySelectorAll('.character-avatar');
-    existingAvatars.forEach(avatar => {
-        if (!idSet.has(avatar.dataset.id)) { avatar.remove(); }
+    // Ищем обертки, а не аватары
+    const existingWrappers = avatarsContainer.querySelectorAll('.character-wrapper');
+    existingWrappers.forEach(wrapper => {
+        if (!idSet.has(wrapper.dataset.id)) { wrapper.remove(); }
     });
+
     characterIds.forEach((charId, index) => {
-        let avatarElement = document.getElementById(`avatar-${charId}`);
-        if (!avatarElement) {
-            avatarElement = document.createElement('img');
-            avatarElement.id = `avatar-${charId}`;
-            avatarElement.dataset.id = charId;
-            avatarElement.className = 'character-avatar';
+        // Ищем обертку, а не сам аватар
+        let wrapperElement = document.getElementById(`wrapper-${charId}`);
+        if (!wrapperElement) {
+            // 1. Создаем DIV-обертку
+            wrapperElement = document.createElement('div');
+            wrapperElement.id = `wrapper-${charId}`;
+            wrapperElement.dataset.id = charId;
+            wrapperElement.className = 'character-wrapper';
+
+            // 2. Создаем IMG аватара
+            const avatarElement = document.createElement('img');
+            avatarElement.id = `avatar-${charId}`; // ID для картинки сохраняется
+            avatarElement.className = 'character-avatar'; // Класс для стилей картинки
             avatarElement.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
             avatarElement.onerror = () => {
                 avatarElement.onerror = null;
                 avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`;
             };
-            avatarElement.style.left = `${100 + index * 120}px`;
-            avatarElement.style.top = `100px`;
-            avatarsContainer.appendChild(avatarElement);
-            makeDraggable(avatarElement);
+
+            // 3. Собираем вместе: IMG кладется внутрь DIV
+            wrapperElement.appendChild(avatarElement);
+
+            // 4. Позиционируем и добавляем на сцену ОБЕРТКУ
+            wrapperElement.style.left = `${100 + index * 150}px`; // Немного увеличим отступ
+            wrapperElement.style.top = `100px`;
+            avatarsContainer.appendChild(wrapperElement);
+
+            // 5. Делаем перетаскиваемой ОБЕРТКУ
+            makeDraggable(wrapperElement);
         }
     });
 }
 
+// --- РЕФАКТОРИНГ: Шаг 2 ---
 function showSpeechBubble(characterId, text, type) {
-    const avatar = document.getElementById(`avatar-${characterId}`);
-    if (!avatar) {
-        console.error(`Speech bubble error: Avatar for character ID '${characterId}' not found.`);
+    // 1. Находим главную ОБЕРТКУ персонажа
+    const wrapper = document.getElementById(`wrapper-${characterId}`);
+    if (!wrapper) {
+        console.error(`Speech bubble error: Wrapper for character ID '${characterId}' not found.`);
         return;
     }
 
-    // --- ИСПРАВЛЕНИЕ СОГЛАСНО ВАШЕМУ ПРЕДЛОЖЕНИЮ ---
-    // Логика поиска и удаления существующего пузыря полностью удалена.
-    // Мы полагаемся только на setTimeout для очистки.
-
     const bubble = document.createElement('div');
     bubble.className = `speech-bubble ${type}`;
-    bubble.dataset.character = characterId;
     bubble.textContent = text;
-    document.body.appendChild(bubble);
+    
+    // 2. Добавляем пузырь ВНУТРЬ обертки, а не в body
+    wrapper.appendChild(bubble);
 
-    const avatarRect = avatar.getBoundingClientRect();
-
-    // Позиционируем пузыри с небольшим смещением, чтобы они не перекрывали друг друга
-    let topOffset = -10;
+    // 3. Логика позиционирования теперь намного проще!
+    // Она рассчитывается относительно аватара внутри обертки.
+    // Мы просто сдвигаем пузырь вверх.
     if (type === 'thought') {
-        topOffset = -90; // Размещаем пузырь с мыслями выше
+        bubble.style.bottom = '280px'; // Мысли выше
+    } else {
+        bubble.style.bottom = '250px'; // Действия ниже
     }
 
-    bubble.style.left = `${avatarRect.left + avatarRect.width / 2 - bubble.offsetWidth / 2}px`;
-    bubble.style.top = `${avatarRect.top - bubble.offsetHeight + topOffset}px`;
-
-    // Устанавливаем таймер на удаление этого конкретного пузыря
-    setTimeout(() => { bubble.remove(); }, 8000); // Время жизни пузыря 8 секунд
+    setTimeout(() => { bubble.remove(); }, 8000);
 }
 
-// --- НОВАЯ ЕДИНАЯ ПОДПИСКА НА СОБЫТИЯ --- 
 
 function subscribeToSpectatorStream() {
     console.log("Connecting to the unified spectator stream...");
@@ -109,9 +121,8 @@ function subscribeToSpectatorStream() {
     };
 }
 
-
-// --- Drag and Drop для аватаров ---
-function makeDraggable(element) {
+// --- РЕФАКТОРИНГ: Шаг 3 (изменения минимальны, но важны) ---
+function makeDraggable(element) { // Теперь element - это wrapper
     element.addEventListener('mousedown', (e) => {
         e.preventDefault();
         activeDrag = { element, offsetX: e.clientX - element.getBoundingClientRect().left, offsetY: e.clientY - element.getBoundingClientRect().top };
@@ -125,11 +136,13 @@ document.addEventListener('mousemove', (e) => {
     activeDrag.element.style.top = `${e.clientY - activeDrag.offsetY}px`;
 });
 document.addEventListener('mouseup', () => {
-    if (activeDrag) { activeDrag.element.classList.remove('dragging'); activeDrag = null; }
+    if (activeDrag) {
+        // Убираем класс .dragging с обертки
+        activeDrag.element.classList.remove('dragging'); 
+        activeDrag = null; 
+    }
 });
 
-
-// --- Инициализация ---
 
 async function main() {
     console.log("Spectator screen initializing...");

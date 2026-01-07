@@ -29,43 +29,55 @@ html {
     z-index: 2;
 }
 
-.character-avatar {
+/* --- РЕФАКТОРИНГ: Стили для обертки --- */
+.character-wrapper {
     position: absolute;
-    width: 300px;
-    height: 300px;
+    width: 300px; /* Ширина равна ширине аватара */
+    height: auto; 
     cursor: grab;
     user-select: none;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 }
 
-.character-avatar:active {
-    cursor: grabbing;
+.character-wrapper.dragging {
     transform: scale(1.05);
+    cursor: grabbing;
+    z-index: 10; /* Во время перетаскивания - поверх других */
 }
 
-/* --- СТИЛИ ДЛЯ ОБЛАЧКОВ РЕПЛИК --- */
+/* Аватар теперь не позиционируется абсолютно */
+.character-avatar {
+    width: 300px;
+    height: 300px;
+    display: block; /* Убираем лишние отступы под картинкой */
+}
+
+
+/* --- РЕФАКТОРИНГ: Стили для пузырей --- */
 
 .speech-bubble {
-    position: absolute;
+    position: absolute; /* Позиционируется относительно обертки */
+    left: 50%; /* Центрируем по горизонтали */
+    transform: translateX(-50%);
+    width: 90%; /* Ширина относительно обертки */
+    max-width: 350px;
     background-color: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
     padding: 15px 20px;
-    max-width: 350px;
     font-size: 18px;
     line-height: 1.4;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    z-index: 100;
+    z-index: 5;
     opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    transition: opacity 0.3s ease-out;
     color: #333;
 }
 
 .speech-bubble:not(:empty) {
     opacity: 1;
-    transform: translateY(0);
 }
 
+/* Хвостик остается почти без изменений */
 .speech-bubble::after {
     content: '';
     position: absolute;
@@ -79,17 +91,14 @@ html {
     border-top: 10px solid rgba(255, 255, 255, 0.9);
 }
 
-/* --- ИСПРАВЛЕННЫЙ СТИЛЬ ДЛЯ МЫСЛЕЙ --- */
-/* Мы объединили два правила в одно и добавили толщину границы */
 .speech-bubble.thought {
-    border: 2px dashed #aaa; /* Задаем толщину, стиль и цвет */
-    border-radius: 25px; /* Сделаем чуть менее круглым, чем эллипс */
+    border: 2px dashed #aaa;
+    border-radius: 25px;
     background-color: rgba(240, 240, 240, 0.85);
     color: #555;
     font-style: italic;
 }
 
-/* Убираем треугольный хвостик у мыслей */
 .speech-bubble.thought::after {
-    display: none; 
+    display: none;
 }
