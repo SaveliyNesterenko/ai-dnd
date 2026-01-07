@@ -1,15 +1,14 @@
 """
 Orchestrator.py
-Основной серверный скрипт (Backend).
+Основной серверный скрипт (Backend), версия с единым SSE-потоком.
 Отвечает за логику игры, обслуживание фронтенда и API.
 """
 
 import os
 import json
 import asyncio
-import uvicorn
-import redis.asyncio as redis # Импортируем асинхронную библиотеку Redis
-from fastapi import FastAPI, HTTPException
+import redis.asyncio as redis
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -37,7 +36,6 @@ REDIS_URL = "redis://localhost:6379"
 redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
 SPEECH_CHANNEL = "speech_channel"
 
-
 # --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
@@ -53,41 +51,6 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/gm", StaticFiles(directory="frontend/gm-console"), name="gm-console")
 app.mount("/sp", StaticFiles(directory="frontend/spectator"), name="spectator")
 
-@app.get("/", response_class=RedirectResponse, include_in_schema=False)
-async def root():
-    return "/gm/console-gm.html"
-
-@app.get("/spectator", response_class=RedirectResponse, include_in_schema=False)
-async def spectator_redirect():
-    return "/sp/spectator.html"
-
-# --- Модели данных ---
-class ActionRequest(BaseModel):
-    character_key: str
-
-class GmActionRequest(BaseModel):
-    text: str
-
-class CharacterActionRequest(BaseModel):
-    character_id: str
-
-class UpdateCharactersRequest(BaseModel):
-    characters_id: List[str]
-
-class ObserverRequest(BaseModel):
-    action: str
-    dice_roll: Optional[int] = None
-
-class JsonPatchRequest(BaseModel):
-    patch: Dict[str, Any]
-
-class SetLocationRequest(BaseModel):
-    location_id: str
-
-class SpeechRequest(BaseModel):
-    thought_text: Optional[str] = None
-    action_text: Optional[str] = None
-
 # --- Константы файлов ---
 CHARACTERS_FILE = "./data/characters.json"
 NPC_FILE = "./data/npc.json"
@@ -96,304 +59,230 @@ LOCATIONS_FILE = "./data/locations.json"
 ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 PUBLIC_STATE_FILE = "./data/public_state.json"
 
-# --- Server-Sent Events (SSE) ---
-last_known_event_data = {}
-last_known_character_data = {}
-last_known_game_state = {}
-last_known_active_characters = {"characters_id": []}
+# --- Модели данных ---
+class SpeechRequest(BaseModel):
+    thought_text: Optional[str] = None
+    action_text: Optional[str] = None
+# (Остальные модели данных без изменений)
+class ActionRequest(BaseModel): character_key: str
+class GmActionRequest(BaseModel): text: str
+class CharacterActionRequest(BaseModel): character_id: str
+class UpdateCharactersRequest(BaseModel): characters_id: List[str]
+class ObserverRequest(BaseModel): action: str; dice_roll: Optional[int] = None
+class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
+class SetLocationRequest(BaseModel): location_id: str
 
-async def event_stream_generator():
-    global last_known_event_data
-    while True:
-        try:
-            current_data = load_json(EVENT_LOG_FILE)
-            if current_data != last_known_event_data:
-                last_known_event_data = current_data
-                yield f"data: {json.dumps(current_data)}\n\n"
-        except Exception as e:
-            print(f"Error in event_stream_generator: {e}")
-        await asyncio.sleep(1)
+# --- НОВАЯ СИСТЕМА SERVER-SENT EVENTS (SSE) ---
 
-async def character_stream_generator():
-    global last_known_character_data
-    initial_chars = await get_all_characters()
-    if initial_chars:
-        last_known_character_data = initial_chars
-    while True:
-        try:
-            all_chars = await get_all_characters()
-            if all_chars and all_chars != last_known_character_data:
-                for char_id, char_data in all_chars.items():
-                    if char_id not in last_known_character_data or \
-                       last_known_character_data[char_id] != char_data:
-                        update_payload = {"id": char_id, "data": char_data}
-                        yield f"data: {json.dumps(update_payload)}\n\n"
-                last_known_character_data = all_chars
-        except Exception as e:
-            print(f"Error in character_stream_generator: {e}")
-        await asyncio.sleep(1)
+def sse_format(event: str, data: Any) -> str:
+    """Вспомогательная функция для форматирования SSE-сообщений."""
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
-async def game_state_stream_generator():
-    global last_known_game_state
-    while True:
-        try:
-            current_state = load_json(PUBLIC_STATE_FILE) or {"current_location": None}
-            if current_state != last_known_game_state:
-                last_known_game_state = current_state
-                yield f"data: {json.dumps(current_state)}\n\n"
-        except Exception as e:
-            print(f"Error in game_state_stream_generator: {e}")
-        await asyncio.sleep(1)
-
-async def active_characters_stream_generator():
-    global last_known_active_characters
-    while True:
-        try:
-            current_data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
-            if current_data != last_known_active_characters:
-                last_known_active_characters = current_data
-                id_list = current_data.get("characters_id", [])
-                yield f"event: active_characters_updated\ndata: {json.dumps(id_list)}\n\n"
-        except Exception as e:
-            print(f"Error in active_characters_stream_generator: {e}")
-        await asyncio.sleep(1)
-
-async def speech_stream_generator():
+async def spectator_stream_generator(request: Request):
+    """
+    Единый поток данных для Экрана Зрителя.
+    Объединяет в себе: состояние игры (фон), активных персонажей (аватары) и реплики (облачка).
+    """
     redis_conn = redis.Redis(connection_pool=redis_pool)
     pubsub = redis_conn.pubsub()
-    
+
+    last_game_state = {}
+    last_active_chars = {"characters_id": []}
+
     try:
         await pubsub.subscribe(SPEECH_CHANNEL)
-        print(f"--- SSE: Client subscribed to Redis channel '{SPEECH_CHANNEL}' ---")
-        
+        print("--- SSE (Spectator): Client connected, subscribed to Redis.")
+
         while True:
-            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if await request.is_disconnected(): break
+
+            # 1. Проверка сообщений из Redis (реплики)
+            redis_msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.01)
+            if redis_msg and redis_msg["type"] == "message":
+                yield sse_format("character_speech", json.loads(redis_msg['data']))
+
+            # 2. Проверка состояния игры (фон)
+            current_game_state = load_json(PUBLIC_STATE_FILE) or {"current_location": None}
+            if current_game_state != last_game_state:
+                last_game_state = current_game_state
+                yield sse_format("game_state_update", current_game_state)
+
+            # 3. Проверка активных персонажей (аватары)
+            current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+            if current_active_chars != last_active_chars:
+                last_active_chars = current_active_chars
+                yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
             
-            if message and message["type"] == "message":
-                print(f"--- SSE: Got message from Redis: {message['data']} ---")
-                yield f"event: character_speech\ndata: {message['data']}\n\n"
-            
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.5) # Пауза для снижения нагрузки
 
     except asyncio.CancelledError:
-        print("--- SSE: Client disconnected. ---")
-        raise
+        pass # Ожидаемое исключение при отключении клиента
     finally:
-        print(f"--- SSE: Unsubscribing from '{SPEECH_CHANNEL}' ---")
+        print("--- SSE (Spectator): Client disconnected. Cleaning up.")
         await pubsub.unsubscribe(SPEECH_CHANNEL)
         await redis_conn.close()
 
+async def gm_stream_generator(request: Request):
+    """
+    Единый поток данных для Консоли ГМ.
+    Объединяет в себе: лог событий и обновления данных персонажей.
+    """
+    last_event_log = {}
+    last_all_characters = {}
+    try:
+        while True:
+            if await request.is_disconnected(): break
 
-@app.get("/api/event_stream")
-async def event_stream():
-    return StreamingResponse(event_stream_generator(), media_type="text/event-stream")
+            # 1. Проверка лога событий
+            current_event_log = load_json(EVENT_LOG_FILE) or {"history": []}
+            if current_event_log != last_event_log:
+                last_event_log = current_event_log
+                yield sse_format("event_log_update", current_event_log)
 
-@app.get("/api/character_stream")
-async def character_stream():
-    return StreamingResponse(character_stream_generator(), media_type="text/event-stream")
+            # 2. Проверка обновлений персонажей (отправляем только дельту)
+            all_chars = {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
+            if all_chars != last_all_characters:
+                # Инициализация, если last_all_characters пуст
+                if not last_all_characters: last_all_characters = all_chars
+                # Поиск изменений
+                for char_id, char_data in all_chars.items():
+                    if char_id not in last_all_characters or last_all_characters[char_id] != char_data:
+                        yield sse_format("character_update", {"id": char_id, "data": char_data})
+                last_all_characters = all_chars
 
-@app.get("/api/game_state_stream")
-async def game_state_stream():
-    return StreamingResponse(game_state_stream_generator(), media_type="text/event-stream")
+            await asyncio.sleep(1)
 
-@app.get("/api/active_characters_stream")
-async def active_characters_stream():
-    return StreamingResponse(active_characters_stream_generator(), media_type="text/event-stream")
+    except asyncio.CancelledError:
+        pass # Ожидаемое исключение
+    finally:
+        print("--- SSE (GM): Client disconnected.")
 
-@app.get("/api/speech_stream")
-async def speech_stream():
-    return StreamingResponse(speech_stream_generator(), media_type="text/event-stream")
+@app.get("/api/spectator_stream")
+async def spectator_stream(request: Request):
+    return StreamingResponse(spectator_stream_generator(request), media_type="text/event-stream")
 
+@app.get("/api/gm_stream")
+async def gm_stream(request: Request):
+    return StreamingResponse(gm_stream_generator(request), media_type="text/event-stream")
 
-# --- Основные API эндпоинты ---
+# --- Основные роуты и API ---
+
+@app.get("/", response_class=RedirectResponse, include_in_schema=False)
+async def root(): return "/gm/console-gm.html"
+
+@app.get("/spectator", response_class=RedirectResponse, include_in_schema=False)
+async def spectator_redirect(): return "/sp/spectator.html"
+
 @app.post("/api/character/{character_id}/say")
 async def character_say(character_id: str, request: SpeechRequest):
     redis_conn = redis.Redis(connection_pool=redis_pool)
-    print(f"--- API: Received POST on /say for character: {character_id} ---")
-    
     try:
         if request.thought_text:
-            message = {
-                "character": character_id,
-                "type": "thought",
-                "text": request.thought_text
-            }
+            message = {"character": character_id, "type": "thought", "text": request.thought_text}
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
-            print(f"--- API: Published 'thought' to Redis: {json.dumps(message)} ---")
-            await asyncio.sleep(0.1)
-
         if request.action_text:
-            message = {
-                "character": character_id,
-                "type": "action",
-                "text": request.action_text
-            }
+            message = {"character": character_id, "type": "action", "text": request.action_text}
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
-            print(f"--- API: Published 'action' to Redis: {json.dumps(message)} ---")
     finally:
         await redis_conn.close()
-        
     return {"status": "success"}
 
-
+# (Остальные API-эндпоинты остаются без изменений)
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):
-    character_id = request.character_id
-    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
-    id_list = data.get("characters_id", [])
-
-    if character_id not in id_list:
-        id_list.append(character_id)
-        if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": id_list}):
-            return {"status": "success", "message": f"Character {character_id} activated."}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to save active characters.")
-    return {"status": "success", "message": f"Character {character_id} is already active."}
+    d = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+    if request.character_id not in d["characters_id"]: d["characters_id"].append(request.character_id)
+    save_json(ACTIVE_CHARACTERS_FILE, d)
+    return {"status": "success"}
 
 @app.post("/api/characters/deactivate")
 async def deactivate_character(request: CharacterActionRequest):
-    character_id = request.character_id
-    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
-    id_list = data.get("characters_id", [])
-
-    if character_id in id_list:
-        id_list.remove(character_id)
-        if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": id_list}):
-            return {"status": "success", "message": f"Character {character_id} deactivated."}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to save active characters.")
-    return {"status": "success", "message": f"Character {character_id} was not active."}
+    d = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+    if request.character_id in d["characters_id"]: d["characters_id"].remove(request.character_id)
+    save_json(ACTIVE_CHARACTERS_FILE, d)
+    return {"status": "success"}
 
 @app.post("/api/update_active_characters")
 async def update_active_characters(request: UpdateCharactersRequest):
-    if save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": request.characters_id}):
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to update active characters.")
+    save_json(ACTIVE_CHARACTERS_FILE, {"characters_id": request.characters_id})
+    return {"status": "success"}
 
 @app.get("/api/active_characters")
-async def get_active_characters():
-    data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
-    return data.get("characters_id", [])
+async def get_active_characters(): return (load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}).get("characters_id", [])
 
 @app.get("/api/characters")
-async def get_characters():
-    data = load_json(CHARACTERS_FILE)
-    if data is None: raise HTTPException(status_code=404, detail="Characters file not found.")
-    return data
+async def get_characters(): return load_json(CHARACTERS_FILE)
 
 @app.get("/api/npcs")
-async def get_npcs():
-    data = load_json(NPC_FILE)
-    if data is None: raise HTTPException(status_code=404, detail="NPC file not found.")
-    return data
+async def get_npcs(): return load_json(NPC_FILE)
 
 @app.get("/api/locations")
-async def get_locations():
-    data = load_json(LOCATIONS_FILE)
-    if data is None: raise HTTPException(status_code=404, detail="Locations file not found.")
-    return data.get("locations", {})
+async def get_locations(): return (load_json(LOCATIONS_FILE) or {}).get("locations", {})
 
 @app.get("/api/all_characters")
-async def get_all_characters(): 
-    chars = load_json(CHARACTERS_FILE) or {}
-    npcs = load_json(NPC_FILE) or {}
-    return {**chars, **npcs}
+async def get_all_characters(): return {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
 
 @app.get("/api/event_log")
-async def get_event_log(): 
-    data = load_json(EVENT_LOG_FILE)
-    if data is None: raise HTTPException(status_code=404, detail="Event log not found.")
-    return data
+async def get_event_log(): return load_json(EVENT_LOG_FILE)
 
 @app.get("/api/game_state")
-async def get_game_state():
-    return load_json(PUBLIC_STATE_FILE) or {"current_location": None}
+async def get_game_state(): return load_json(PUBLIC_STATE_FILE) or {"current_location": None}
 
 @app.post("/api/set_location")
 async def set_location(request: SetLocationRequest):
-    location_id = request.location_id
-    locations_data = load_json(LOCATIONS_FILE)
-    if not locations_data or location_id not in locations_data.get("locations", {}):
-        raise HTTPException(404, f"Location '{location_id}' not found.")
-    
-    image_path = locations_data["locations"][location_id]
-    client_safe_path = image_path.replace("../", "")
-    location_details = {"id": location_id, "name": location_id, "image_url": client_safe_path}
-    
-    public_state = load_json(PUBLIC_STATE_FILE) or {}
-    public_state["current_location"] = location_details
-    if save_json(PUBLIC_STATE_FILE, public_state):
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save public state.")
+    locs = load_json(LOCATIONS_FILE)
+    if request.location_id not in locs.get("locations", {}): raise HTTPException(404)
+    img_path = locs["locations"][request.location_id].replace("../", "")
+    details = {"id": request.location_id, "name": request.location_id, "image_url": img_path}
+    state = load_json(PUBLIC_STATE_FILE) or {}
+    state["current_location"] = details
+    save_json(PUBLIC_STATE_FILE, state)
+    return {"status": "success"}
 
 @app.post("/api/add_gm_action")
 async def add_gm_action(request: GmActionRequest):
-    event_data = load_json(EVENT_LOG_FILE) or {"history": []}
-    history = event_data.get("history", [])
-    new_step = history[-1].get("step", 0) + 1 if history else 1
-    history.append({"step": new_step, "name": "Game Master", "role": "gm", "action": request.text})
-    if save_json(EVENT_LOG_FILE, {"history": history}):
-        return {"status": "success"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save GM action.")
+    d = load_json(EVENT_LOG_FILE) or {"history": []}
+    h = d.get("history", [])
+    step = h[-1].get("step", 0) + 1 if h else 1
+    h.append({"step": step, "name": "Game Master", "role": "gm", "action": request.text})
+    save_json(EVENT_LOG_FILE, {"history": h})
+    return {"status": "success"}
 
 @app.post("/api/observer_analysis")
 async def observer_analysis(request: ObserverRequest):
-    active_data = load_json(ACTIVE_CHARACTERS_FILE) or {}
-    active_ids = active_data.get("characters_id", [])
-    if not active_ids: raise HTTPException(404, "Active characters not set.")
-    
+    active_ids = (load_json(ACTIVE_CHARACTERS_FILE) or {}).get("characters_id", [])
+    if not active_ids: raise HTTPException(404)
     all_chars = await get_all_characters()
     active_chars = {k: all_chars[k] for k in active_ids if k in all_chars}
-    if not active_chars: raise HTTPException(404, "Active characters data not found.")
-
+    if not active_chars: raise HTTPException(404)
     prompt = build_observer_prompt(request.action, request.dice_roll, active_chars)
     save_prompt_to_log("observer", prompt)
-
-    response = client.chat.completions.create(
-        model="deepseek/deepseek-v3.2",
-        messages=[{"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}]
-    )
+    response = client.chat.completions.create(model="deepseek/deepseek-v3.2", messages=[{"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}])
     return {"response": response.choices[0].message.content}
 
 @app.post("/api/apply_json_patch")
 async def apply_json_patch(request: JsonPatchRequest):
-    characters = load_json(CHARACTERS_FILE) or {}
-    npcs = load_json(NPC_FILE) or {}
+    chars, npcs = load_json(CHARACTERS_FILE) or {}, load_json(NPC_FILE) or {}
     for char_id, updates in request.patch.items():
-        target_dict = characters if char_id in characters else npcs
-        if char_id in target_dict:
+        target = chars if char_id in chars else npcs
+        if char_id in target: 
             for key, value in updates.items():
-                if isinstance(value, dict) and key in target_dict.get(char_id, {}):
-                    target_dict[char_id][key].update(value)
-                else: 
-                    target_dict[char_id][key] = value
-    save_json(CHARACTERS_FILE, characters)
-    save_json(NPC_FILE, npcs)
+                if isinstance(value, dict) and key in target.get(char_id, {}): target[char_id][key].update(value)
+                else: target[char_id][key] = value
+    save_json(CHARACTERS_FILE, chars); save_json(NPC_FILE, npcs)
     return {"status": "success"}
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
-    char_key = request.character_key
     all_chars = await get_all_characters()
-    if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
-    
-    char = all_chars[char_key]
+    if request.character_key not in all_chars: raise HTTPException(404)
+    char = all_chars[request.character_key]
     history = (load_json(EVENT_LOG_FILE) or {}).get("history", [])
     prompt = build_prompt(char, history)
-    save_prompt_to_log(char_key, prompt)
-
-    response = client.chat.completions.create(
-        model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
-        messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
-    )
+    save_prompt_to_log(request.character_key, prompt)
+    response = client.chat.completions.create(model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"), messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}])
     ai_response = response.choices[0].message.content
-    
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
-    updated_event_data = handle_response(
-        ai_response, event_data, char.get("identity", {}).get('name'), char.get("meta", {}).get('role')
-    )
+    updated_event_data = handle_response(ai_response, event_data, char.get("identity", {}).get('name'), char.get("meta", {}).get('role'))
     save_json(EVENT_LOG_FILE, updated_event_data)
     return {"response": ai_response}

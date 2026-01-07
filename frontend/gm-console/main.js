@@ -14,66 +14,52 @@ const ROLE_COLORS = {
 function renderEventLog(history) {
     const eventLogPanel = document.getElementById('event-log-panel');
     if (!eventLogPanel) return;
-
     eventLogPanel.innerHTML = '<h2>Event Log</h2>';
-
     history.forEach(event => {
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
-
         const characterName = document.createElement('span');
         characterName.className = 'character-name';
         characterName.textContent = `${event.name}: `;
         characterName.style.color = ROLE_COLORS[event.role] || 'white';
-
         const thoughts = document.createElement('p');
         thoughts.className = 'thoughts';
         thoughts.textContent = event.thoughts ? `Мысли: ${event.thoughts}` : '';
-
         const action = document.createElement('p');
         action.className = 'action';
         action.textContent = `Действие: ${event.action}`;
-
         logEntry.appendChild(characterName);
         if (event.thoughts) logEntry.appendChild(thoughts);
         logEntry.appendChild(action);
-
         eventLogPanel.appendChild(logEntry);
     });
-
     eventLogPanel.scrollTop = eventLogPanel.scrollHeight;
 }
 
 function handleCharacterUpdate(updatedCharData) {
     const charId = updatedCharData.id;
     const newData = updatedCharData.data;
-
     if (state.allCharactersData[charId]) {
         Object.assign(state.allCharactersData[charId], newData);
     }
-
     if (state.visibleCharacterIds.has(charId)) {
         const cardElement = document.querySelector(`[data-char-key='${charId}']`);
         if (cardElement) {
-            console.log(`Updating card for ${charId}`);
+            console.log(`SSE: Updating card for ${charId}`);
             updateCharacterCard(cardElement, state.allCharactersData[charId]);
         }
     }
 }
 
-// --- OBSERVER LOGIC ---
-
 async function triggerObserver(action, diceRoll = null) {
     const observerTextarea = document.getElementById('observer-textarea');
     observerTextarea.value = 'Анализ...';
     setLastObserverRequest(action, diceRoll);
-
     try {
         const result = await api.getObserverAnalysis(action, diceRoll);
         observerTextarea.value = result.response;
     } catch (error) {
         observerTextarea.value = `Ошибка: ${error.message}`;
-        console.error("Observer analysis failed:", error);
     }
 }
 
@@ -91,10 +77,9 @@ function initializeObserver() {
                 const patch = JSON.parse(patchMatch[1].trim());
                 await api.applyJsonPatch(patch);
                 alert('Персонажи обновлены!');
-                observerTextarea.value = ''; // Clear on success
+                observerTextarea.value = '';
             } catch (error) {
                 alert(`Ошибка применения патча: ${error.message}`);
-                console.error("Failed to parse or apply JSON patch:", error);
             }
         } else {
             alert('[JSON PATCH] не найден в ответе.');
@@ -102,22 +87,15 @@ function initializeObserver() {
     });
 
     retryButton.addEventListener('click', () => {
-        if (state.lastAction) {
-            triggerObserver(state.lastAction, state.lastDiceRoll);
-        }
+        if (state.lastAction) triggerObserver(state.lastAction, state.lastDiceRoll);
     });
-
-    resetButton.addEventListener('click', () => {
-        observerTextarea.value = '';
-    });
+    resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
-        "top-panel": "panels/top-panel.html",
-        "left-panel": "panels/left-panel.html",
-        "center-panel": "panels/center-panel.html",
-        "right-panel": "panels/right-panel.html",
+        "top-panel": "panels/top-panel.html", "left-panel": "panels/left-panel.html",
+        "center-panel": "panels/center-panel.html", "right-panel": "panels/right-panel.html",
         "bottom-panel": "panels/bottom-panel.html"
     };
 
@@ -125,50 +103,50 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(url)
             .then(response => response.text())
             .then(html => {
-                const panelElement = document.getElementById(panelId);
-                if (!panelElement) return;
-                panelElement.innerHTML = html;
-
-                if (panelId === "center-panel") panels.initializeCenterPanel(triggerObserver); // Pass trigger function
+                document.getElementById(panelId).innerHTML = html;
+                if (panelId === "center-panel") panels.initializeCenterPanel(triggerObserver);
                 if (panelId === "top-panel") panels.initializeTopPanel();
                 if (panelId === "bottom-panel") panels.initializeBottomPanel();
                 if (panelId === "left-panel") panels.initializeLeftPanel();
-                if (panelId === "right-panel") initializeObserver(); // Initialize observer buttons
-            })
-            .catch(err => console.warn(`Could not load panel ${panelId}:`, err));
+                if (panelId === "right-panel") initializeObserver();
+            });
     }
 
     async function main() {
         try {
+            // 1. Кэшируем данные и загружаем панели
             const allChars = await api.fetchAllCharacters();
             cacheAllCharacters(allChars);
-            console.log("Character data cached.");
-
             Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
 
+            // 2. Первоначальная загрузка лога
             const initialLogData = await api.fetchEventLog();
             renderEventLog(initialLogData.history || []);
 
-            api.subscribeToEventLog(eventLogData => {
-                console.log('Received event log update via SSE');
-                renderEventLog(eventLogData.history || []);
+            // 3. Подписка на ЕДИНЫЙ ПОТОК ДАННЫХ ДЛЯ ГМ
+            api.subscribeToGmStream(
+                // Колбэк для обновления лога
+                (eventLogData) => {
+                    console.log('SSE: Received event log update');
+                    renderEventLog(eventLogData.history || []);
 
-                const lastEvent = eventLogData.history[eventLogData.history.length - 1];
-                if (lastEvent && lastEvent.name !== 'Game Master') {
-                    const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
-                    if (actionMatch && actionMatch[1]) {
-                        triggerObserver(actionMatch[1].trim());
+                    const lastEvent = eventLogData.history[eventLogData.history.length - 1];
+                    if (lastEvent && lastEvent.name !== 'Game Master') {
+                        const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
+                        if (actionMatch && actionMatch[1]) {
+                            triggerObserver(actionMatch[1].trim());
+                        }
                     }
+                },
+                // Колбэк для обновления персонажа
+                (characterUpdateData) => {
+                    console.log('SSE: Received character update:', characterUpdateData);
+                    handleCharacterUpdate(characterUpdateData);
                 }
-            });
-
-            api.subscribeToCharacterUpdates(characterUpdateData => {
-                console.log('Received character update via SSE:', characterUpdateData);
-                handleCharacterUpdate(characterUpdateData);
-            });
+            );
 
         } catch (error) {
-            console.error("Failed to initialize the application:", error);
+            console.error("Initialization failed:", error);
         }
     }
 
