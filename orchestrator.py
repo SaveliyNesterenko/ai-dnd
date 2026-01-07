@@ -34,7 +34,8 @@ client = OpenAI(
 )
 
 # --- Redis Pub/Sub Настройки ---
-REDIS_URL = "redis://localhost:6379"
+# ИЗМЕНЕНО: Явно используем 127.0.0.1 вместо localhost
+REDIS_URL = "redis://127.0.0.1:6379" 
 redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
 SPEECH_CHANNEL = "speech_channel"
 
@@ -173,19 +174,29 @@ async def generate_action(request: ActionRequest):
     
     # --- ИЗМЕНЕННАЯ ЛОГИКА: Используем парсер и отправляем реплики ---
     parsed_data = parse_ai_response(ai_response)
-    redis_conn = redis.Redis(connection_pool=redis_pool)
+    redis_conn = None # Инициализируем, чтобы было доступно в finally
     try:
+        print("--- DEBUG: Connecting to Redis for publishing...") # DEBUG
+        redis_conn = redis.Redis(connection_pool=redis_pool)
+        
         if parsed_data["thought"]:
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
+            print(f"--- DEBUG: Publishing THOUGHT: {message}") # DEBUG
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
 
         if parsed_data["action"]:
             message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
+            print(f"--- DEBUG: Publishing ACTION: {message}") # DEBUG
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            
+        print("--- DEBUG: Publish commands sent.") # DEBUG
+
     except Exception as e:
-        print(f"Error during Redis publishing in /act: {e}")
+        print(f"--- CRITICAL ERROR during Redis publishing in /act: {e}") # DEBUG
     finally:
-        await redis_conn.close()
+        if redis_conn:
+            await redis_conn.close()
+            print("--- DEBUG: Redis connection closed.") # DEBUG
     # --- КОНЕЦ ИЗМЕНЕННОЙ ЛОГИКИ ---
 
     # Существующая логика: сохранение в лог событий
