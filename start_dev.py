@@ -16,44 +16,45 @@ def main():
     Запускает сервер FastAPI и открывает фронтенд-панели в браузере.
     """
     print("--- Запуск среды разработки ---")
-
+    
     # --- НОВЫЙ, ПРАВИЛЬНЫЙ СПОСОБ ЗАПУСКА ---
     # Мы запускаем Uvicorn напрямую как процесс.
     # Ключевые аргументы:
     # "orchestrator:app" - указывает на объект app в файле orchestrator.py
     # --host, --port - задают адрес и порт
-    # --workers 4 - САМОЕ ВАЖНОЕ: запускает 4 независимых процесса.
-    #               Теперь блокировка в одном не помешает другим.
-    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 4 воркерами...")
+    # --workers 1 - ВРЕМЕННОЕ ИЗМЕНЕНИЕ ДЛЯ ДИАГНОСТИКИ
+    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 1 воркером (в режиме диагностики)...")
     
     command = [
         sys.executable, "-m", "uvicorn", 
         "orchestrator:app", 
         "--host", ORCHESTRATOR_HOST, 
         "--port", str(ORCHESTRATOR_PORT),
-        "--workers", "4"
+        "--workers", "1"  # <-- ИЗМЕНЕНИЕ ЗДЕСЬ
     ]
     
     orchestrator_process = subprocess.Popen(command)
 
     print("Ждем запуск сервера...")
-    time.sleep(5) # Слегка увеличим задержку, т.к. запуск воркеров занимает чуть больше времени
-
+    time.sleep(5) 
+    
     print("Открываем GM-консоль и Зрительский экран в браузере...")
     webbrowser.open(GM_CONSOLE_URL, new=1)
     webbrowser.open(SPECTATOR_URL, new=2)
 
-    print("--- Среда разработки готова! ---")
-    print("GM-консоль доступна по адресу:", GM_CONSOLE_URL)
-    print("Зрительский экран доступен по адресу:", SPECTATOR_URL)
+    print("\n--- Среда разработки готова! ---")
+    print(f"GM-консоль доступна по адресу: {GM_CONSOLE_URL}")
+    print(f"Зрительский экран доступен по адресу: {SPECTATOR_URL}")
     print("Для остановки серверов нажмите Ctrl+C в этом окне.")
 
+    # Ожидаем завершения дочернего процесса
     try:
         orchestrator_process.wait()
     except KeyboardInterrupt:
-        print("\n--- Завершение работы ---")
+        print("\n--- Получен сигнал на остановку (Ctrl+C). Завершаем работу. ---")
         orchestrator_process.terminate()
-        print("Сервер остановлен.")
+        orchestrator_process.wait()
+        print("--- Сервер остановлен. ---")
 
 if __name__ == "__main__":
     main()
