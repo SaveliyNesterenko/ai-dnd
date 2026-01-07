@@ -180,6 +180,26 @@ async def generate_action(request: ActionRequest):
     try:
         redis_conn = redis.Redis(connection_pool=redis_pool)
         
+        # --- НАЧАЛО ДИАГНОСТИЧЕСКОГО БЛОКА ---
+        print("\n--- [DIAGNOSTIC BLOCK] ---")
+        try:
+            # 1. Проверяем связь командой PING
+            pong = await redis_conn.ping()
+            print(f"--- PING response: {pong} (should be True)")
+
+            # 2. Пробуем установить значение
+            set_result = await redis_conn.set("python_test_key", f"value_from_{char_key}")
+            print(f"--- SET command result: {set_result}")
+
+            # 3. Пробуем прочитать значение обратно
+            get_result = await redis_conn.get("python_test_key")
+            print(f"--- GET command result for 'python_test_key': {get_result}")
+
+        except Exception as e:
+            print(f"--- ERROR in diagnostic block: {e}")
+        print("--- [END DIAGNOSTIC BLOCK] ---\n")
+        # --- КОНЕЦ ДИАГНОСТИЧЕСКОГО БЛОКА ---
+
         if parsed_data.get("thought"):
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
             print(f"--- DEBUG: Publishing THOUGHT: {message}")
