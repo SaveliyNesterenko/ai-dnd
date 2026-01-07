@@ -49,16 +49,15 @@ function renderAvatars(characterIds) {
 }
 
 function showSpeechBubble(characterId, text, type) {
-    // --- УЛУЧШЕННАЯ ПРОВЕРКА ---
     const avatar = document.getElementById(`avatar-${characterId}`);
     if (!avatar) {
         console.error(`Speech bubble error: Avatar for character ID '${characterId}' not found.`);
-        return; // Прерываем выполнение, если аватара нет
+        return;
     }
-    // --- КОНЕЦ УЛУЧШЕННОЙ ПРОВЕРКИ ---
 
-    const existingBubble = document.querySelector(`.speech-bubble[data-character='${characterId}']`);
-    if (existingBubble) { existingBubble.remove(); }
+    // --- ИСПРАВЛЕНИЕ СОГЛАСНО ВАШЕМУ ПРЕДЛОЖЕНИЮ ---
+    // Логика поиска и удаления существующего пузыря полностью удалена.
+    // Мы полагаемся только на setTimeout для очистки.
 
     const bubble = document.createElement('div');
     bubble.className = `speech-bubble ${type}`;
@@ -67,10 +66,18 @@ function showSpeechBubble(characterId, text, type) {
     document.body.appendChild(bubble);
 
     const avatarRect = avatar.getBoundingClientRect();
-    bubble.style.left = `${avatarRect.left + avatarRect.width / 2 - bubble.offsetWidth / 2}px`;
-    bubble.style.top = `${avatarRect.top - bubble.offsetHeight - 10}px`;
 
-    setTimeout(() => { bubble.remove(); }, 5000);
+    // Позиционируем пузыри с небольшим смещением, чтобы они не перекрывали друг друга
+    let topOffset = -10;
+    if (type === 'thought') {
+        topOffset = -90; // Размещаем пузырь с мыслями выше
+    }
+
+    bubble.style.left = `${avatarRect.left + avatarRect.width / 2 - bubble.offsetWidth / 2}px`;
+    bubble.style.top = `${avatarRect.top - bubble.offsetHeight + topOffset}px`;
+
+    // Устанавливаем таймер на удаление этого конкретного пузыря
+    setTimeout(() => { bubble.remove(); }, 8000); // Время жизни пузыря 8 секунд
 }
 
 // --- НОВАЯ ЕДИНАЯ ПОДПИСКА НА СОБЫТИЯ --- 
@@ -79,23 +86,20 @@ function subscribeToSpectatorStream() {
     console.log("Connecting to the unified spectator stream...");
     const eventSource = new EventSource(`${API_BASE_URL}/api/spectator_stream`);
 
-    // Слушаем событие обновления состояния игры (фон)
     eventSource.addEventListener('game_state_update', function(event) {
         const gameState = JSON.parse(event.data);
         updateBackground(gameState);
     });
 
-    // Слушаем событие обновления активных персонажей (аватары)
     eventSource.addEventListener('active_characters_update', function(event) {
         const characterIds = JSON.parse(event.data);
         console.log('SSE: Received active characters update', characterIds);
         renderAvatars(characterIds);
     });
 
-    // Слушаем событие реплики персонажа
     eventSource.addEventListener('character_speech', function(event) {
         const speechData = JSON.parse(event.data);
-        console.log('SSE: Received speech data', speechData); // Этот лог уже был, он полезен
+        console.log('SSE: Received speech data', speechData);
         showSpeechBubble(speechData.character, speechData.text, speechData.type);
     });
 
@@ -130,7 +134,6 @@ document.addEventListener('mouseup', () => {
 async function main() {
     console.log("Spectator screen initializing...");
 
-    // 1. Первоначальная загрузка данных для мгновенного отображения
     try {
         const [gameStateRes, activeCharsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/game_state`),
@@ -146,7 +149,6 @@ async function main() {
         console.error("Failed to fetch initial data:", error);
     }
 
-    // 2. Подписка на единый поток обновлений
     subscribeToSpectatorStream();
     
     console.log("Spectator screen initialized and connected to stream.");
