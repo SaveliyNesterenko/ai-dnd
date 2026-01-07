@@ -55,20 +55,17 @@ html {
     line-height: 1.4;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 100;
-    /* Поверх всех аватаров */
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.3s ease-out, transform 0.3s ease-out;
     color: #333;
 }
 
-/* Появление облачка */
 .speech-bubble:not(:empty) {
     opacity: 1;
     transform: translateY(0);
 }
 
-/* Треугольный хвостик облачка */
 .speech-bubble::after {
     content: '';
     position: absolute;
@@ -82,21 +79,17 @@ html {
     border-top: 10px solid rgba(255, 255, 255, 0.9);
 }
 
-/* Вариация для мыслей */
+/* --- ИСПРАВЛЕННЫЙ СТИЛЬ ДЛЯ МЫСЛЕЙ --- */
+/* Мы объединили два правила в одно и добавили толщину границы */
 .speech-bubble.thought {
-    border-style: dashed;
-    border-color: #aaa;
+    border: 2px dashed #aaa; /* Задаем толщину, стиль и цвет */
+    border-radius: 25px; /* Сделаем чуть менее круглым, чем эллипс */
     background-color: rgba(240, 240, 240, 0.85);
     color: #555;
     font-style: italic;
 }
 
+/* Убираем треугольный хвостик у мыслей */
 .speech-bubble.thought::after {
-    display: none;
-    /* Убираем хвостик у мыслей, делаем их похожими на облака */
-}
-
-/* Дополнительно можно сделать облака мыслей круглее */
-.speech-bubble.thought {
-    border-radius: 50% / 40%;
+    display: none; 
 }
