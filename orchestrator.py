@@ -156,16 +156,20 @@ async def generate_action(request: ActionRequest):
     prompt = build_prompt(char, history)
     save_prompt_to_log(char_key, prompt)
 
-    # Генерация ответа модели
-    try:
-        response = client.chat.completions.create(
-            model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
-            messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
-        )
-        ai_response = response.choices[0].message.content
-    except Exception as e:
-        print(f"AI API call failed: {e}")
-        raise HTTPException(status_code=502, detail="AI model API call failed.")
+    # # Генерация ответа модели (ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ РАЗРАБОТКИ)
+    # try:
+    #     response = client.chat.completions.create(
+    #         model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
+    #         messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
+    #     )
+    #     ai_response = response.choices[0].message.content
+    # except Exception as e:
+    #     print(f"AI API call failed: {e}")
+    #     raise HTTPException(status_code=502, detail="AI model API call failed.")
+    
+    # ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
+    ai_response = f"[THOUGHTS]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
+
     
     # --- ИЗМЕНЕННАЯ ЛОГИКА: Используем парсер и отправляем реплики ---
     parsed_data = parse_ai_response(ai_response)
