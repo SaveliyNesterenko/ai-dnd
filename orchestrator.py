@@ -30,7 +30,6 @@ from archivist import router as archivist_router
 load_dotenv()
 
 REDIS_URL = "redis://127.0.0.1:6379"
-# ИЗМЕНЕНО: Используем ключ списка вместо имени канала
 SPEECH_LIST_KEY = "speech_list"
 
 app_state = {}
@@ -93,30 +92,19 @@ async def spectator_stream_generator(request: Request):
         try:
             if await request.is_disconnected():
                 break
-
-            # ИЗМЕНЕНО: Используем BLPOP для ожидания сообщения из списка
-            # Ожидаем сообщение до 1 секунды
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY], timeout=1)
-            
             if message_tuple:
-                # message_tuple - это кортеж (имя_списка, значение)
                 _, message_data = message_tuple
-                # Отправляем полученное сообщение клиенту
                 yield sse_format("character_speech", json.loads(message_data))
-            
-            # Отправка обновлений состояния (можно оставить, но без сложной логики сравнения)
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             yield sse_format("game_state_update", current_game_state)
             current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {}
             yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
-
         except asyncio.CancelledError:
-            # Клиент отключился
             break
         except Exception as e:
             print(f"Error in spectator stream: {e}")
-            await asyncio.sleep(1) # Пауза перед повторной попыткой
-
+            await asyncio.sleep(1)
 
 async def gm_stream_generator(request: Request):
     last_event_log, last_all_characters = {}, {}
@@ -154,7 +142,6 @@ async def spectator_redirect(): return "/sp/spectator.html"
 async def character_say(character_id: str, request: SpeechRequest):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
-        # ИЗМЕНЕНО: Используем RPUSH для добавления в список
         if request.thought_text:
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"character": character_id, "type": "thought", "text": request.thought_text}))
         if request.action_text:
@@ -174,24 +161,22 @@ async def generate_action(request: ActionRequest):
     prompt = build_prompt(char, history)
     save_prompt_to_log(char_key, prompt)
 
-    # Генерация ответа модели (ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ РАЗРАБОТКИ)
-    # try:
-    #     response = client.chat.completions.create(
-    #         model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
-    #         messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
-    #     )
-    #     ai_response = response.choices[0].message.content
-    # except Exception as e:
-    #     print(f"AI API call failed: {e}")
-    #     raise HTTPException(status_code=502, detail="AI model API call failed.")
+    # --- ВЫЗОВ НЕЙРОСЕТИ (ВОССТАНОВЛЕНО) ---
+    try:
+        response = client.chat.completions.create(
+            model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
+            messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
+        )
+        ai_response = response.choices[0].message.content
+    except Exception as e:
+        print(f"AI API call failed: {e}")
+        raise HTTPException(status_code=502, detail="AI model API call failed.")
     
-    ai_response = f"[THOUGHTS]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
     parsed_data = parse_ai_response(ai_response)
     print(f"--- Parsed AI response: {parsed_data}")
 
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
-        # ИЗМЕНЕНО: Используем RPUSH для добавления в список
         if parsed_data.get("thought"):
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
