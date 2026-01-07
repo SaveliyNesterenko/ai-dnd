@@ -168,8 +168,8 @@ async def generate_action(request: ActionRequest):
     #     print(f"AI API call failed: {e}")
     #     raise HTTPException(status_code=502, detail="AI model API call failed.")
     
-    # ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
-    ai_response = f"[THOUGHTS]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
+      # ИСПРАВЛЕННАЯ ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
+    ai_response = f"[THOUGHT]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
 
     
     # --- ИЗМЕНЕННАЯ ЛОГИКА: Используем парсер и отправляем реплики ---
