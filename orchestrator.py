@@ -34,7 +34,6 @@ client = OpenAI(
 )
 
 # --- Redis Pub/Sub Настройки ---
-# ИЗМЕНЕНО: Явно используем 127.0.0.1 вместо localhost
 REDIS_URL = "redis://127.0.0.1:6379" 
 redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
 SPEECH_CHANNEL = "speech_channel"
@@ -148,6 +147,7 @@ async def character_say(character_id: str, request: SpeechRequest):
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
+    print("\n\n--- EXECUTING /act ENDPOINT (CORRECT VERSION) ---\n") # DEBUG
     char_key = request.character_key
     all_chars = await get_all_characters()
     if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
@@ -157,7 +157,7 @@ async def generate_action(request: ActionRequest):
     prompt = build_prompt(char, history)
     save_prompt_to_log(char_key, prompt)
 
-    # # Генерация ответа модели (ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ РАЗРАБОТКИ)
+    # Генерация ответа модели (ВРЕМЕННО ОТКЛЮЧЕНО ДЛЯ РАЗРАБОТКИ)
     # try:
     #     response = client.chat.completions.create(
     #         model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
@@ -168,36 +168,36 @@ async def generate_action(request: ActionRequest):
     #     print(f"AI API call failed: {e}")
     #     raise HTTPException(status_code=502, detail="AI model API call failed.")
     
-      # ИСПРАВЛЕННАЯ ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
+    # ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
     ai_response = f"[THOUGHT]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
-
+    print(f"--- DEBUG: Mock AI response created: {ai_response}")
     
-    # --- ИЗМЕНЕННАЯ ЛОГИКА: Используем парсер и отправляем реплики ---
+    # --- Логика парсинга и отправки ---
     parsed_data = parse_ai_response(ai_response)
-    redis_conn = None # Инициализируем, чтобы было доступно в finally
+    print(f"\n--- IMPORTANT DEBUG: PARSED DATA IS: {parsed_data}\n")
+
+    redis_conn = None
     try:
-        print("--- DEBUG: Connecting to Redis for publishing...") # DEBUG
         redis_conn = redis.Redis(connection_pool=redis_pool)
         
-        if parsed_data["thought"]:
+        if parsed_data.get("thought"):
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
-            print(f"--- DEBUG: Publishing THOUGHT: {message}") # DEBUG
+            print(f"--- DEBUG: Publishing THOUGHT: {message}")
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
 
-        if parsed_data["action"]:
+        if parsed_data.get("action"):
             message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
-            print(f"--- DEBUG: Publishing ACTION: {message}") # DEBUG
+            print(f"--- DEBUG: Publishing ACTION: {message}")
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
             
-        print("--- DEBUG: Publish commands sent.") # DEBUG
+        print("--- DEBUG: Publish commands sent.")
 
     except Exception as e:
-        print(f"--- CRITICAL ERROR during Redis publishing in /act: {e}") # DEBUG
+        print(f"--- CRITICAL ERROR during Redis publishing in /act: {e}")
     finally:
         if redis_conn:
             await redis_conn.close()
-            print("--- DEBUG: Redis connection closed.") # DEBUG
-    # --- КОНЕЦ ИЗМЕНЕННОЙ ЛОГИКИ ---
+            print("--- DEBUG: Redis connection closed.")
 
     # Существующая логика: сохранение в лог событий
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
@@ -206,7 +206,6 @@ async def generate_action(request: ActionRequest):
     )
     save_json(EVENT_LOG_FILE, updated_event_data)
     
-    # Возвращаем полный ответ модели в консоль ГМ
     return {"response": ai_response}
 
 # (Остальные эндпоинты без изменений)
