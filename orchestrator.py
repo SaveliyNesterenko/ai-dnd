@@ -8,6 +8,7 @@ import os
 import json
 import asyncio
 import uvicorn
+import redis.asyncio as redis # Импортируем асинхронную библиотеку Redis
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +31,18 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url=os.getenv("OPENAI_BASE_URL", "https://routerai.ru/api/v1")
 )
+
+# --- Redis Pub/Sub Настройки ---
+# URL для подключения к вашему серверу Redis.
+# Memurai, который вы установили, работает на этом стандартном URL.
+REDIS_URL = "redis://localhost:6379"
+# Создаем асинхронный пул соединений. Это эффективнее, чем создавать новое
+# соединение для каждой операции. decode_responses=True заставляет Redis
+# возвращать строки (str) вместо байтов (bytes), что упрощает работу.
+redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
+# Имя "канала" или "комнаты", через который будут передаваться реплики.
+SPEECH_CHANNEL = "speech_channel"
+
 
 # --- Middleware ---
 app.add_middleware(
@@ -90,11 +103,10 @@ ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 PUBLIC_STATE_FILE = "./data/public_state.json"
 
 # --- Server-Sent Events (SSE) ---
+# Удаляем старую asyncio.Queue, она нам больше не нужна.
 last_known_event_data = {}
 last_known_character_data = {}
 last_known_game_state = {}
-speech_queue = asyncio.Queue()
-# Используем словарь для хранения ID, чтобы соответствовать формату JSON
 last_known_active_characters = {"characters_id": []}
 
 async def event_stream_generator():
@@ -147,7 +159,6 @@ async def active_characters_stream_generator():
             current_data = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
             if current_data != last_known_active_characters:
                 last_known_active_characters = current_data
-                # Отправляем только список ID
                 id_list = current_data.get("characters_id", [])
                 yield f"event: active_characters_updated\ndata: {json.dumps(id_list)}\n\n"
         except Exception as e:
@@ -155,15 +166,45 @@ async def active_characters_stream_generator():
         await asyncio.sleep(1)
 
 async def speech_stream_generator():
-    print("--- SSE: speech_stream_generator started ---")
-    while True:
-        try:
-            message = await speech_queue.get()
-            print(f"--- SSE: Got message from queue: {message} ---")
-            yield f"event: character_speech\ndata: {json.dumps(message)}\n\n"
-            print("--- SSE: Yielded message to client ---")
-        except Exception as e:
-            print(f"!!! ERROR in speech_stream_generator: {e} !!!")
+    """
+    НОВЫЙ ГЕНЕРАТОР РЕПЛИК С REDIS
+    Этот генератор подключается к Redis, подписывается на канал SPEECH_CHANNEL
+    и транслирует полученные сообщения клиентам через SSE.
+    """
+    redis_conn = redis.Redis(connection_pool=redis_pool)
+    pubsub = redis_conn.pubsub()
+    
+    try:
+        await pubsub.subscribe(SPEECH_CHANNEL)
+        print(f"--- SSE: Client subscribed to Redis channel '{SPEECH_CHANNEL}' ---")
+        
+        while True:
+            # Ожидаем сообщение из канала Redis. timeout=1.0 означает, что если
+            # в течение 1 секунды сообщений нет, мы идем дальше (чтобы цикл мог
+            # проверить, не отключился ли клиент).
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            
+            if message and message["type"] == "message":
+                # Мы получили сообщение! Redis возвращает его в поле 'data'.
+                # Так как мы использовали decode_responses=True, это уже строка.
+                print(f"--- SSE: Got message from Redis: {message['data']} ---")
+                # Отправляем событие 'character_speech' клиенту с данными из Redis.
+                yield f"event: character_speech\ndata: {message['data']}\n\n"
+            
+            # Небольшая пауза, чтобы цикл не нагружал процессор.
+            await asyncio.sleep(0.01)
+
+    except asyncio.CancelledError:
+        # Это исключение автоматически вызывается FastAPI, когда клиент (браузер)
+        # закрывает соединение. Это штатная ситуация.
+        print("--- SSE: Client disconnected. ---")
+        raise
+    finally:
+        # В любом случае (даже при ошибке) отписываемся от канала и закрываем соединение.
+        print(f"--- SSE: Unsubscribing from '{SPEECH_CHANNEL}' ---")
+        await pubsub.unsubscribe(SPEECH_CHANNEL)
+        await redis_conn.close()
+
 
 @app.get("/api/event_stream")
 async def event_stream():
@@ -183,30 +224,47 @@ async def active_characters_stream():
 
 @app.get("/api/speech_stream")
 async def speech_stream():
-    print("--- API: Client connected to /api/speech_stream ---")
+    # Этот эндпоинт теперь использует наш новый, улучшенный генератор.
     return StreamingResponse(speech_stream_generator(), media_type="text/event-stream")
+
 
 # --- Основные API эндпоинты ---
 @app.post("/api/character/{character_id}/say")
 async def character_say(character_id: str, request: SpeechRequest):
+    """
+    НОВЫЙ ЭНДПОИНТ РЕПЛИК С REDIS
+    Принимает реплику и публикует (publish) ее в канал Redis.
+    Все подписчики (экраны зрителей) мгновенно получат это сообщение.
+    """
+    redis_conn = redis.Redis(connection_pool=redis_pool)
     print(f"--- API: Received POST on /say for character: {character_id} ---")
-    if request.thought_text:
-        print(f"--- API: Putting 'thought' message to queue: {request.thought_text} ---")
-        await speech_queue.put({
-            "character": character_id,
-            "type": "thought",
-            "text": request.thought_text
-        })
-        await asyncio.sleep(0.1)
-    if request.action_text:
-        print(f"--- API: Putting 'action' message to queue: {request.action_text} ---")
-        await speech_queue.put({
-            "character": character_id,
-            "type": "action",
-            "text": request.action_text
-        })
-    print("--- API: Finished /say request, returning success ---")
+    
+    try:
+        if request.thought_text:
+            message = {
+                "character": character_id,
+                "type": "thought",
+                "text": request.thought_text
+            }
+            # Превращаем Python dict в JSON-строку и публикуем в канал.
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            print(f"--- API: Published 'thought' to Redis: {json.dumps(message)} ---")
+            await asyncio.sleep(0.1)
+
+        if request.action_text:
+            message = {
+                "character": character_id,
+                "type": "action",
+                "text": request.action_text
+            }
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            print(f"--- API: Published 'action' to Redis: {json.dumps(message)} ---")
+    finally:
+        # Закрываем соединение (возвращаем его в пул).
+        await redis_conn.close()
+        
     return {"status": "success"}
+
 
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):
@@ -372,4 +430,6 @@ async def generate_action(request: ActionRequest):
 
 # --- Запуск --- 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Теперь мы можем безопасно вернуться к запуску с несколькими воркерами,
+    # так как Redis будет корректно обрабатывать сообщения между ними.
+    uvicorn.run("orchestrator:app", host="127.0.0.1", port=8000, workers=4, reload=True)

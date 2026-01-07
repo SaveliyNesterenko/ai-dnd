@@ -82,18 +82,14 @@ function renderAvatars(characterIds) {
             avatarElement.id = `avatar-${charId}`;
             avatarElement.dataset.id = charId;
             avatarElement.className = 'character-avatar';
-            // Клиент сам конструирует путь к аватару
             avatarElement.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
             
-            // Обработчик ошибок загрузки изображения
             avatarElement.onerror = () => {
-                // Удаляем обработчик, чтобы избежать бесконечного цикла, если и default.png отсутствует
                 avatarElement.onerror = null; 
                 console.warn(`Could not load avatar for ${charId}. Using default.`);
-                avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`; // Путь к аватару по умолчанию
+                avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`;
             };
 
-            // Начальное позиционирование
             avatarElement.style.left = `${100 + index * 120}px`;
             avatarElement.style.top = `100px`;
 
@@ -107,7 +103,6 @@ function subscribeToActiveCharacterUpdates() {
     const eventSource = new EventSource(`${API_BASE_URL}/api/active_characters_stream`);
     
     eventSource.addEventListener('active_characters_updated', function(event) {
-        console.log("Received active characters update via SSE.");
         const characterIds = JSON.parse(event.data);
         renderAvatars(characterIds);
     });
@@ -117,12 +112,57 @@ function subscribeToActiveCharacterUpdates() {
     };
 }
 
+// --- Логика реплик (Speech Bubbles) ---
+
+function showSpeechBubble(characterId, text, type) {
+    const avatar = document.getElementById(`avatar-${characterId}`);
+    if (!avatar) return;
+
+    // Удаляем старое облачко, если оно есть
+    const existingBubble = document.querySelector(`.speech-bubble[data-character='${characterId}']`);
+    if (existingBubble) {
+        existingBubble.remove();
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = `speech-bubble ${type}`;
+    bubble.dataset.character = characterId;
+    bubble.textContent = text;
+
+    document.body.appendChild(bubble);
+
+    // Позиционирование облачка над аватаром
+    const avatarRect = avatar.getBoundingClientRect();
+    bubble.style.left = `${avatarRect.left + avatarRect.width / 2 - bubble.offsetWidth / 2}px`;
+    bubble.style.top = `${avatarRect.top - bubble.offsetHeight - 10}px`;
+
+    // Облачко исчезает через 5 секунд
+    setTimeout(() => {
+        bubble.remove();
+    }, 5000);
+}
+
+function subscribeToSpeechUpdates() {
+    const eventSource = new EventSource(`${API_BASE_URL}/api/speech_stream`);
+
+    eventSource.addEventListener('character_speech', function(event) {
+        const speechData = JSON.parse(event.data);
+        console.log('Received speech data:', speechData);
+        showSpeechBubble(speechData.character, speechData.text, speechData.type);
+    });
+
+    eventSource.onerror = function(err) {
+        console.error("Speech EventSource failed:", err);
+    };
+}
+
+
 // --- Инициализация ---
 
 async function main() {
     console.log("Spectator screen initializing...");
 
-    // 1. Загрузка и настройка фона
+    // 1. Фон
     try {
         const response = await fetch(`${API_BASE_URL}/api/game_state`);
         const initialState = await response.json();
@@ -132,16 +172,19 @@ async function main() {
     }
     subscribeToGameStateUpdates();
 
-    // 2. Загрузка и настройка аватаров
+    // 2. Аватары
     try {
         const response = await fetch(`${API_BASE_URL}/api/active_characters`);
-        const initialCharacterIds = await response.json(); // Получаем массив ID
+        const initialCharacterIds = await response.json();
         if(initialCharacterIds) renderAvatars(initialCharacterIds);
     } catch (error) {
-       console.warn("Could not fetch initial active characters. This is expected if the list is empty.");
+       console.warn("Could not fetch initial active characters.");
     }
     subscribeToActiveCharacterUpdates();
     
+    // 3. Реплики
+    subscribeToSpeechUpdates();
+
     console.log("Spectator screen initialized.");
 }
 
