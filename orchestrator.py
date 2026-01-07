@@ -77,6 +77,10 @@ class JsonPatchRequest(BaseModel):
 class SetLocationRequest(BaseModel):
     location_id: str
 
+class SpeechRequest(BaseModel):
+    thought_text: Optional[str] = None
+    action_text: Optional[str] = None
+
 # --- Константы файлов ---
 CHARACTERS_FILE = "./data/characters.json"
 NPC_FILE = "./data/npc.json"
@@ -89,6 +93,7 @@ PUBLIC_STATE_FILE = "./data/public_state.json"
 last_known_event_data = {}
 last_known_character_data = {}
 last_known_game_state = {}
+speech_queue = asyncio.Queue()
 # Используем словарь для хранения ID, чтобы соответствовать формату JSON
 last_known_active_characters = {"characters_id": []}
 
@@ -149,6 +154,14 @@ async def active_characters_stream_generator():
             print(f"Error in active_characters_stream_generator: {e}")
         await asyncio.sleep(1)
 
+async def speech_stream_generator():
+    while True:
+        try:
+            message = await speech_queue.get()
+            yield f"event: character_speech\ndata: {json.dumps(message)}\n\n"
+        except Exception as e:
+            print(f"Error in speech_stream_generator: {e}")
+
 @app.get("/api/event_stream")
 async def event_stream():
     return StreamingResponse(event_stream_generator(), media_type="text/event-stream")
@@ -165,7 +178,29 @@ async def game_state_stream():
 async def active_characters_stream():
     return StreamingResponse(active_characters_stream_generator(), media_type="text/event-stream")
 
+@app.get("/api/speech_stream")
+async def speech_stream():
+    return StreamingResponse(speech_stream_generator(), media_type="text/event-stream")
+
 # --- Основные API эндпоинты ---
+@app.post("/api/character/{character_id}/say")
+async def character_say(character_id: str, request: SpeechRequest):
+    if request.thought_text:
+        await speech_queue.put({
+            "character": character_id,
+            "type": "thought",
+            "text": request.thought_text
+        })
+        # Небольшая задержка для последовательного отображения
+        await asyncio.sleep(0.1)
+    if request.action_text:
+        await speech_queue.put({
+            "character": character_id,
+            "type": "action",
+            "text": request.action_text
+        })
+    return {"status": "success"}
+
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):
     character_id = request.character_id
