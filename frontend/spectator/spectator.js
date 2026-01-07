@@ -49,8 +49,14 @@ function renderAvatars(characterIds) {
 }
 
 function showSpeechBubble(characterId, text, type) {
+    // --- УЛУЧШЕННАЯ ПРОВЕРКА ---
     const avatar = document.getElementById(`avatar-${characterId}`);
-    if (!avatar) return;
+    if (!avatar) {
+        console.error(`Speech bubble error: Avatar for character ID '${characterId}' not found.`);
+        return; // Прерываем выполнение, если аватара нет
+    }
+    // --- КОНЕЦ УЛУЧШЕННОЙ ПРОВЕРКИ ---
+
     const existingBubble = document.querySelector(`.speech-bubble[data-character='${characterId}']`);
     if (existingBubble) { existingBubble.remove(); }
 
@@ -89,7 +95,7 @@ function subscribeToSpectatorStream() {
     // Слушаем событие реплики персонажа
     eventSource.addEventListener('character_speech', function(event) {
         const speechData = JSON.parse(event.data);
-        console.log('SSE: Received speech data', speechData);
+        console.log('SSE: Received speech data', speechData); // Этот лог уже был, он полезен
         showSpeechBubble(speechData.character, speechData.text, speechData.type);
     });
 
