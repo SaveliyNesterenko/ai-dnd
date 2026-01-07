@@ -147,7 +147,7 @@ async def character_say(character_id: str, request: SpeechRequest):
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
-    print("\n\n--- EXECUTING /act ENDPOINT (CORRECT VERSION) ---\n") # DEBUG
+    print("\n\n--- EXECUTING /act ENDPOINT (STANDARDIZED VERSION) ---\n") # DEBUG
     char_key = request.character_key
     all_chars = await get_all_characters()
     if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
@@ -168,8 +168,8 @@ async def generate_action(request: ActionRequest):
     #     print(f"AI API call failed: {e}")
     #     raise HTTPException(status_code=502, detail="AI model API call failed.")
     
-    # ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
-    ai_response = f"[THOUGHT]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
+    # ИСПРАВЛЕННАЯ ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
+    ai_response = f"[THOUGHTS]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
     print(f"--- DEBUG: Mock AI response created: {ai_response}")
     
     # --- Логика парсинга и отправки ---

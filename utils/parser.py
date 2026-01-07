@@ -6,7 +6,7 @@ def parse_ai_response(text: str) -> Dict[str, Optional[str]]:
     Парсит сырой ответ от AI-модели, извлекая 'thought' и 'action'.
 
     Args:
-        text: Строка ответа от модели, содержащая теги [THOUGHT] и [ACTION].
+        text: Строка ответа от модели, содержащая теги [THOUGHTS] и [ACTION].
 
     Returns:
         Словарь с ключами "thought" и "action". 
@@ -15,14 +15,17 @@ def parse_ai_response(text: str) -> Dict[str, Optional[str]]:
     thought = None
     action = None
 
-    # Ищем мысль (thought) между [THOUGHT] и [ACTION]
-    thought_match = re.search(r"\\[THOUGHT\\](.*?)\\[ACTION\\]", text, re.DOTALL)
+    # ИСПРАВЛЕНО: Регулярное выражение теперь ищет [THOUGHTS]
+    thought_match = re.search(r"\[THOUGHTS\](.*?)\[ACTION\]", text, re.DOTALL)
     if thought_match:
         thought = thought_match.group(1).strip()
 
-    # Ищем действие (action) после [ACTION]
-    action_match = re.search(r"\\[ACTION\\](.*)", text, re.DOTALL)
+    action_match = re.search(r"\[ACTION\](.*)", text, re.DOTALL)
     if action_match:
         action = action_match.group(1).strip()
+    # Если [ACTION] не найден, но есть текст, считаем весь текст действием
+    elif not thought_match and text:
+        action = text.strip()
+
 
     return {"thought": thought, "action": action}
