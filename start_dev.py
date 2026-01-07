@@ -17,19 +17,31 @@ def main():
     """
     print("--- Запуск среды разработки ---")
 
-    # Запуск основного сервера (orchestrator.py)
-    print(f"Запускаем основной сервер на {GM_CONSOLE_URL}...")
-    # Используем sys.executable для гарантии запуска с тем же Python, что и у start_dev.py
-    orchestrator_process = subprocess.Popen([sys.executable, "orchestrator.py"])
+    # --- НОВЫЙ, ПРАВИЛЬНЫЙ СПОСОБ ЗАПУСКА ---
+    # Мы запускаем Uvicorn напрямую как процесс.
+    # Ключевые аргументы:
+    # "orchestrator:app" - указывает на объект app в файле orchestrator.py
+    # --host, --port - задают адрес и порт
+    # --workers 4 - САМОЕ ВАЖНОЕ: запускает 4 независимых процесса.
+    #               Теперь блокировка в одном не помешает другим.
+    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 4 воркерами...")
+    
+    command = [
+        sys.executable, "-m", "uvicorn", 
+        "orchestrator:app", 
+        "--host", ORCHESTRATOR_HOST, 
+        "--port", str(ORCHESTRATOR_PORT),
+        "--workers", "4"
+    ]
+    
+    orchestrator_process = subprocess.Popen(command)
 
-    # Небольшая задержка, чтобы сервер успел запуститься
     print("Ждем запуск сервера...")
-    time.sleep(3)
+    time.sleep(5) # Слегка увеличим задержку, т.к. запуск воркеров занимает чуть больше времени
 
-    # Открытие панелей в браузере
     print("Открываем GM-консоль и Зрительский экран в браузере...")
-    webbrowser.open(GM_CONSOLE_URL, new=1)       # new=1: новая вкладка
-    webbrowser.open(SPECTATOR_URL, new=2)      # new=2: новое окно (или вкладка)
+    webbrowser.open(GM_CONSOLE_URL, new=1)
+    webbrowser.open(SPECTATOR_URL, new=2)
 
     print("--- Среда разработки готова! ---")
     print("GM-консоль доступна по адресу:", GM_CONSOLE_URL)
@@ -37,12 +49,10 @@ def main():
     print("Для остановки серверов нажмите Ctrl+C в этом окне.")
 
     try:
-        # Ожидаем завершения дочернего процесса
         orchestrator_process.wait()
     except KeyboardInterrupt:
-        # Обработка Ctrl+C для корректного завершения
         print("\n--- Завершение работы ---")
-        orchestrator_process.terminate() # или .kill()
+        orchestrator_process.terminate()
         print("Сервер остановлен.")
 
 if __name__ == "__main__":
