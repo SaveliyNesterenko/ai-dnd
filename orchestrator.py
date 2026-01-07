@@ -155,12 +155,15 @@ async def active_characters_stream_generator():
         await asyncio.sleep(1)
 
 async def speech_stream_generator():
+    print("--- SSE: speech_stream_generator started ---")
     while True:
         try:
             message = await speech_queue.get()
+            print(f"--- SSE: Got message from queue: {message} ---")
             yield f"event: character_speech\ndata: {json.dumps(message)}\n\n"
+            print("--- SSE: Yielded message to client ---")
         except Exception as e:
-            print(f"Error in speech_stream_generator: {e}")
+            print(f"!!! ERROR in speech_stream_generator: {e} !!!")
 
 @app.get("/api/event_stream")
 async def event_stream():
@@ -180,25 +183,29 @@ async def active_characters_stream():
 
 @app.get("/api/speech_stream")
 async def speech_stream():
+    print("--- API: Client connected to /api/speech_stream ---")
     return StreamingResponse(speech_stream_generator(), media_type="text/event-stream")
 
 # --- Основные API эндпоинты ---
 @app.post("/api/character/{character_id}/say")
 async def character_say(character_id: str, request: SpeechRequest):
+    print(f"--- API: Received POST on /say for character: {character_id} ---")
     if request.thought_text:
+        print(f"--- API: Putting 'thought' message to queue: {request.thought_text} ---")
         await speech_queue.put({
             "character": character_id,
             "type": "thought",
             "text": request.thought_text
         })
-        # Небольшая задержка для последовательного отображения
         await asyncio.sleep(0.1)
     if request.action_text:
+        print(f"--- API: Putting 'action' message to queue: {request.action_text} ---")
         await speech_queue.put({
             "character": character_id,
             "type": "action",
             "text": request.action_text
         })
+    print("--- API: Finished /say request, returning success ---")
     return {"status": "success"}
 
 @app.post("/api/characters/activate")
