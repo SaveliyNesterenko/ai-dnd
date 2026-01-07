@@ -88,23 +88,46 @@ def sse_format(event: str, data: Any) -> str:
 
 async def spectator_stream_generator(request: Request):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
+    # Инициализируем переменные для хранения последнего отправленного состояния
+    last_game_state = None
+    last_active_chars = None
+
     while True:
         try:
             if await request.is_disconnected():
                 break
+
+            # Ожидаем сообщение из Redis (связанное с речью) с таймаутом в 1 секунду.
+            # Это основная блокирующая операция цикла.
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY], timeout=1)
+            
+            # Если пришло сообщение о речи - немедленно отправляем его
             if message_tuple:
                 _, message_data = message_tuple
                 yield sse_format("character_speech", json.loads(message_data))
+            
+            # После получения сообщения или по истечении таймаута (раз в секунду),
+            # проверяем файлы на предмет изменений.
+
+            # Проверка и отправка состояния игры (только если изменилось)
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
-            yield sse_format("game_state_update", current_game_state)
+            if current_game_state != last_game_state:
+                last_game_state = current_game_state
+                yield sse_format("game_state_update", current_game_state)
+            
+            # Проверка и отправка активных персонажей (только если изменились)
             current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {}
-            yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
+            if current_active_chars != last_active_chars:
+                last_active_chars = current_active_chars
+                yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
+
         except asyncio.CancelledError:
+            # Клиент отключился, выходим из цикла
             break
         except Exception as e:
             print(f"Error in spectator stream: {e}")
-            await asyncio.sleep(1)
+            await asyncio.sleep(1) # Пауза в случае непредвиденной ошибки
+
 
 async def gm_stream_generator(request: Request):
     last_event_log, last_all_characters = {}, {}
