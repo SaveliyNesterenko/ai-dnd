@@ -22,15 +22,15 @@ def main():
     # Ключевые аргументы:
     # "orchestrator:app" - указывает на объект app в файле orchestrator.py
     # --host, --port - задают адрес и порт
-    # --workers 1 - ВРЕМЕННОЕ ИЗМЕНЕНИЕ ДЛЯ ДИАГНОСТИКИ
-    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 1 воркером (в режиме диагностики)...")
+    # --workers 4 - возвращаем к стандартной конфигурации
+    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 4 воркерами...")
     
     command = [
         sys.executable, "-m", "uvicorn", 
         "orchestrator:app", 
         "--host", ORCHESTRATOR_HOST, 
         "--port", str(ORCHESTRATOR_PORT),
-        "--workers", "1"  # <-- ИЗМЕНЕНИЕ ЗДЕСЬ
+        "--workers", "4"  # <-- ВОЗВРАЩАЕМ ЗНАЧЕНИЕ
     ]
     
     orchestrator_process = subprocess.Popen(command)
