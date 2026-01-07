@@ -8,6 +8,7 @@ import os
 import json
 import asyncio
 import redis.asyncio as redis
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,22 +22,48 @@ from openai import OpenAI
 from response_handler import handle_response
 from utils.file_utils import load_json, save_json
 from utils.logger import save_prompt_to_log
-from utils.parser import parse_ai_response # <-- ИМПОРТИРУЕМ НОВЫЙ ПАРСЕР
+from utils.parser import parse_ai_response
 from prompt_builder import build_prompt, build_observer_prompt
 from archivist import router as archivist_router
 
-# --- Инициализация ---
+# --- Настройка Redis и жизненного цикла приложения ---
 load_dotenv()
-app = FastAPI()
+
+REDIS_URL = "redis://127.0.0.1:6379"
+SPEECH_CHANNEL = "speech_channel"
+
+# Словарь для хранения состояния приложения, включая общий пул соединений Redis
+app_state = {}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Управляет жизненным циклом приложения.
+    При запуске: создает и сохраняет единый пул соединений Redis.
+    При остановке: корректно закрывает пул соединений.
+    """
+    print("--- Application startup: Connecting to Redis...")
+    # Создаем пул соединений, который будет использоваться всеми частями приложения
+    redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
+    # Сохраняем пул в общем состоянии приложения
+    app_state["redis_pool"] = redis_pool
+    print("--- Redis connection pool created successfully.")
+    yield
+    # Этот код выполнится после остановки приложения
+    print("--- Application shutdown: Closing Redis connection pool...")
+    pool = app_state.get("redis_pool")
+    if pool:
+        await pool.disconnect()
+    print("--- Redis connection pool closed.")
+
+# --- Инициализация FastAPI ---
+# Применяем менеджер жизненного цикла `lifespan` к нашему приложению
+app = FastAPI(lifespan=lifespan)
+
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url=os.getenv("OPENAI_BASE_URL", "https://routerai.ru/api/v1")
 )
-
-# --- Redis Pub/Sub Настройки ---
-REDIS_URL = "redis://127.0.0.1:6379" 
-redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
-SPEECH_CHANNEL = "speech_channel"
 
 # --- Middleware ---
 app.add_middleware(
@@ -72,32 +99,39 @@ class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
 class SetLocationRequest(BaseModel): location_id: str
 
 # --- Система Server-Sent Events (SSE) ---
-
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 async def spectator_stream_generator(request: Request):
-    redis_conn = redis.Redis(connection_pool=redis_pool)
+    # Используем общий пул соединений, созданный при старте
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     pubsub = redis_conn.pubsub()
-    last_game_state, last_active_chars = {}, {"characters_id": []}
     try:
         await pubsub.subscribe(SPEECH_CHANNEL)
         while True:
-            if await request.is_disconnected(): break
-            redis_msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.01)
-            if redis_msg: yield sse_format("character_speech", json.loads(redis_msg['data']))
+            if await request.is_disconnected():
+                break
+            redis_msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1) # Увеличено время ожидания для стабильности
+            if redis_msg:
+                yield sse_format("character_speech", json.loads(redis_msg['data']))
+            
+            # Эта часть кода отправляет полное состояние каждую секунду, что избыточно. 
+            # В будущем стоит переделать на отправку только при реальных изменениях.
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
-            if current_game_state != last_game_state:
-                last_game_state = current_game_state
-                yield sse_format("game_state_update", current_game_state)
+            # if current_game_state != last_game_state:
+            #     last_game_state = current_game_state
+            yield sse_format("game_state_update", current_game_state)
+            
             current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {}
-            if current_active_chars != last_active_chars:
-                last_active_chars = current_active_chars
-                yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
-            await asyncio.sleep(0.5)
+            # if current_active_chars != last_active_chars:
+            #     last_active_chars = current_active_chars
+            yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
+
+            await asyncio.sleep(1) # Интервал опроса файлов
     finally:
-        await pubsub.unsubscribe(SPEECH_CHANNEL)
-        await redis_conn.close()
+        # Корректно отписываемся от канала
+        if pubsub:
+            await pubsub.unsubscribe(SPEECH_CHANNEL)
 
 async def gm_stream_generator(request: Request):
     last_event_log, last_all_characters = {}, {}
@@ -135,21 +169,21 @@ async def spectator_redirect(): return "/sp/spectator.html"
 
 @app.post("/api/character/{character_id}/say")
 async def character_say(character_id: str, request: SpeechRequest):
-    redis_conn = redis.Redis(connection_pool=redis_pool)
+    # Используем общий пул соединений
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
         if request.thought_text:
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps({"character": character_id, "type": "thought", "text": request.thought_text}))
         if request.action_text:
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps({"character": character_id, "type": "action", "text": request.action_text}))
-    finally:
-        await redis_conn.close()
+    except Exception as e:
+        print(f"--- ERROR during Redis PUBLISH in /say: {e}")
     return {"status": "success"}
 
 @app.post("/act")
 async def generate_action(request: ActionRequest):
-    print("\n\n--- EXECUTING /act ENDPOINT (STANDARDIZED VERSION) ---\n") # DEBUG
     char_key = request.character_key
-    all_chars = await get_all_characters()
+    all_chars = {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
     if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
     
     char = all_chars[char_key]
@@ -168,56 +202,26 @@ async def generate_action(request: ActionRequest):
     #     print(f"AI API call failed: {e}")
     #     raise HTTPException(status_code=502, detail="AI model API call failed.")
     
-    # ИСПРАВЛЕННАЯ ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
+    # ВРЕМЕННАЯ ЗАГЛУШКА для ответа модели
     ai_response = f"[THOUGHTS]Это тестовая мысль для персонажа {char_key}.[ACTION]Это тестовое действие для персонажа {char_key}."
-    print(f"--- DEBUG: Mock AI response created: {ai_response}")
-    
-    # --- Логика парсинга и отправки ---
     parsed_data = parse_ai_response(ai_response)
-    print(f"\n--- IMPORTANT DEBUG: PARSED DATA IS: {parsed_data}\n")
+    print(f"--- Parsed AI response: {parsed_data}")
 
-    redis_conn = None
+    # Используем общий пул соединений. Ручное закрытие соединения больше не требуется.
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
-        redis_conn = redis.Redis(connection_pool=redis_pool)
-        
-        # --- НАЧАЛО ДИАГНОСТИЧЕСКОГО БЛОКА ---
-        print("\n--- [DIAGNOSTIC BLOCK] ---")
-        try:
-            # 1. Проверяем связь командой PING
-            pong = await redis_conn.ping()
-            print(f"--- PING response: {pong} (should be True)")
-
-            # 2. Пробуем установить значение
-            set_result = await redis_conn.set("python_test_key", f"value_from_{char_key}")
-            print(f"--- SET command result: {set_result}")
-
-            # 3. Пробуем прочитать значение обратно
-            get_result = await redis_conn.get("python_test_key")
-            print(f"--- GET command result for 'python_test_key': {get_result}")
-
-        except Exception as e:
-            print(f"--- ERROR in diagnostic block: {e}")
-        print("--- [END DIAGNOSTIC BLOCK] ---\n")
-        # --- КОНЕЦ ДИАГНОСТИЧЕСКОГО БЛОКА ---
-
         if parsed_data.get("thought"):
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
-            print(f"--- DEBUG: Publishing THOUGHT: {message}")
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            print(f"--- Successfully published THOUGHT for {char_key}")
 
         if parsed_data.get("action"):
             message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
-            print(f"--- DEBUG: Publishing ACTION: {message}")
             await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            print(f"--- Successfully published ACTION for {char_key}")
             
-        print("--- DEBUG: Publish commands sent.")
-
     except Exception as e:
-        print(f"--- CRITICAL ERROR during Redis publishing in /act: {e}")
-    finally:
-        if redis_conn:
-            await redis_conn.close()
-            print("--- DEBUG: Redis connection closed.")
+        print(f"--- CRITICAL ERROR during Redis PUBLISH in /act: {e}")
 
     # Существующая логика: сохранение в лог событий
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
