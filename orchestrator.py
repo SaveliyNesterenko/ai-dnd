@@ -17,9 +17,11 @@ from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
 from openai import OpenAI
 
+# Внутренние импорты
 from response_handler import handle_response
 from utils.file_utils import load_json, save_json
 from utils.logger import save_prompt_to_log
+from utils.parser import parse_ai_response # <-- ИМПОРТИРУЕМ НОВЫЙ ПАРСЕР
 from prompt_builder import build_prompt, build_observer_prompt
 from archivist import router as archivist_router
 
@@ -60,10 +62,7 @@ ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 PUBLIC_STATE_FILE = "./data/public_state.json"
 
 # --- Модели данных ---
-class SpeechRequest(BaseModel):
-    thought_text: Optional[str] = None
-    action_text: Optional[str] = None
-# (Остальные модели данных без изменений)
+class SpeechRequest(BaseModel): thought_text: Optional[str] = None; action_text: Optional[str] = None
 class ActionRequest(BaseModel): character_key: str
 class GmActionRequest(BaseModel): text: str
 class CharacterActionRequest(BaseModel): character_id: str
@@ -72,98 +71,59 @@ class ObserverRequest(BaseModel): action: str; dice_roll: Optional[int] = None
 class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
 class SetLocationRequest(BaseModel): location_id: str
 
-# --- НОВАЯ СИСТЕМА SERVER-SENT EVENTS (SSE) ---
+# --- Система Server-Sent Events (SSE) ---
 
 def sse_format(event: str, data: Any) -> str:
-    """Вспомогательная функция для форматирования SSE-сообщений."""
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 async def spectator_stream_generator(request: Request):
-    """
-    Единый поток данных для Экрана Зрителя.
-    Объединяет в себе: состояние игры (фон), активных персонажей (аватары) и реплики (облачка).
-    """
     redis_conn = redis.Redis(connection_pool=redis_pool)
     pubsub = redis_conn.pubsub()
-
-    last_game_state = {}
-    last_active_chars = {"characters_id": []}
-
+    last_game_state, last_active_chars = {}, {"characters_id": []}
     try:
         await pubsub.subscribe(SPEECH_CHANNEL)
-        print("--- SSE (Spectator): Client connected, subscribed to Redis.")
-
         while True:
             if await request.is_disconnected(): break
-
-            # 1. Проверка сообщений из Redis (реплики)
             redis_msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.01)
-            if redis_msg and redis_msg["type"] == "message":
-                yield sse_format("character_speech", json.loads(redis_msg['data']))
-
-            # 2. Проверка состояния игры (фон)
-            current_game_state = load_json(PUBLIC_STATE_FILE) or {"current_location": None}
+            if redis_msg: yield sse_format("character_speech", json.loads(redis_msg['data']))
+            current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
                 last_game_state = current_game_state
                 yield sse_format("game_state_update", current_game_state)
-
-            # 3. Проверка активных персонажей (аватары)
-            current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
+            current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {}
             if current_active_chars != last_active_chars:
                 last_active_chars = current_active_chars
                 yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
-            
-            await asyncio.sleep(0.5) # Пауза для снижения нагрузки
-
-    except asyncio.CancelledError:
-        pass # Ожидаемое исключение при отключении клиента
+            await asyncio.sleep(0.5)
     finally:
-        print("--- SSE (Spectator): Client disconnected. Cleaning up.")
         await pubsub.unsubscribe(SPEECH_CHANNEL)
         await redis_conn.close()
 
 async def gm_stream_generator(request: Request):
-    """
-    Единый поток данных для Консоли ГМ.
-    Объединяет в себе: лог событий и обновления данных персонажей.
-    """
-    last_event_log = {}
-    last_all_characters = {}
+    last_event_log, last_all_characters = {}, {}
     try:
         while True:
             if await request.is_disconnected(): break
-
-            # 1. Проверка лога событий
-            current_event_log = load_json(EVENT_LOG_FILE) or {"history": []}
+            current_event_log = load_json(EVENT_LOG_FILE) or {}
             if current_event_log != last_event_log:
                 last_event_log = current_event_log
                 yield sse_format("event_log_update", current_event_log)
-
-            # 2. Проверка обновлений персонажей (отправляем только дельту)
             all_chars = {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
             if all_chars != last_all_characters:
-                # Инициализация, если last_all_characters пуст
                 if not last_all_characters: last_all_characters = all_chars
-                # Поиск изменений
                 for char_id, char_data in all_chars.items():
                     if char_id not in last_all_characters or last_all_characters[char_id] != char_data:
                         yield sse_format("character_update", {"id": char_id, "data": char_data})
                 last_all_characters = all_chars
-
             await asyncio.sleep(1)
-
-    except asyncio.CancelledError:
-        pass # Ожидаемое исключение
     finally:
-        print("--- SSE (GM): Client disconnected.")
+        pass
 
 @app.get("/api/spectator_stream")
-async def spectator_stream(request: Request):
-    return StreamingResponse(spectator_stream_generator(request), media_type="text/event-stream")
+async def spectator_stream(request: Request): return StreamingResponse(spectator_stream_generator(request), media_type="text/event-stream")
 
 @app.get("/api/gm_stream")
-async def gm_stream(request: Request):
-    return StreamingResponse(gm_stream_generator(request), media_type="text/event-stream")
+async def gm_stream(request: Request): return StreamingResponse(gm_stream_generator(request), media_type="text/event-stream")
 
 # --- Основные роуты и API ---
 
@@ -178,16 +138,60 @@ async def character_say(character_id: str, request: SpeechRequest):
     redis_conn = redis.Redis(connection_pool=redis_pool)
     try:
         if request.thought_text:
-            message = {"character": character_id, "type": "thought", "text": request.thought_text}
-            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps({"character": character_id, "type": "thought", "text": request.thought_text}))
         if request.action_text:
-            message = {"character": character_id, "type": "action", "text": request.action_text}
-            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps({"character": character_id, "type": "action", "text": request.action_text}))
     finally:
         await redis_conn.close()
     return {"status": "success"}
 
-# (Остальные API-эндпоинты остаются без изменений)
+@app.post("/act")
+async def generate_action(request: ActionRequest):
+    char_key = request.character_key
+    all_chars = await get_all_characters()
+    if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
+    
+    char = all_chars[char_key]
+    history = (load_json(EVENT_LOG_FILE) or {}).get("history", [])
+    prompt = build_prompt(char, history)
+    save_prompt_to_log(char_key, prompt)
+
+    # Генерация ответа модели
+    response = client.chat.completions.create(
+        model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
+        messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}]
+    )
+    ai_response = response.choices[0].message.content
+    
+    # --- ИЗМЕНЕННАЯ ЛОГИКА: Используем парсер и отправляем реплики ---
+    parsed_data = parse_ai_response(ai_response)
+    redis_conn = redis.Redis(connection_pool=redis_pool)
+    try:
+        if parsed_data["thought"]:
+            message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+
+        if parsed_data["action"]:
+            message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
+            await redis_conn.publish(SPEECH_CHANNEL, json.dumps(message))
+    except Exception as e:
+        print(f"Error during Redis publishing in /act: {e}")
+    finally:
+        await redis_conn.close()
+    # --- КОНЕЦ ИЗМЕНЕННОЙ ЛОГИКИ ---
+
+    # Существующая логика: сохранение в лог событий
+    event_data = load_json(EVENT_LOG_FILE) or {"history": []}
+    updated_event_data = handle_response(
+        ai_response, event_data, char.get("identity", {}).get('name'), char.get("meta", {}).get('role')
+    )
+    save_json(EVENT_LOG_FILE, updated_event_data)
+    
+    # Возвращаем полный ответ модели в консоль ГМ
+    return {"response": ai_response}
+
+# (Остальные эндпоинты без изменений)
+
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):
     d = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
@@ -271,18 +275,3 @@ async def apply_json_patch(request: JsonPatchRequest):
                 else: target[char_id][key] = value
     save_json(CHARACTERS_FILE, chars); save_json(NPC_FILE, npcs)
     return {"status": "success"}
-
-@app.post("/act")
-async def generate_action(request: ActionRequest):
-    all_chars = await get_all_characters()
-    if request.character_key not in all_chars: raise HTTPException(404)
-    char = all_chars[request.character_key]
-    history = (load_json(EVENT_LOG_FILE) or {}).get("history", [])
-    prompt = build_prompt(char, history)
-    save_prompt_to_log(request.character_key, prompt)
-    response = client.chat.completions.create(model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"), messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {"role": "user", "content": prompt}])
-    ai_response = response.choices[0].message.content
-    event_data = load_json(EVENT_LOG_FILE) or {"history": []}
-    updated_event_data = handle_response(ai_response, event_data, char.get("identity", {}).get('name'), char.get("meta", {}).get('role'))
-    save_json(EVENT_LOG_FILE, updated_event_data)
-    return {"response": ai_response}
