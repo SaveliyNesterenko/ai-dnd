@@ -108,7 +108,7 @@ async def handle_compress_context():
         save_prompt_to_log("context_compressor", prompt)
 
         response = client.chat.completions.create(
-            model="deepseek/deepseek-v3.2",
+            model="google/gemini-2.5-flash-lite",
             messages=[
                 {"role": "system", "content": "Ты — Синтезатор Хроники. Твоя задача - сделать краткий конспект событий."},
                 {"role": "user", "content": prompt}
