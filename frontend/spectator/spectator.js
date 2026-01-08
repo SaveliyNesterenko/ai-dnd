@@ -40,9 +40,11 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.className = 'character-card';
         card.dataset.id = charId;
 
+        // The model_id div is now correctly included here
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
+            <div class="model">${meta.model_id || 'N/A'}</div>
             <div class="stat-bar-container">
                 <div class="stat-bar hp-bar"></div>
             </div>
@@ -52,12 +54,14 @@ function addOrUpdateCharacterCard(charId, charData) {
         `;
         characterCardsContainer.appendChild(card);
         
-        // Listener moved inside the creation block
         card.addEventListener('click', () => openCharacterModal(charId, charData));
     }
 
     // Update data on subsequent calls
     card.onclick = () => openCharacterModal(charId, charData);
+
+    // Also update the model text if it changes for an existing card
+    card.querySelector('.model').textContent = meta.model_id || 'N/A';
 
     const portrait = card.querySelector('.portrait');
     const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
