@@ -1,10 +1,36 @@
 import * as api from '../api.js';
-import { toggleCharacterCard, selectCharacter } from './characterCard.js';
+import { toggleCharacterCard, selectCharacter, updateCharacterCard } from './characterCard.js';
 import { state } from '../state.js';
 
 const getNestedProperty = (obj, path) => {
     if (!path) return obj;
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+};
+
+const deepMerge = (target, source) => {
+    for (const key of Object.keys(source)) {
+        if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
+            deepMerge(target[key], source[key]);
+        } else {
+            target[key] = source[key];
+        }
+    }
+    return target;
+};
+
+const handleCharacterUpdate = (update) => {
+    const charId = Object.keys(update)[0];
+    if (!charId) return;
+    const patch = update[charId];
+
+    if (!state.allCharactersData[charId]) return;
+
+    deepMerge(state.allCharactersData[charId], patch);
+
+    const cardElement = document.querySelector(`[data-char-key="${charId}"]`);
+    if (cardElement) {
+        updateCharacterCard(cardElement, state.allCharactersData[charId]);
+    }
 };
 
 export function initializeCenterPanel(triggerObserver) {
@@ -224,15 +250,18 @@ export async function initializeTopPanel() {
         }
     });
 
-    // Initialization and subscription to event_log updates
+    // Initialization and subscription to data updates
     const initialLog = await api.fetchEventLog();
     state.eventLog = initialLog;
     updateCompressButtonState();
 
-    api.subscribeToEventLog(log => {
-        state.eventLog = log;
-        updateCompressButtonState();
-    });
+    api.subscribeToGmStream(
+        log => { // onLogUpdate
+            state.eventLog = log;
+            updateCompressButtonState();
+        },
+        handleCharacterUpdate // onCharUpdate
+    );
 
     updateEventButtonState();
 }
