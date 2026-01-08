@@ -27,19 +27,23 @@ function updateBackground(gameState) {
     }
 }
 
-function addOrUpdateCharacterCard(characterData) {
-    let card = document.getElementById(`card-${characterData.id}`);
+function addOrUpdateCharacterCard(charId, charData) {
+    let card = document.getElementById(`card-${charId}`);
+
+    const identity = charData.identity || {};
+    const state = charData.state || {};
+    const meta = charData.meta || {};
 
     if (!card) {
         card = document.createElement('div');
-        card.id = `card-${characterData.id}`;
+        card.id = `card-${charId}`;
         card.className = 'character-card';
-        card.dataset.id = characterData.id;
+        card.dataset.id = charId;
 
         card.innerHTML = `
-            <img src="${API_BASE_URL}/assets/characters/${characterData.sprite_id}_portrait.png" class="portrait"/>
-            <div class="name">${characterData.name}</div>
-            <div class="model">${characterData.model_id}</div>
+            <img src="" class="portrait"/>
+            <div class="name">${identity.name || 'Unknown'}</div>
+            <div class="model">${meta.model_id || 'N/A'}</div>
             <div class="stat-bar-container">
                 <div class="stat-bar hp-bar"></div>
             </div>
@@ -48,34 +52,52 @@ function addOrUpdateCharacterCard(characterData) {
             </div>
         `;
 
-        card.addEventListener('click', () => openCharacterModal(characterData));
+        card.addEventListener('click', () => openCharacterModal(charId, charData));
         characterCardsContainer.appendChild(card);
     }
 
-    const hpPercentage = (characterData.hp / characterData.max_hp) * 100;
-    const mpPercentage = (characterData.mp / characterData.max_mp) * 100;
+    const portrait = card.querySelector('.portrait');
+    const newPortraitSrc = `${API_BASE_URL}/assets/characters/${identity.sprite_id}_portrait.png`;
+    if (portrait.src !== newPortraitSrc) {
+        portrait.src = newPortraitSrc;
+    }
+
+    const hp = state.hp || 0;
+    const maxHp = state.max_hp || 100;
+    const mp = state.mp || 0;
+    const maxMp = state.max_mp || 100;
+
+    const hpPercentage = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+    const mpPercentage = maxMp > 0 ? (mp / maxMp) * 100 : 0;
 
     card.querySelector('.hp-bar').style.width = `${hpPercentage}%`;
     card.querySelector('.mp-bar').style.width = `${mpPercentage}%`;
 }
 
-function openCharacterModal(characterData) {
+function openCharacterModal(charId, charData) {
+    const identity = charData.identity || {};
+    const state = charData.state || {};
+    const meta = charData.meta || {};
+    const attributes = charData.attributes || {};
+    const statusEffects = charData.status_effects || [];
+    const inventory = charData.inventory || [];
+
     modalCharacterDetails.innerHTML = `
-        <h2>${characterData.name}</h2>
-        <p><strong>Model:</strong> ${characterData.model_id}</p>
-        <p><strong>HP:</strong> ${characterData.hp} / ${characterData.max_hp}</p>
-        <p><strong>MP:</strong> ${characterData.mp} / ${characterData.max_mp}</p>
+        <h2>${identity.name || 'Unknown'}</h2>
+        <p><strong>Model:</strong> ${meta.model_id || 'N/A'}</p>
+        <p><strong>HP:</strong> ${state.hp || 0} / ${state.max_hp || 100}</p>
+        <p><strong>MP:</strong> ${state.mp || 0} / ${state.max_mp || 100}</p>
         <p><strong>Attributes:</strong></p>
         <ul>
-            ${Object.entries(characterData.attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}
+            ${Object.entries(attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}
         </ul>
         <p><strong>Status Effects:</strong></p>
         <ul>
-            ${characterData.status_effects.map(effect => `<li>${effect}</li>`).join('')}
+            ${statusEffects.map(effect => `<li>${effect}</li>`).join('')}
         </ul>
         <p><strong>Inventory:</strong></p>
         <ul>
-            ${characterData.inventory.map(item => `<li>${item}</li>`).join('')}
+            ${inventory.map(item => `<li>${item}</li>`).join('')}
         </ul>
     `;
     characterModal.style.display = 'block';
@@ -171,9 +193,9 @@ function subscribeToSpectatorStream() {
     });
     
     eventSource.addEventListener('character_full_update', function(event) {
-        const characterData = JSON.parse(event.data);
-        console.log('SSE: Received character full update', characterData);
-        addOrUpdateCharacterCard(characterData);
+        const update = JSON.parse(event.data);
+        console.log('SSE: Received character full update', update);
+        addOrUpdateCharacterCard(update.id, update.data);
     });
 
     eventSource.addEventListener('character_speech', function(event) {
