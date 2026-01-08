@@ -95,20 +95,25 @@ body, html {
     overflow: auto;
     background-color: rgba(0,0,0,0.85);
     backdrop-filter: blur(5px);
+    align-items: center; /* Для вертикального центрирования flex-контейнера */
+    justify-content: center; /* Для горизонтального центрирования flex-контейнера */
 }
 
 .modal-content {
     position: relative;
     background: #1e1814 url('/assets/ui/bg_texture.png');
-    margin: 5% auto;
     width: 90%;
     max-width: 800px;
     border-radius: 15px;
     border: 2px solid #5a4a3a;
     box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
+    padding: 25px;
+    margin: auto; /* Убираем margin 5% auto для корректной работы flex-центра */
+}
+
+#modal-character-details {
     display: flex;
     gap: 25px;
-    padding: 25px;
 }
 
 .close-button {
@@ -120,6 +125,7 @@ body, html {
     font-weight: bold;
     cursor: pointer;
     transition: color 0.2s;
+    z-index: 10;
 }
 
 .close-button:hover, .close-button:focus {
