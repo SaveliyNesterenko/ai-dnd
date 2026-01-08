@@ -375,9 +375,8 @@ body, html {
 /* --- Стили для броска кубика --- */
 #dice-roll-container {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 20px; /* Отступ сверху */
+    right: 20px; /* Отступ справа */
     z-index: 1000;
     pointer-events: none; /* Контейнер не должен мешать кликам */
     display: flex;
@@ -388,14 +387,13 @@ body, html {
 .dice-roll {
     font-family: 'Georgia', serif;
     font-weight: bold;
-    font-size: 150px; /* Большой размер для заметности */
+    font-size: 120px; /* Немного уменьшим размер для угла */
     color: #ffffff;
     text-shadow:
-        0 0 10px #fff,
-        0 0 20px #ffc800,
-        0 0 30px #ffc800,
-        0 0 40px #ffae00,
-        0 0 50px #ffae00;
+        0 0 8px #fff,
+        0 0 15px #ffc800,
+        0 0 25px #ffc800,
+        0 0 35px #ffae00;
     opacity: 0;
     transform: scale(0.5);
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
@@ -403,5 +401,5 @@ body, html {
 
 .dice-roll.visible {
     opacity: 1;
-    transform: scale(1.1); /* Немного увеличиваем для эффекта "удара" */
+    transform: scale(1); /* Уберем лишнее увеличение */
 }
