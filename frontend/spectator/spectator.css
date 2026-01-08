@@ -18,20 +18,21 @@ body, html {
     right: 10px;
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 15px;
     z-index: 3;
 }
 
-/* Стили для маленьких карточек */
+/* --- Стили для маленьких карточек --- */
 .character-card {
-    width: 200px;
-    height: auto;
+    width: 100px;
+    height: 150px;
     background-color: rgba(20, 15, 10, 0.85);
     border: 1px solid #4a3a2a;
-    border-radius: 10px;
-    padding: 10px;
+    border-radius: 8px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
+    justify-content: space-between; /* Распределяем контент по вертикали */
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -44,38 +45,41 @@ body, html {
 }
 
 .character-card .portrait {
-    width: 80px;
+    width: 84px; /* 100px - 8px*2 */
     height: 80px;
-    border-radius: 50%;
-    border: 2px solid #c9a37a;
-    margin-bottom: 10px;
+    border-radius: 4px; /* Прямоугольник со скруглением */
+    border: 1px solid #c9a37a;
     object-fit: cover;
+    margin-bottom: 5px;
 }
 
 .character-card .name {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: bold;
     color: #fff;
     font-family: 'Georgia', serif;
+    text-align: center;
+    line-height: 1.1;
 }
 
 .character-card .model {
-    font-size: 12px;
+    font-size: 10px;
     color: #aaa;
-    margin-bottom: 10px;
+    margin: 2px 0;
 }
 
 .stat-bar-container {
     width: 100%;
-    margin-bottom: 5px;
+    height: 6px;
+    margin-bottom: 4px;
     background-color: #1a110a;
-    border-radius: 5px;
+    border-radius: 3px;
     border: 1px solid #3c2f21;
 }
 
 .stat-bar {
-    height: 10px;
-    border-radius: 3px;
+    height: 100%;
+    border-radius: 2px;
     transition: width 0.5s ease-in-out;
 }
 
@@ -95,8 +99,8 @@ body, html {
     overflow: auto;
     background-color: rgba(0,0,0,0.85);
     backdrop-filter: blur(5px);
-    align-items: center; /* Для вертикального центрирования flex-контейнера */
-    justify-content: center; /* Для горизонтального центрирования flex-контейнера */
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {
@@ -108,7 +112,7 @@ body, html {
     border: 2px solid #5a4a3a;
     box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
     padding: 25px;
-    margin: auto; /* Убираем margin 5% auto для корректной работы flex-центра */
+    margin: auto;
 }
 
 #modal-character-details {
@@ -132,7 +136,6 @@ body, html {
     color: #fff;
 }
 
-/* Левая колонка (Портрет) */
 .modal-left-column {
     flex: 0 0 250px;
     display: flex;
@@ -159,7 +162,6 @@ body, html {
     margin: 0 0 20px 0;
 }
 
-/* Правая колонка (Детали) */
 .modal-right-column {
     flex-grow: 1;
     display: flex;
@@ -197,9 +199,7 @@ body, html {
     font-size: 16px;
 }
 
-.attribute-item strong {
-    color: #e0c09a;
-}
+.attribute-item strong { color: #e0c09a; }
 
 .modal-list {
     list-style: none;
@@ -216,11 +216,8 @@ body, html {
     color: #ccc;
 }
 
-.modal-list li strong {
-    color: #e0c09a;
-}
+.modal-list li strong { color: #e0c09a; }
 
-/* Большие статус бары в модальном окне */
 .modal-stat-bar-container {
     width: 100%;
     height: 25px;
@@ -252,10 +249,9 @@ body, html {
     text-shadow: 1px 1px 2px #000;
 }
 
-/* Остальные стили без изменений */
-
-#background-container, #avatars-container, .character-wrapper, .character-avatar, .speech-bubble {
-    /* ... ваши существующие стили ... */
+/* Остальные стили */
+#background-container, #avatars-container, .character-wrapper, .character-avatar, .speech-bubble, .speech-bubble.thought {
+    /* Existing styles are fine */
 }
 
 #background-container {
@@ -280,7 +276,7 @@ body, html {
 
 .character-wrapper {
     position: absolute;
-    width: 300px;
+    width: auto; /* Auto width based on content */
     height: auto;
     cursor: grab;
     user-select: none;
@@ -294,7 +290,7 @@ body, html {
 }
 
 .character-avatar {
-    width: 300px;
+    width: 300px; /* This is for the on-screen avatar, not the card portrait */
     height: 300px;
     display: block;
 }
@@ -317,9 +313,7 @@ body, html {
     color: #333;
 }
 
-.speech-bubble:not(:empty) {
-    opacity: 1;
-}
+.speech-bubble:not(:empty) { opacity: 1; }
 
 .speech-bubble::after {
     content: '';
@@ -327,8 +321,6 @@ body, html {
     bottom: -10px;
     left: 50%;
     transform: translateX(-50%);
-    width: 0;
-    height: 0;
     border-left: 10px solid transparent;
     border-right: 10px solid transparent;
     border-top: 10px solid rgba(255, 255, 255, 0.9);
@@ -342,6 +334,4 @@ body, html {
     font-style: italic;
 }
 
-.speech-bubble.thought::after {
-    display: none;
-}
+.speech-bubble.thought::after { display: none; }
