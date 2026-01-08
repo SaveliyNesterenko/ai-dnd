@@ -32,6 +32,7 @@ load_dotenv()
 REDIS_URL = "redis://127.0.0.1:6379"
 SPEECH_LIST_KEY = "speech_list"
 CHARACTER_UPDATE_QUEUE = "character_update_queue"
+DICE_ROLL_QUEUE = "dice_roll_queue" # <-- Новая очередь для бросков кубика
 
 app_state = {}
 
@@ -75,6 +76,7 @@ LOCATIONS_FILE = "./data/locations.json"
 ACTIVE_CHARACTERS_FILE = "./data/active_characters.json"
 PUBLIC_STATE_FILE = "./data/public_state.json"
 
+# --- Модели Pydantic для валидации запросов ---
 class SpeechRequest(BaseModel): thought_text: Optional[str] = None; action_text: Optional[str] = None
 class ActionRequest(BaseModel): character_key: str
 class GmActionRequest(BaseModel): text: str
@@ -83,9 +85,13 @@ class UpdateCharactersRequest(BaseModel): characters_id: List[str]
 class ObserverRequest(BaseModel): action: str; dice_roll: Optional[int] = None
 class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
 class SetLocationRequest(BaseModel): location_id: str
+class DiceRollRequest(BaseModel): roll: int # <-- Новая модель для броска
+
 
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+# --- Потоки данных (Server-Sent Events) ---
 
 async def spectator_stream_generator(request: Request):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
@@ -135,7 +141,6 @@ async def spectator_stream_generator(request: Request):
             print(f"Error in spectator stream: {e}")
             await asyncio.sleep(1)
 
-
 async def gm_stream_generator(request: Request):
     last_event_log, last_all_characters = {}, {}
     try:
@@ -155,6 +160,8 @@ async def gm_stream_generator(request: Request):
             await asyncio.sleep(1)
     finally:
         pass
+
+# --- Основные API эндпоинты ---
 
 @app.get("/api/spectator_stream")
 async def spectator_stream(request: Request): return StreamingResponse(spectator_stream_generator(request), media_type="text/event-stream")
@@ -191,7 +198,6 @@ async def generate_action(request: ActionRequest):
     prompt = build_prompt(char, history)
     save_prompt_to_log(char_key, prompt)
 
-    # --- ВЫЗОВ НЕЙРОСЕТИ (ВОССТАНОВЛЕНО) ---
     try:
         response = client.chat.completions.create(
             model=char.get("meta", {}).get("model_id", "deepseek/deepseek-v3.2"),
@@ -227,6 +233,19 @@ async def generate_action(request: ActionRequest):
     save_json(EVENT_LOG_FILE, updated_event_data)
     
     return {"response": ai_response}
+
+# --- Новый эндпоинт для трансляции броска кубика ---
+@app.post("/api/broadcast_dice_roll")
+async def broadcast_dice_roll(request: DiceRollRequest):
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
+    try:
+        # Мы публикуем простое число, поэтому json.dumps не обязателен, но он делает формат консистентным
+        await redis_conn.rpush(DICE_ROLL_QUEUE, json.dumps({"roll": request.roll}))
+        print(f"--- Successfully PUSHED DICE ROLL: {request.roll} to list '{DICE_ROLL_QUEUE}'")
+        return {"status": "success", "message": f"Dice roll {request.roll} broadcasted."}
+    except Exception as e:
+        print(f"--- CRITICAL ERROR during Redis RPUSH in /broadcast_dice_roll: {e}")
+        raise HTTPException(status_code=500, detail="Failed to broadcast dice roll to Redis.")
 
 # (Остальные эндпоинты без изменений)
 
