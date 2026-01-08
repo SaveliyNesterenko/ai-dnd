@@ -237,6 +237,7 @@ async def generate_action(request: ActionRequest):
 # --- Новый эндпоинт для трансляции броска кубика ---
 @app.post("/api/broadcast_dice_roll")
 async def broadcast_dice_roll(request: DiceRollRequest):
+    print(f"--- [DEBUG] Entered broadcast_dice_roll with roll: {request.roll}") # <-- Отладочный print
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
         # Мы публикуем простое число, поэтому json.dumps не обязателен, но он делает формат консистентным
