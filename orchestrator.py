@@ -104,12 +104,17 @@ async def spectator_stream_generator(request: Request):
             if await request.is_disconnected():
                 break
 
-            message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY], timeout=1)
+            # Слушаем сразу две очереди: для реплик и для бросков кубика
+            message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
             
             if message_tuple:
-                _, message_data = message_tuple
-                yield sse_format("character_speech", json.loads(message_data))
+                queue_name, message_data = message_tuple
+                if queue_name == SPEECH_LIST_KEY:
+                    yield sse_format("character_speech", json.loads(message_data))
+                elif queue_name == DICE_ROLL_QUEUE:
+                    yield sse_format("dice_roll", json.loads(message_data))
 
+            # Логика обновления из файлов остается без изменений
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
                 last_game_state = current_game_state
@@ -130,7 +135,6 @@ async def spectator_stream_generator(request: Request):
                         last_character_states[char_id] = current_char_data
                         yield sse_format("character_full_update", {"id": char_id, "data": current_char_data})
             
-            # Cleanup last_character_states for removed characters
             removed_ids = set(last_character_states.keys()) - set(current_active_char_ids)
             for char_id in removed_ids:
                 del last_character_states[char_id]
@@ -237,10 +241,8 @@ async def generate_action(request: ActionRequest):
 # --- Новый эндпоинт для трансляции броска кубика ---
 @app.post("/api/broadcast_dice_roll")
 async def broadcast_dice_roll(request: DiceRollRequest):
-    print(f"--- [DEBUG] Entered broadcast_dice_roll with roll: {request.roll}") # <-- Отладочный print
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
-        # Мы публикуем простое число, поэтому json.dumps не обязателен, но он делает формат консистентным
         await redis_conn.rpush(DICE_ROLL_QUEUE, json.dumps({"roll": request.roll}))
         print(f"--- Successfully PUSHED DICE ROLL: {request.roll} to list '{DICE_ROLL_QUEUE}'")
         return {"status": "success", "message": f"Dice roll {request.roll} broadcasted."}
@@ -248,7 +250,6 @@ async def broadcast_dice_roll(request: DiceRollRequest):
         print(f"--- CRITICAL ERROR during Redis RPUSH in /broadcast_dice_roll: {e}")
         raise HTTPException(status_code=500, detail="Failed to broadcast dice roll to Redis.")
 
-# (Остальные эндпоинты без изменений)
 
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):

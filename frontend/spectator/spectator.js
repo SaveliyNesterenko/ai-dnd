@@ -7,6 +7,7 @@ const characterCardsContainer = document.getElementById('character-cards-contain
 const characterModal = document.getElementById('character-modal');
 const modalCharacterDetails = document.getElementById('modal-character-details');
 const closeButton = document.querySelector('.close-button');
+const diceRollContainer = document.getElementById('dice-roll-container'); // <-- Контейнер для бросков
 
 
 // --- Состояние для Drag-and-Drop ---
@@ -210,6 +211,28 @@ function showSpeechBubble(characterId, text, type) {
     setTimeout(() => { bubble.remove(); }, 8000);
 }
 
+// --- Новая функция для отображения броска кубика ---
+function showDiceRoll(rollValue) {
+    if (!diceRollContainer) return;
+
+    const rollElement = document.createElement('div');
+    rollElement.className = 'dice-roll';
+    rollElement.textContent = rollValue;
+
+    diceRollContainer.appendChild(rollElement);
+
+    // Анимация появления и исчезновения
+    setTimeout(() => {
+        rollElement.classList.add('visible');
+    }, 10); // Небольшая задержка для срабатывания CSS-перехода
+
+    setTimeout(() => {
+        rollElement.classList.remove('visible');
+        setTimeout(() => {
+            rollElement.remove();
+        }, 500); // Даем время для анимации исчезновения
+    }, 4000); // Отображаем на 4 секунды
+}
 
 function subscribeToSpectatorStream() {
     console.log("Connecting to the unified spectator stream...");
@@ -236,6 +259,13 @@ function subscribeToSpectatorStream() {
         const speechData = JSON.parse(event.data);
         console.log('SSE: Received speech data', speechData);
         showSpeechBubble(speechData.character, speechData.text, speechData.type);
+    });
+
+    // --- Новый обработчик для бросков кубика ---
+    eventSource.addEventListener('dice_roll', function(event) {
+        const diceData = JSON.parse(event.data);
+        console.log('SSE: Received dice roll', diceData.roll);
+        showDiceRoll(diceData.roll);
     });
 
     eventSource.onerror = function(err) {
