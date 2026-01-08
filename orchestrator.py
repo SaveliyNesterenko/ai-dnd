@@ -299,7 +299,7 @@ async def observer_analysis(request: ObserverRequest):
     if not active_chars: raise HTTPException(404)
     prompt = build_observer_prompt(request.action, request.dice_roll, active_chars)
     save_prompt_to_log("observer", prompt)
-    response = client.chat.completions.create(model="deepseek/deepseek-v3.2", messages=[{"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}])
+    response = client.chat.completions.create(model="google/gemini-2.5-flash-lite", messages=[{"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}])
     return {"response": response.choices[0].message.content}
 
 @app.post("/api/apply_json_patch")
