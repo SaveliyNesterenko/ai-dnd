@@ -40,7 +40,6 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.className = 'character-card';
         card.dataset.id = charId;
 
-        // The model_id div is now correctly included here
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
@@ -57,10 +56,7 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.addEventListener('click', () => openCharacterModal(charId, charData));
     }
 
-    // Update data on subsequent calls
     card.onclick = () => openCharacterModal(charId, charData);
-
-    // Also update the model text if it changes for an existing card
     card.querySelector('.model').textContent = meta.model_id || 'N/A';
 
     const portrait = card.querySelector('.portrait');
@@ -132,7 +128,7 @@ function openCharacterModal(charId, charData) {
             </ul>
             
             <div class="modal-section-title">Inventory</div>
-            <ul class="modal-list">
+            <ul class="modal-list modal-inventory-list">
                 ${inventory.length > 0 ? inventory.map(item => `<li><strong>${item.name}</strong> (x${item.quantity})<br><small>${item.description || ''}</small></li>`).join('') : '<li>Empty</li>'}
             </ul>
         </div>
@@ -221,7 +217,7 @@ function subscribeToSpectatorStream() {
 
     eventSource.addEventListener('game_state_update', function(event) {
         const gameState = JSON.parse(event.data);
-        updateBackground(gameState);
+        updateBackground( gameState );
     });
 
     eventSource.addEventListener('active_characters_update', function(event) {

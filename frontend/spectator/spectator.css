@@ -32,7 +32,7 @@ body, html {
     padding: 8px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Распределяем контент по вертикали */
+    justify-content: space-between;
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -45,9 +45,9 @@ body, html {
 }
 
 .character-card .portrait {
-    width: 84px; /* 100px - 8px*2 */
+    width: 84px;
     height: 80px;
-    border-radius: 4px; /* Прямоугольник со скруглением */
+    border-radius: 4px;
     border: 1px solid #c9a37a;
     object-fit: cover;
     margin-bottom: 5px;
@@ -166,6 +166,7 @@ body, html {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0; /* Fix for flexbox child overflow */
 }
 
 .modal-section-title {
@@ -177,11 +178,46 @@ body, html {
     padding-bottom: 5px;
 }
 
+/* --- Стили для прокручиваемых блоков --- */
+.modal-bio, .modal-inventory-list {
+    overflow-y: auto;
+    padding-right: 10px; /* Space for scrollbar */
+}
+
 .modal-bio {
+    max-height: 80px;
     font-size: 14px;
     font-style: italic;
     color: #b0a090;
     margin-bottom: 20px;
+}
+
+.modal-inventory-list {
+    max-height: 120px;
+}
+
+/* Кастомный скроллбар */
+.modal-bio::-webkit-scrollbar, 
+.modal-inventory-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-bio::-webkit-scrollbar-track, 
+.modal-inventory-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.modal-bio::-webkit-scrollbar-thumb, 
+.modal-inventory-list::-webkit-scrollbar-thumb {
+    background: #5a4a3a;
+    border-radius: 4px;
+    border: 1px solid #3c2f21;
+}
+
+.modal-bio::-webkit-scrollbar-thumb:hover, 
+.modal-inventory-list::-webkit-scrollbar-thumb:hover {
+    background: #7a6a5a;
 }
 
 .modal-attributes-grid {
@@ -276,7 +312,7 @@ body, html {
 
 .character-wrapper {
     position: absolute;
-    width: auto; /* Auto width based on content */
+    width: auto;
     height: auto;
     cursor: grab;
     user-select: none;
@@ -290,7 +326,7 @@ body, html {
 }
 
 .character-avatar {
-    width: 300px; /* This is for the on-screen avatar, not the card portrait */
+    width: 300px;
     height: 300px;
     display: block;
 }
