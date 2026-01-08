@@ -40,7 +40,7 @@ async def handle_archive_event():
         save_prompt_to_log("archivist", prompt)
 
         response = client.chat.completions.create(
-            model="deepseek/deepseek-v3.2",
+            model="google/gemini-2.5-flash-lite",
             messages=[
                 {"role": "system", "content": "Ты — Синтезатор Хроники."},
                 {"role": "user", "content": prompt}
