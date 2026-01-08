@@ -1,14 +1,16 @@
-body,
-html {
+/* Общие стили */
+body, html {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
     background-color: #1a1a1a;
+    color: #f1f1f1;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Контейнер верхних карточек */
 #character-cards-container {
     position: absolute;
     top: 10px;
@@ -20,11 +22,12 @@ html {
     z-index: 3;
 }
 
+/* Стили для маленьких карточек */
 .character-card {
     width: 200px;
-    height: 200px;
-    background-color: rgba(40, 40, 40, 0.8);
-    border: 1px solid #555;
+    height: auto;
+    background-color: rgba(20, 15, 10, 0.85);
+    border: 1px solid #4a3a2a;
     border-radius: 10px;
     padding: 10px;
     display: flex;
@@ -32,25 +35,28 @@ html {
     align-items: center;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
 
 .character-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 20px rgba(255, 190, 100, 0.2);
 }
 
 .character-card .portrait {
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    border: 2px solid #ddd;
+    border: 2px solid #c9a37a;
     margin-bottom: 10px;
+    object-fit: cover;
 }
 
 .character-card .name {
     font-size: 16px;
     font-weight: bold;
-    color: #eee;
+    color: #fff;
+    font-family: 'Georgia', serif;
 }
 
 .character-card .model {
@@ -62,60 +68,188 @@ html {
 .stat-bar-container {
     width: 100%;
     margin-bottom: 5px;
+    background-color: #1a110a;
+    border-radius: 5px;
+    border: 1px solid #3c2f21;
 }
 
 .stat-bar {
     height: 10px;
-    border-radius: 5px;
-    background-color: #333;
+    border-radius: 3px;
+    transition: width 0.5s ease-in-out;
 }
 
-.hp-bar {
-    background-color: #c0392b;
-    width: 100%;
-}
+.hp-bar { background: linear-gradient(to right, #b82a1f, #e85a4f); }
+.mp-bar { background: linear-gradient(to right, #2962b9, #4a90e2); }
 
-.mp-bar {
-    background-color: #2980b9;
-    width: 100%;
-}
+/* --- Стили для модального окна --- */
 
 .modal {
-    display: none; 
-    position: fixed; 
-    z-index: 100; 
+    display: none;
+    position: fixed;
+    z-index: 100;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.7);
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
 }
 
 .modal-content {
-    background-color: #2b2b2b;
-    color: #f1f1f1;
-    margin: 10% auto; 
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 600px;
-    border-radius: 10px;
-    box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+    position: relative;
+    background: #1e1814 url('/assets/ui/bg_texture.png');
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 15px;
+    border: 2px solid #5a4a3a;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
+    display: flex;
+    gap: 25px;
+    padding: 25px;
 }
 
 .close-button {
+    position: absolute;
+    top: 15px;
+    right: 20px;
     color: #aaa;
-    float: right;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
 }
 
-.close-button:hover,
-.close-button:focus {
+.close-button:hover, .close-button:focus {
     color: #fff;
-    text-decoration: none;
-    cursor: pointer;
+}
+
+/* Левая колонка (Портрет) */
+.modal-left-column {
+    flex: 0 0 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-portrait {
+    width: 250px;
+    height: 250px;
+    object-fit: cover;
+    border: 4px solid #7a6a5a;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+}
+
+.modal-character-name {
+    font-family: 'Georgia', serif;
+    font-size: 28px;
+    font-weight: bold;
+    color: #fde0bd;
+    text-shadow: 0 0 10px rgba(255, 200, 100, 0.4);
+    margin: 0 0 20px 0;
+}
+
+/* Правая колонка (Детали) */
+.modal-right-column {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-section-title {
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    color: #d9b38a;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #4a3a2a;
+    padding-bottom: 5px;
+}
+
+.modal-bio {
+    font-size: 14px;
+    font-style: italic;
+    color: #b0a090;
+    margin-bottom: 20px;
+}
+
+.modal-attributes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.attribute-item {
+    background: rgba(0,0,0,0.2);
+    padding: 8px 12px;
+    border-radius: 5px;
+    border-left: 3px solid #b89060;
+    font-size: 16px;
+}
+
+.attribute-item strong {
+    color: #e0c09a;
+}
+
+.modal-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.modal-list li {
+    background: rgba(0,0,0,0.15);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 15px;
+    color: #ccc;
+}
+
+.modal-list li strong {
+    color: #e0c09a;
+}
+
+/* Большие статус бары в модальном окне */
+.modal-stat-bar-container {
+    width: 100%;
+    height: 25px;
+    background-color: #1a110a;
+    border-radius: 8px;
+    border: 1px solid #3c2f21;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.modal-stat-bar {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease-in-out;
+}
+
+.modal-hp-bar { background: linear-gradient(to right, #b82a1f, #e85a4f); }
+.modal-mp-bar { background: linear-gradient(to right, #2962b9, #4a90e2); }
+
+.stat-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px #000;
+}
+
+/* Остальные стили без изменений */
+
+#background-container, #avatars-container, .character-wrapper, .character-avatar, .speech-bubble {
+    /* ... ваши существующие стили ... */
 }
 
 #background-container {

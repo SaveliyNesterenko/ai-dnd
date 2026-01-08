@@ -43,7 +43,6 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
-            <div class="model">${meta.model_id || 'N/A'}</div>
             <div class="stat-bar-container">
                 <div class="stat-bar hp-bar"></div>
             </div>
@@ -51,11 +50,15 @@ function addOrUpdateCharacterCard(charId, charData) {
                 <div class="stat-bar mp-bar"></div>
             </div>
         `;
-
-        card.addEventListener('click', () => openCharacterModal(charId, charData));
         characterCardsContainer.appendChild(card);
+        
+        // Listener moved inside the creation block
+        card.addEventListener('click', () => openCharacterModal(charId, charData));
     }
-    
+
+    // Update data on subsequent calls
+    card.onclick = () => openCharacterModal(charId, charData);
+
     const portrait = card.querySelector('.portrait');
     const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
     if (portrait.src !== newPortraitSrc) {
@@ -86,31 +89,53 @@ function openCharacterModal(charId, charData) {
 
     const hp = stats.hp?.current || 0;
     const maxHp = stats.hp?.max || 100;
+    const hpPercentage = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+    
     const mp = stats.mp?.current || 0;
     const maxMp = stats.mp?.max || 100;
+    const mpPercentage = maxMp > 0 ? (mp / maxMp) * 100 : 0;
+
     const attributes = stats.attributes || {};
     const statusEffects = stats.status_effects || [];
 
+    const portraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
+
     modalCharacterDetails.innerHTML = `
-        <h2>${identity.name || 'Unknown'}</h2>
-        <p><strong>Model:</strong> ${meta.model_id || 'N/A'}</p>
-        <p><strong>HP:</strong> ${hp} / ${maxHp}</p>
-        <p><strong>MP:</strong> ${mp} / ${maxMp}</p>
-        <p><strong>Attributes:</strong></p>
-        <ul>
-            ${Object.entries(attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}
-        </ul>
-        <p><strong>Status Effects:</strong></p>
-        <ul>
-            ${statusEffects.map(effect => `<li>${effect}</li>`).join('')}
-        </ul>
-        <p><strong>Inventory:</strong></p>
-        <ul>
-            ${inventory.map(item => `<li>${item.name} (x${item.quantity})</li>`).join('')}
-        </ul>
+        <div class="modal-left-column">
+            <img src="${portraitSrc}" class="modal-portrait" onerror="this.onerror=null; this.src='${API_BASE_URL}/assets/characters/default_portrait.png'"/>
+            <div class="modal-character-name">${identity.name || 'Unknown'}</div>
+            <div class="modal-stat-bar-container">
+                <div class="modal-stat-bar modal-hp-bar" style="width: ${hpPercentage}%;"></div>
+                <div class="stat-text">${hp} / ${maxHp}</div>
+            </div>
+            <div class="modal-stat-bar-container">
+                <div class="modal-stat-bar modal-mp-bar" style="width: ${mpPercentage}%;"></div>
+                <div class="stat-text">${mp} / ${maxMp}</div>
+            </div>
+        </div>
+        <div class="modal-right-column">
+            <div class="modal-section-title">Biography</div>
+            <p class="modal-bio">${identity.bio || 'No biography available.'}</p>
+            
+            <div class="modal-section-title">Attributes</div>
+            <div class="modal-attributes-grid">
+                ${Object.entries(attributes).map(([key, value]) => `<div class="attribute-item"><strong>${key}:</strong> ${value}</div>`).join('')}
+            </div>
+
+            <div class="modal-section-title">Status Effects</div>
+            <ul class="modal-list">
+                ${statusEffects.length > 0 ? statusEffects.map(effect => `<li>${effect}</li>`).join('') : '<li>None</li>'}
+            </ul>
+            
+            <div class="modal-section-title">Inventory</div>
+            <ul class="modal-list">
+                ${inventory.length > 0 ? inventory.map(item => `<li><strong>${item.name}</strong> (x${item.quantity})<br><small>${item.description || ''}</small></li>`).join('') : '<li>Empty</li>'}
+            </ul>
+        </div>
     `;
-    characterModal.style.display = 'block';
+    characterModal.style.display = 'flex';
 }
+
 
 closeButton.onclick = function() {
     characterModal.style.display = "none";
@@ -203,7 +228,7 @@ function subscribeToSpectatorStream() {
     
     eventSource.addEventListener('character_full_update', function(event) {
         const update = JSON.parse(event.data);
-        console.log('SSE: Received character full update', update);
+        // console.log('SSE: Received character full update', update);
         addOrUpdateCharacterCard(update.id, update.data);
     });
 
@@ -246,7 +271,7 @@ async function main() {
     try {
         const [gameStateRes, activeCharsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/game_state`),
-            fetch(`${API_BÄSE_URL}/api/active_characters`)
+            fetch(`${API_BASE_URL}/api/active_characters`)
         ]);
         const initialState = await gameStateRes.json();
         const initialCharacterIds = await activeCharsRes.json();
