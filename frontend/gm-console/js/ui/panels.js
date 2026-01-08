@@ -84,6 +84,17 @@ export function initializeCenterPanel(triggerObserver) {
     if(sendWithDiceRollBtn) sendWithDiceRollBtn.addEventListener('click', () => {
         const actionText = outputArea.value;
         const diceRoll = Math.floor(Math.random() * 20) + 1;
+
+        // Отправляем бросок на сервер для трансляции зрителю (без ожидания ответа)
+        try {
+            api.broadcastDiceRoll(diceRoll);
+            console.log(`Broadcasted dice roll: ${diceRoll}`);
+        } catch (error) {
+            console.error("Failed to broadcast dice roll:", error);
+            // Не прерываем основной поток, просто логируем ошибку
+        }
+
+        // Вызываем основную логику Наблюдателя
         triggerObserver(actionText, diceRoll);
         resetToActionGenerator();
     });
