@@ -31,7 +31,7 @@ function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
 
     const identity = charData.identity || {};
-    const state = charData.state || {};
+    const stats = charData.stats || {};
     const meta = charData.meta || {};
 
     if (!card) {
@@ -55,17 +55,21 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.addEventListener('click', () => openCharacterModal(charId, charData));
         characterCardsContainer.appendChild(card);
     }
-
+    
     const portrait = card.querySelector('.portrait');
-    const newPortraitSrc = `${API_BASE_URL}/assets/characters/${identity.sprite_id}_portrait.png`;
+    const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
     if (portrait.src !== newPortraitSrc) {
         portrait.src = newPortraitSrc;
+        portrait.onerror = () => { 
+            portrait.onerror = null; 
+            portrait.src = `${API_BASE_URL}/assets/characters/default_portrait.png`; 
+        };
     }
 
-    const hp = state.hp || 0;
-    const maxHp = state.max_hp || 100;
-    const mp = state.mp || 0;
-    const maxMp = state.max_mp || 100;
+    const hp = stats.hp?.current || 0;
+    const maxHp = stats.hp?.max || 100;
+    const mp = stats.mp?.current || 0;
+    const maxMp = stats.mp?.max || 100;
 
     const hpPercentage = maxHp > 0 ? (hp / maxHp) * 100 : 0;
     const mpPercentage = maxMp > 0 ? (mp / maxMp) * 100 : 0;
@@ -76,17 +80,22 @@ function addOrUpdateCharacterCard(charId, charData) {
 
 function openCharacterModal(charId, charData) {
     const identity = charData.identity || {};
-    const state = charData.state || {};
+    const stats = charData.stats || {};
     const meta = charData.meta || {};
-    const attributes = charData.attributes || {};
-    const statusEffects = charData.status_effects || [];
     const inventory = charData.inventory || [];
+
+    const hp = stats.hp?.current || 0;
+    const maxHp = stats.hp?.max || 100;
+    const mp = stats.mp?.current || 0;
+    const maxMp = stats.mp?.max || 100;
+    const attributes = stats.attributes || {};
+    const statusEffects = stats.status_effects || [];
 
     modalCharacterDetails.innerHTML = `
         <h2>${identity.name || 'Unknown'}</h2>
         <p><strong>Model:</strong> ${meta.model_id || 'N/A'}</p>
-        <p><strong>HP:</strong> ${state.hp || 0} / ${state.max_hp || 100}</p>
-        <p><strong>MP:</strong> ${state.mp || 0} / ${state.max_mp || 100}</p>
+        <p><strong>HP:</strong> ${hp} / ${maxHp}</p>
+        <p><strong>MP:</strong> ${mp} / ${maxMp}</p>
         <p><strong>Attributes:</strong></p>
         <ul>
             ${Object.entries(attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}
@@ -97,7 +106,7 @@ function openCharacterModal(charId, charData) {
         </ul>
         <p><strong>Inventory:</strong></p>
         <ul>
-            ${inventory.map(item => `<li>${item}</li>`).join('')}
+            ${inventory.map(item => `<li>${item.name} (x${item.quantity})</li>`).join('')}
         </ul>
     `;
     characterModal.style.display = 'block';
@@ -237,7 +246,7 @@ async function main() {
     try {
         const [gameStateRes, activeCharsRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/game_state`),
-            fetch(`${API_BASE_URL}/api/active_characters`)
+            fetch(`${API_BÄSE_URL}/api/active_characters`)
         ]);
         const initialState = await gameStateRes.json();
         const initialCharacterIds = await activeCharsRes.json();
