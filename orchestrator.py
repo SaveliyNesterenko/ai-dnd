@@ -31,6 +31,7 @@ load_dotenv()
 
 REDIS_URL = "redis://127.0.0.1:6379"
 SPEECH_LIST_KEY = "speech_list"
+CHARACTER_UPDATE_QUEUE = "character_update_queue"
 
 app_state = {}
 
@@ -86,9 +87,23 @@ class SetLocationRequest(BaseModel): location_id: str
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
+def flatten_character_data(char_id, char_data):
+    return {
+        "id": char_id,
+        "name": char_data.get("identity", {}).get("name"),
+        "sprite_id": char_data.get("identity", {}).get("sprite_id"),
+        "model_id": char_data.get("meta", {}).get("model_id"),
+        "hp": char_data.get("state", {}).get("hp"),
+        "max_hp": char_data.get("state", {}).get("max_hp"),
+        "mp": char_data.get("state", {}).get("mp"),
+        "max_mp": char_data.get("state", {}).get("max_mp"),
+        "attributes": char_data.get("attributes", {}),
+        "status_effects": char_data.get("status_effects", []),
+        "inventory": char_data.get("inventory", []),
+    }
+
 async def spectator_stream_generator(request: Request):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
-    # Инициализируем переменные для хранения последнего отправленного состояния
     last_game_state = None
     last_active_chars = None
 
@@ -97,36 +112,35 @@ async def spectator_stream_generator(request: Request):
             if await request.is_disconnected():
                 break
 
-            # Ожидаем сообщение из Redis (связанное с речью) с таймаутом в 1 секунду.
-            # Это основная блокирующая операция цикла.
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY], timeout=1)
             
-            # Если пришло сообщение о речи - немедленно отправляем его
             if message_tuple:
                 _, message_data = message_tuple
                 yield sse_format("character_speech", json.loads(message_data))
-            
-            # После получения сообщения или по истечении таймаута (раз в секунду),
-            # проверяем файлы на предмет изменений.
 
-            # Проверка и отправка состояния игры (только если изменилось)
+            updated_char_id = await redis_conn.lpop(CHARACTER_UPDATE_QUEUE)
+            if updated_char_id:
+                all_chars = {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
+                if updated_char_id in all_chars:
+                    char_data = all_chars[updated_char_id]
+                    flat_data = flatten_character_data(updated_char_id, char_data)
+                    yield sse_format("character_full_update", flat_data)
+
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
                 last_game_state = current_game_state
                 yield sse_format("game_state_update", current_game_state)
             
-            # Проверка и отправка активных персонажей (только если изменились)
             current_active_chars = load_json(ACTIVE_CHARACTERS_FILE) or {}
             if current_active_chars != last_active_chars:
                 last_active_chars = current_active_chars
                 yield sse_format("active_characters_update", current_active_chars.get("characters_id", []))
 
         except asyncio.CancelledError:
-            # Клиент отключился, выходим из цикла
             break
         except Exception as e:
             print(f"Error in spectator stream: {e}")
-            await asyncio.sleep(1) # Пауза в случае непредвиденной ошибки
+            await asyncio.sleep(1)
 
 
 async def gm_stream_generator(request: Request):
@@ -228,6 +242,8 @@ async def activate_character(request: CharacterActionRequest):
     d = load_json(ACTIVE_CHARACTERS_FILE) or {"characters_id": []}
     if request.character_id not in d["characters_id"]: d["characters_id"].append(request.character_id)
     save_json(ACTIVE_CHARACTERS_FILE, d)
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
+    await redis_conn.rpush(CHARACTER_UPDATE_QUEUE, request.character_id)
     return {"status": "success"}
 
 @app.post("/api/characters/deactivate")
@@ -298,11 +314,13 @@ async def observer_analysis(request: ObserverRequest):
 @app.post("/api/apply_json_patch")
 async def apply_json_patch(request: JsonPatchRequest):
     chars, npcs = load_json(CHARACTERS_FILE) or {}, load_json(NPC_FILE) or {}
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     for char_id, updates in request.patch.items():
         target = chars if char_id in chars else npcs
         if char_id in target: 
             for key, value in updates.items():
                 if isinstance(value, dict) and key in target.get(char_id, {}): target[char_id][key].update(value)
                 else: target[char_id][key] = value
+            await redis_conn.rpush(CHARACTER_UPDATE_QUEUE, char_id)
     save_json(CHARACTERS_FILE, chars); save_json(NPC_FILE, npcs)
     return {"status": "success"}

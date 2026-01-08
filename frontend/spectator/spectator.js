@@ -3,6 +3,11 @@ const API_BASE_URL = 'http://127.0.0.1:8000';
 // --- DOM Элементы ---
 const backgroundContainer = document.getElementById('background-container');
 const avatarsContainer = document.getElementById('avatars-container');
+const characterCardsContainer = document.getElementById('character-cards-container');
+const characterModal = document.getElementById('character-modal');
+const modalCharacterDetails = document.getElementById('modal-character-details');
+const closeButton = document.querySelector('.close-button');
+
 
 // --- Состояние для Drag-and-Drop ---
 let activeDrag = null;
@@ -22,52 +27,112 @@ function updateBackground(gameState) {
     }
 }
 
-// --- РЕФАКТОРИНГ: Шаг 1 --- 
+function addOrUpdateCharacterCard(characterData) {
+    let card = document.getElementById(`card-${characterData.id}`);
+
+    if (!card) {
+        card = document.createElement('div');
+        card.id = `card-${characterData.id}`;
+        card.className = 'character-card';
+        card.dataset.id = characterData.id;
+
+        card.innerHTML = `
+            <img src="${API_BASE_URL}/assets/characters/${characterData.sprite_id}_portrait.png" class="portrait"/>
+            <div class="name">${characterData.name}</div>
+            <div class="model">${characterData.model_id}</div>
+            <div class="stat-bar-container">
+                <div class="stat-bar hp-bar"></div>
+            </div>
+            <div class="stat-bar-container">
+                <div class="stat-bar mp-bar"></div>
+            </div>
+        `;
+
+        card.addEventListener('click', () => openCharacterModal(characterData));
+        characterCardsContainer.appendChild(card);
+    }
+
+    const hpPercentage = (characterData.hp / characterData.max_hp) * 100;
+    const mpPercentage = (characterData.mp / characterData.max_mp) * 100;
+
+    card.querySelector('.hp-bar').style.width = `${hpPercentage}%`;
+    card.querySelector('.mp-bar').style.width = `${mpPercentage}%`;
+}
+
+function openCharacterModal(characterData) {
+    modalCharacterDetails.innerHTML = `
+        <h2>${characterData.name}</h2>
+        <p><strong>Model:</strong> ${characterData.model_id}</p>
+        <p><strong>HP:</strong> ${characterData.hp} / ${characterData.max_hp}</p>
+        <p><strong>MP:</strong> ${characterData.mp} / ${characterData.max_mp}</p>
+        <p><strong>Attributes:</strong></p>
+        <ul>
+            ${Object.entries(characterData.attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')}
+        </ul>
+        <p><strong>Status Effects:</strong></p>
+        <ul>
+            ${characterData.status_effects.map(effect => `<li>${effect}</li>`).join('')}
+        </ul>
+        <p><strong>Inventory:</strong></p>
+        <ul>
+            ${characterData.inventory.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+    `;
+    characterModal.style.display = 'block';
+}
+
+closeButton.onclick = function() {
+    characterModal.style.display = "none";
+}
+
+window.onclick = function(event) {
+    if (event.target == characterModal) {
+        characterModal.style.display = "none";
+    }
+}
+
 function renderAvatars(characterIds) {
     const idSet = new Set(characterIds);
-    // Ищем обертки, а не аватары
     const existingWrappers = avatarsContainer.querySelectorAll('.character-wrapper');
     existingWrappers.forEach(wrapper => {
-        if (!idSet.has(wrapper.dataset.id)) { wrapper.remove(); }
+        if (!idSet.has(wrapper.dataset.id)) { 
+            wrapper.remove(); 
+            const card = document.getElementById(`card-${wrapper.dataset.id}`);
+            if (card) {
+                card.remove();
+            }
+        }
     });
 
     characterIds.forEach((charId, index) => {
-        // Ищем обертку, а не сам аватар
         let wrapperElement = document.getElementById(`wrapper-${charId}`);
         if (!wrapperElement) {
-            // 1. Создаем DIV-обертку
             wrapperElement = document.createElement('div');
             wrapperElement.id = `wrapper-${charId}`;
             wrapperElement.dataset.id = charId;
             wrapperElement.className = 'character-wrapper';
 
-            // 2. Создаем IMG аватара
             const avatarElement = document.createElement('img');
-            avatarElement.id = `avatar-${charId}`; // ID для картинки сохраняется
-            avatarElement.className = 'character-avatar'; // Класс для стилей картинки
+            avatarElement.id = `avatar-${charId}`;
+            avatarElement.className = 'character-avatar';
             avatarElement.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
             avatarElement.onerror = () => {
                 avatarElement.onerror = null;
                 avatarElement.src = `${API_BASE_URL}/assets/characters/default.png`;
             };
 
-            // 3. Собираем вместе: IMG кладется внутрь DIV
             wrapperElement.appendChild(avatarElement);
 
-            // 4. Позиционируем и добавляем на сцену ОБЕРТКУ
-            wrapperElement.style.left = `${100 + index * 150}px`; // Немного увеличим отступ
+            wrapperElement.style.left = `${100 + index * 150}px`;
             wrapperElement.style.top = `100px`;
             avatarsContainer.appendChild(wrapperElement);
 
-            // 5. Делаем перетаскиваемой ОБЕРТКУ
             makeDraggable(wrapperElement);
         }
     });
 }
 
-// --- РЕФАКТОРИНГ: Шаг 2 ---
 function showSpeechBubble(characterId, text, type) {
-    // 1. Находим главную ОБЕРТКУ персонажа
     const wrapper = document.getElementById(`wrapper-${characterId}`);
     if (!wrapper) {
         console.error(`Speech bubble error: Wrapper for character ID '${characterId}' not found.`);
@@ -78,16 +143,12 @@ function showSpeechBubble(characterId, text, type) {
     bubble.className = `speech-bubble ${type}`;
     bubble.textContent = text;
     
-    // 2. Добавляем пузырь ВНУТРЬ обертки, а не в body
     wrapper.appendChild(bubble);
 
-    // 3. Логика позиционирования теперь намного проще!
-    // Она рассчитывается относительно аватара внутри обертки.
-    // Мы просто сдвигаем пузырь вверх.
     if (type === 'thought') {
-        bubble.style.bottom = '280px'; // Мысли выше
+        bubble.style.bottom = '280px';
     } else {
-        bubble.style.bottom = '250px'; // Действия ниже
+        bubble.style.bottom = '250px';
     }
 
     setTimeout(() => { bubble.remove(); }, 8000);
@@ -108,6 +169,12 @@ function subscribeToSpectatorStream() {
         console.log('SSE: Received active characters update', characterIds);
         renderAvatars(characterIds);
     });
+    
+    eventSource.addEventListener('character_full_update', function(event) {
+        const characterData = JSON.parse(event.data);
+        console.log('SSE: Received character full update', characterData);
+        addOrUpdateCharacterCard(characterData);
+    });
 
     eventSource.addEventListener('character_speech', function(event) {
         const speechData = JSON.parse(event.data);
@@ -121,8 +188,7 @@ function subscribeToSpectatorStream() {
     };
 }
 
-// --- РЕФАКТОРИНГ: Шаг 3 (изменения минимальны, но важны) ---
-function makeDraggable(element) { // Теперь element - это wrapper
+function makeDraggable(element) {
     element.addEventListener('mousedown', (e) => {
         e.preventDefault();
         activeDrag = { element, offsetX: e.clientX - element.getBoundingClientRect().left, offsetY: e.clientY - element.getBoundingClientRect().top };
@@ -137,7 +203,6 @@ document.addEventListener('mousemove', (e) => {
 });
 document.addEventListener('mouseup', () => {
     if (activeDrag) {
-        // Убираем класс .dragging с обертки
         activeDrag.element.classList.remove('dragging'); 
         activeDrag = null; 
     }
