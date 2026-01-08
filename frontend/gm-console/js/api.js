@@ -124,6 +124,29 @@ export async function compressContext() {
     return await response.json();
 }
 
+export async function broadcastDiceRoll(roll) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/broadcast_dice_roll`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roll: roll }),
+        });
+        if (!response.ok) {
+            // Попытаемся получить осмысленное сообщение об ошибке с сервера
+            const errorData = await response.json().catch(() => null); // .json() может упасть, если тело пустое
+            const errorMessage = errorData ? errorData.detail : `HTTP error! status: ${response.status}`;
+            console.error('Failed to broadcast dice roll:', errorMessage);
+            throw new Error(errorMessage);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error in broadcastDiceRoll:', error);
+        // Перебрасываем ошибку, чтобы вызывающий код мог на нее среагировать
+        throw error;
+    }
+}
+
+
 /**
  * НОВАЯ ЕДИНАЯ ПОДПИСКА ДЛЯ КОНСОЛИ ГМ
  * Подписывается на единый поток данных и вызывает соответствующие колбэки.
