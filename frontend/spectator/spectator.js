@@ -255,11 +255,20 @@ function subscribeToSpectatorStream() {
         addOrUpdateCharacterCard(update.id, update.data);
     });
 
+    // vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
     eventSource.addEventListener('character_speech', function(event) {
         const speechData = JSON.parse(event.data);
         console.log('SSE: Received speech data', speechData);
         showSpeechBubble(speechData.character, speechData.text, speechData.type);
+
+        // Проверяем, есть ли ссылка на аудио и воспроизводим ее
+        if (speechData.audio_url) {
+            console.log('Playing audio:', speechData.audio_url);
+            const audio = new Audio(`${API_BASE_URL}/${speechData.audio_url}`);
+            audio.play().catch(e => console.error("Audio playback failed:", e));
+        }
     });
+    // ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^
 
     // --- Новый обработчик для бросков кубика ---
     eventSource.addEventListener('dice_roll', function(event) {
