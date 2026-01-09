@@ -34,3 +34,6 @@ Desktop.ini
 dist/
 build/
 *.spec
+
+# --- Аудио генерации
+assets/audio/generated
