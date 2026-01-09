@@ -116,10 +116,15 @@ async def spectator_stream_generator(request: Request):
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
             if message_tuple:
                 queue_name, message_data = tuple(message_tuple)
+                # Распарсим JSON один раз
+                data = json.loads(message_data)
+                # Определим тип события на основе данных
+                event_type = data.pop("event_type", "character_speech") # Удаляем event_type и используем его
                 if queue_name == SPEECH_LIST_KEY:
-                    yield sse_format("character_speech", json.loads(message_data))
+                    yield sse_format(event_type, data)
                 elif queue_name == DICE_ROLL_QUEUE:
-                    yield sse_format("dice_roll", json.loads(message_data))
+                    yield sse_format("dice_roll", data)
+
 
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
@@ -168,6 +173,45 @@ async def gm_stream_generator(request: Request):
             await asyncio.sleep(1)
     finally:
         pass
+
+# --- Хелпер для асинхронного синтеза речи ---
+async def synthesize_and_dispatch_audio(
+    redis_pool, tts_service, char_key: str, text_type: str, text: str, voice_sample_path: str
+):
+    """Синтезирует аудио в фоновом режиме и отправляет событие с URL в Redis."""
+    print(f"--- Starting background synthesis for {char_key} ({text_type})...")
+    timestamp = int(time.time())
+    clean_text = text.replace("[THOUGHTS]", "").replace("[ACTION]", "").strip()
+    
+    if not clean_text:
+        print(f"--- Skipped synthesis for {char_key} ({text_type}) due to empty text.")
+        return
+
+    output_filename = f"{char_key}_{timestamp}_{text_type}.wav"
+    
+    audio_path = tts_service.synthesize(
+        text=clean_text,
+        speaker_wav_path=voice_sample_path,
+        output_filename=output_filename
+    )
+
+    if audio_path:
+        print(f"--- SUCCESS: Audio generated for {char_key} ({text_type}) at {audio_path}")
+        redis_conn = redis.Redis(connection_pool=redis_pool)
+        message = {
+            "character": char_key,
+            "type": text_type,
+            "audio_url": audio_path.replace("\\", "/"),
+            "event_type": "audio_update"  # Новый тип события
+        }
+        try:
+            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
+            print(f"--- DISPATCHED audio_update for {char_key} ({text_type}) to Redis.")
+        except Exception as e:
+            print(f"--- CRITICAL ERROR during Redis RPUSH for audio_update: {e}")
+    else:
+        print(f"--- FAILURE: Audio synthesis failed for {char_key} ({text_type}).")
+
 
 # --- Основные API эндпоинты ---
 
@@ -219,79 +263,56 @@ async def generate_action(request: ActionRequest):
     parsed_data = parse_ai_response(ai_response)
     print(f"--- Parsed AI response: {parsed_data}")
     
-    # --- Шаг 1 Оптимизации: Немедленная отправка текста ---
-    redis_conn_pre = redis.Redis(connection_pool=app_state["redis_pool"])
-    pre_thought_text = parsed_data.get("thought")
-    if pre_thought_text:
-        text_message = {"character": char_key, "type": "thought", "text": pre_thought_text, "event_type": "text_update"}
-        await redis_conn_pre.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
-        print(f"--- PRE-PUSHED THOUGHT TEXT for {char_key}")
-
-    pre_action_text = parsed_data.get("action")
-    if pre_action_text:
-        text_message = {"character": char_key, "type": "action", "text": pre_action_text, "event_type": "text_update"}
-        await redis_conn_pre.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
-        print(f"--- PRE-PUSHED ACTION TEXT for {char_key}")
-    # --- Конец Шага 1 ---
-
-    tts_service = app_state.get("tts_service")
-    voice_sample_path = char.get("meta", {}).get("voice_sample")
-    timestamp = int(time.time())
-
-    thought_audio_path = None
-    action_audio_path = None
-
+    # --- Шаг 1: Немедленная отправка текста ---
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     thought_text = parsed_data.get("thought")
-    if tts_service and voice_sample_path and thought_text:
-        clean_thought_text = thought_text.replace("[THOUGHTS]", "").strip()
-        if clean_thought_text:
-            print(f"--- Synthesizing THOUGHT for {char_key}...")
-            output_filename = f"{char_key}_{timestamp}_thought.wav"
-            thought_audio_path = tts_service.synthesize(
-                text=clean_thought_text, 
-                speaker_wav_path=voice_sample_path,
-                output_filename=output_filename
-            )
-            if thought_audio_path: print(f"--- THOUGHT audio generated: {thought_audio_path}")
+    if thought_text:
+        text_message = {"character": char_key, "type": "thought", "text": thought_text, "event_type": "text_update"}
+        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
+        print(f"--- DISPATCHED text_update for {char_key} (thought)")
 
     action_text = parsed_data.get("action")
-    if tts_service and voice_sample_path and action_text:
-        clean_action_text = action_text.replace("[ACTION]", "").strip()
-        if clean_action_text:
-            print(f"--- Synthesizing ACTION for {char_key}...")
-            output_filename = f"{char_key}_{timestamp}_action.wav"
-            action_audio_path = tts_service.synthesize(
-                text=clean_action_text, 
-                speaker_wav_path=voice_sample_path,
-                output_filename=output_filename
-            )
-            if action_audio_path: print(f"--- ACTION audio generated: {action_audio_path}")
+    if action_text:
+        text_message = {"character": char_key, "type": "action", "text": action_text, "event_type": "text_update"}
+        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
+        print(f"--- DISPATCHED text_update for {char_key} (action)")
 
-    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
-    try:
+    # --- Шаг 2: Асинхронный запуск синтеза речи ---
+    tts_service = app_state.get("tts_service")
+    voice_sample_path = char.get("meta", {}).get("voice_sample")
+
+    if tts_service and voice_sample_path:
         if thought_text:
-            message = {"character": char_key, "type": "thought", "text": thought_text}
-            if thought_audio_path:
-                message["audio_url"] = thought_audio_path.replace("\\", "/")
-            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
-            print(f"--- Successfully PUSHED THOUGHT for {char_key} to list '{SPEECH_LIST_KEY}'")
-
+            asyncio.create_task(
+                synthesize_and_dispatch_audio(
+                    redis_pool=app_state["redis_pool"],
+                    tts_service=tts_service,
+                    char_key=char_key,
+                    text_type="thought",
+                    text=thought_text,
+                    voice_sample_path=voice_sample_path
+                )
+            )
         if action_text:
-            message = {"character": char_key, "type": "action", "text": action_text}
-            if action_audio_path:
-                message["audio_url"] = action_audio_path.replace("\\", "/")
-            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
-            print(f"--- Successfully PUSHED ACTION for {char_key} to list '{SPEECH_LIST_KEY}'")
-            
-    except Exception as e:
-        print(f"--- CRITICAL ERROR during Redis RPUSH in /act: {e}")
+            asyncio.create_task(
+                synthesize_and_dispatch_audio(
+                    redis_pool=app_state["redis_pool"],
+                    tts_service=tts_service,
+                    char_key=char_key,
+                    text_type="action",
+                    text=action_text,
+                    voice_sample_path=voice_sample_path
+                )
+            )
 
+    # Обновление журнала событий происходит как и раньше
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
     updated_event_data = handle_response(
         ai_response, event_data, char.get("identity", {}).get('name'), char.get("meta", {}).get('role')
     )
     save_json(EVENT_LOG_FILE, updated_event_data)
     
+    # Эндпоинт теперь отвечает почти мгновенно
     return {"response": ai_response}
 
 @app.post("/api/broadcast_dice_roll")
