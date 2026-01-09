@@ -122,7 +122,7 @@ function showSpeechBubble(characterId, text, type) {
     bubble.className = `speech-bubble ${type}`;
     bubble.textContent = text;
     wrapper.appendChild(bubble);
-    bubble.style.bottom = (type === 'thought') ? '280px' : '280px';
+    bubble.style.bottom = '280px'; // Единая позиция для всех пузырей
     return bubble;
 }
 
@@ -131,15 +131,30 @@ function animateScroll(element, duration) {
     if (scrollHeight <= 0) return; // Скролл не нужен
 
     let startTime = null;
+
+    // Функция плавности (Ease Out Cubic), предложенная вами
+    function easeOutCubic(x) {
+        return 1 - Math.pow(1 - x, 3);
+    }
+
     function step(timestamp) {
         if (!startTime) startTime = timestamp;
+        
         const elapsedTime = timestamp - startTime;
-        const progress = Math.min(elapsedTime / (duration * 1000), 1);
-        element.scrollTop = scrollHeight * progress;
-        if (progress < 1) {
+        // Линейный прогресс (0...1)
+        const linearProgress = Math.min(elapsedTime / (duration * 1000), 1);
+        
+        // Применяем магию плавности
+        const easedProgress = easeOutCubic(linearProgress);
+        
+        // Используем easedProgress вместо обычного
+        element.scrollTop = scrollHeight * easedProgress;
+
+        if (linearProgress < 1) {
             currentAnimationId = requestAnimationFrame(step);
         }
     }
+
     currentAnimationId = requestAnimationFrame(step);
 }
 
