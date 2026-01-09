@@ -2,8 +2,10 @@ import subprocess
 import webbrowser
 import time
 import sys
+import os
 
 # --- Конфигурация ---
+VENV_DIR = ".venv"
 ORCHESTRATOR_HOST = "127.0.0.1"
 ORCHESTRATOR_PORT = 8000
 
@@ -11,50 +13,103 @@ ORCHESTRATOR_PORT = 8000
 GM_CONSOLE_URL = f"http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}"
 SPECTATOR_URL = f"http://{ORCHESTRATOR_HOST}:{ORCHESTRATOR_PORT}/spectator"
 
+def get_python_executable():
+    """
+    Определяет или создает виртуальное окружение и возвращает путь к Python.
+    """
+    # Путь к исполняемому файлу Python в зависимости от ОС
+    if sys.platform == "win32":
+        python_path = os.path.join(VENV_DIR, "Scripts", "python.exe")
+    else:  # linux, darwin
+        python_path = os.path.join(VENV_DIR, "bin", "python")
+
+    # Если venv есть, просто возвращаем путь
+    if os.path.exists(python_path):
+        print(f"Используется существующее виртуальное окружение: {python_path}")
+        return python_path
+
+    # Если venv нет, создаем его
+    print(f"Виртуальное окружение в '{VENV_DIR}' не найдено. Создаем новое...")
+    try:
+        # Используем системный python для создания venv
+        subprocess.check_call([sys.executable, "-m", "venv", VENV_DIR])
+        print("Виртуальное окружение успешно создано.")
+        return python_path
+    except subprocess.CalledProcessError as e:
+        print(f"ОШИБКА: Не удалось создать виртуальное окружение. {e}")
+        print("Пожалуйста, создайте его вручную: python -m venv .venv")
+        print("Продолжение с системным Python...")
+        return sys.executable
+
+
 def main():
     """
-    Запускает сервер FastAPI и открывает фронтенд-панели в браузере.
+    Автоматически настраивает и запускает среду разработки.
+    1. Находит или создает виртуальное окружение.
+    2. Устанавливает зависимости из requirements.txt.
+    3. Запускает сервер FastAPI.
+    4. Открывает фронтенд-панели в браузере.
     """
-    print("--- Запуск среды разработки ---")
+    print("--- Запуск и настройка среды разработки ---")
+
+    python_executable = get_python_executable()
+
+    # --- Установка зависимостей ---
+    pip_install_command = [
+        python_executable, "-m", "pip", "install", "-r", "requirements.txt"
+    ]
+    print("\n--- Проверка и установка зависимостей ---")
+    try:
+        # Запускаем pip с выводом, чтобы пользователь видел процесс
+        subprocess.check_call(pip_install_command)
+        print("--- Зависимости успешно установлены ---")
+    except subprocess.CalledProcessError:
+        print("\nОШИБКА: Не удалось установить зависимости из requirements.txt.")
+        print("Попробуйте запустить команду вручную:")
+        print(f"'{' '.join(pip_install_command)}'")
+        sys.exit(1) # Выходим, так как без зависимостей сервер не запустится
+
+
+    # --- Запуск сервера ---
+    print(f"\nЗапускаем основной сервер на {GM_CONSOLE_URL} с 4 воркерами...")
     
-    # --- НОВЫЙ, ПРАВИЛЬНЫЙ СПОСОБ ЗАПУСКА ---
-    # Мы запускаем Uvicorn напрямую как процесс.
-    # Ключевые аргументы:
-    # "orchestrator:app" - указывает на объект app в файле orchestrator.py
-    # --host, --port - задают адрес и порт
-    # --workers 4 - возвращаем к стандартной конфигурации
-    print(f"Запускаем основной сервер на {GM_CONSOLE_URL} с 4 воркерами...")
-    
-    command = [
-        sys.executable, "-m", "uvicorn", 
-        "orchestrator:app", 
-        "--host", ORCHESTRATOR_HOST, 
+    server_command = [
+        python_executable, "-m", "uvicorn",
+        "orchestrator:app",
+        "--host", ORCHESTRATOR_HOST,
         "--port", str(ORCHESTRATOR_PORT),
-        "--workers", "4"  # <-- ВОЗВРАЩАЕМ ЗНАЧЕНИЕ
+        "--workers", "4"
     ]
     
-    orchestrator_process = subprocess.Popen(command)
+    orchestrator_process = subprocess.Popen(server_command)
 
-    print("Ждем запуск сервера...")
-    time.sleep(5) 
-    
+    # --- Открытие браузера ---
+    print("\nЖдем запуск сервера (5 секунд)...")
+    time.sleep(5)
+
     print("Открываем GM-консоль и Зрительский экран в браузере...")
-    webbrowser.open(GM_CONSOLE_URL, new=1)
-    webbrowser.open(SPECTATOR_URL, new=2)
+    try:
+        webbrowser.open(GM_CONSOLE_URL)
+        webbrowser.open(SPECTATOR_URL, new=2)  # Открыть в новой вкладке
+    except Exception as e:
+        print(f"Не удалось автоматически открыть браузер: {e}")
+        print("Пожалуйста, откройте вручную:")
+        print(f"  - GM Console: {GM_CONSOLE_URL}")
+        print(f"  - Spectator View: {SPECTATOR_URL}")
 
-    print("\n--- Среда разработки готова! ---")
-    print(f"GM-консоль доступна по адресу: {GM_CONSOLE_URL}")
-    print(f"Зрительский экран доступен по адресу: {SPECTATOR_URL}")
-    print("Для остановки серверов нажмите Ctrl+C в этом окне.")
+    # --- Завершение ---
+    print("\n--- Среда разработки запущена ---")
+    print("Сервер работает в фоновом режиме.")
+    print("Для остановки сервера нажмите Ctrl+C в этом терминале.")
 
-    # Ожидаем завершения дочернего процесса
     try:
         orchestrator_process.wait()
     except KeyboardInterrupt:
-        print("\n--- Получен сигнал на остановку (Ctrl+C). Завершаем работу. ---")
+        print("\n\n--- Остановка сервера ---")
         orchestrator_process.terminate()
         orchestrator_process.wait()
-        print("--- Сервер остановлен. ---")
+        print("Сервер остановлен.")
+
 
 if __name__ == "__main__":
     main()
