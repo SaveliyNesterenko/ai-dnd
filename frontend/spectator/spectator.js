@@ -9,9 +9,10 @@ const modalCharacterDetails = document.getElementById('modal-character-details')
 const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
-// --- Новые переменные для управления очередью речи ---
+// --- Переменные для управления очередью речи ---
 let speechQueue = [];
 let isPlayingSpeech = false;
+let currentAnimationId = null; // Для отмены анимации скролла
 
 // --- Состояние для Drag-and-Drop ---
 let activeDrag = null;
@@ -74,20 +75,14 @@ function openCharacterModal(charId, charData) {
         <div class="modal-left-column">
             <img src="${API_BASE_URL}/assets/characters/${meta.sprite_id}" class="modal-portrait" onerror="this.onerror=null; this.src='${API_BASE_URL}/assets/characters/default_portrait.png'"/>
             <div class="modal-character-name">${identity.name || 'Unknown'}</div>
-            <div class="modal-stat-bar-container">
-                <div class="modal-stat-bar modal-hp-bar" style="width: ${hpPercentage}%;"></div>
-                <div class="stat-text">${hp.current || 0} / ${hp.max || 100}</div>
-            </div>
-            <div class="modal-stat-bar-container">
-                <div class="modal-stat-bar modal-mp-bar" style="width: ${mpPercentage}%;"></div>
-                <div class="stat-text">${mp.current || 0} / ${mp.max || 100}</div>
-            </div>
+            <div class="modal-stat-bar-container"><div class="modal-stat-bar modal-hp-bar" style="width: ${hpPercentage}%;"></div><div class="stat-text">${hp.current || 0}/${hp.max || 100}</div></div>
+            <div class="modal-stat-bar-container"><div class="modal-stat-bar modal-mp-bar" style="width: ${mpPercentage}%;"></div><div class="stat-text">${mp.current || 0}/${mp.max || 100}</div></div>
         </div>
         <div class="modal-right-column">
             <div class="modal-section-title">Biography</div><p class="modal-bio">${identity.bio || 'N/A'}</p>
             <div class="modal-section-title">Attributes</div><div class="modal-attributes-grid">${Object.entries(attributes).map(([k, v]) => `<div><strong>${k}:</strong> ${v}</div>`).join('')}</div>
             <div class="modal-section-title">Status Effects</div><ul class="modal-list">${status_effects.length ? status_effects.map(e => `<li>${e}</li>`).join('') : '<li>None</li>'}</ul>
-            <div class="modal-section-title">Inventory</div><ul class="modal-list modal-inventory-list">${inventory.length ? inventory.map(i => `<li><strong>${i.name}</strong> (x${i.quantity})<br><small>${i.description || ''}</small></li>`).join('') : '<li>Empty</li>'}</ul>
+            <div class="modal-section-title">Inventory</div><ul class="modal-list modal-inventory-list">${inventory.length ? inventory.map(i => `<li><strong>${i.name}</strong>(x${i.quantity})<br><small>${i.description || ''}</small></li>`).join('') : '<li>Empty</li>'}</ul>
         </div>`;
     characterModal.style.display = 'flex';
 }
@@ -122,20 +117,30 @@ function renderAvatars(characterIds) {
 
 function showSpeechBubble(characterId, text, type) {
     const wrapper = document.getElementById(`wrapper-${characterId}`);
-    if (!wrapper) {
-        console.error(`Speech bubble error: Wrapper for character ID '${characterId}' not found.`);
-        return null;
-    }
+    if (!wrapper) return null;
     const bubble = document.createElement('div');
     bubble.className = `speech-bubble ${type}`;
     bubble.textContent = text;
     wrapper.appendChild(bubble);
-    if (type === 'thought') {
-        bubble.style.bottom = '280px';
-    } else {
-        bubble.style.bottom = '280px';
+    bubble.style.bottom = (type === 'thought') ? '280px' : '280px';
+    return bubble;
+}
+
+function animateScroll(element, duration) {
+    const scrollHeight = element.scrollHeight - element.clientHeight;
+    if (scrollHeight <= 0) return; // Скролл не нужен
+
+    let startTime = null;
+    function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const elapsedTime = timestamp - startTime;
+        const progress = Math.min(elapsedTime / (duration * 1000), 1);
+        element.scrollTop = scrollHeight * progress;
+        if (progress < 1) {
+            currentAnimationId = requestAnimationFrame(step);
+        }
     }
-    return bubble; // Возвращаем элемент, чтобы им можно было управлять
+    currentAnimationId = requestAnimationFrame(step);
 }
 
 function processSpeechQueue() {
@@ -143,45 +148,41 @@ function processSpeechQueue() {
 
     isPlayingSpeech = true;
     const speechData = speechQueue.shift();
-
     const bubbleElement = showSpeechBubble(speechData.character, speechData.text, speechData.type);
     if (!bubbleElement) {
-        isPlayingSpeech = false;
-        return; // Прерываем, если не удалось создать "пузырь"
+        isPlayingSpeech = false; return;
     }
 
     if (speechData.audio_url) {
         const audio = new Audio(`${API_BASE_URL}/${speechData.audio_url}`);
         
-        audio.onended = () => {
+        const cleanup = () => {
+            if (currentAnimationId) cancelAnimationFrame(currentAnimationId);
+            currentAnimationId = null;
             bubbleElement.remove();
             if (speechData.type === 'thought') {
                 setTimeout(() => {
                     isPlayingSpeech = false;
                     processSpeechQueue();
-                }, 1000); // Пауза 1 секунда после мысли
+                }, 1000);
             } else {
                 isPlayingSpeech = false;
-                processSpeechQueue(); // Сразу обработать следующее
+                processSpeechQueue();
             }
         };
 
-        audio.onerror = () => {
-            console.error("Audio file not found or failed to load:", audio.src);
-            bubbleElement.remove();
-            isPlayingSpeech = false;
-            processSpeechQueue();
+        audio.onloadedmetadata = () => {
+            animateScroll(bubbleElement, audio.duration);
+            audio.play().catch(e => {
+                console.error("Error playing audio:", e);
+                cleanup();
+            });
         };
-
-        audio.play().catch(error => {
-            console.error("Error playing audio:", error);
-            bubbleElement.remove();
-            isPlayingSpeech = false;
-            processSpeechQueue();
-        });
+        
+        audio.onended = cleanup;
+        audio.onerror = () => { console.error("Audio error"); cleanup(); };
 
     } else {
-        // Если аудио нет, просто показываем на 8 секунд
         setTimeout(() => {
             bubbleElement.remove();
             isPlayingSpeech = false;
@@ -209,21 +210,17 @@ function subscribeToSpectatorStream() {
     console.log("Connecting to the unified spectator stream...");
     const eventSource = new EventSource(`${API_BASE_URL}/api/spectator_stream`);
 
-    eventSource.addEventListener('game_state_update', (event) => updateBackground(JSON.parse(event.data)));
-    eventSource.addEventListener('active_characters_update', (event) => renderAvatars(JSON.parse(event.data)));
-    eventSource.addEventListener('character_full_update', (event) => { const u = JSON.parse(event.data); addOrUpdateCharacterCard(u.id, u.data); });
-    eventSource.addEventListener('dice_roll', (event) => showDiceRoll(JSON.parse(event.data).roll));
-
-    // vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
-    eventSource.addEventListener('character_speech', function(event) {
-        const speechData = JSON.parse(event.data);
+    eventSource.addEventListener('game_state_update', (e) => updateBackground(JSON.parse(e.data)));
+    eventSource.addEventListener('active_characters_update', (e) => renderAvatars(JSON.parse(e.data)));
+    eventSource.addEventListener('character_full_update', (e) => { const u = JSON.parse(e.data); addOrUpdateCharacterCard(u.id, u.data); });
+    eventSource.addEventListener('dice_roll', (e) => showDiceRoll(JSON.parse(e.data).roll));
+    eventSource.addEventListener('character_speech', (e) => {
+        const speechData = JSON.parse(e.data);
         console.log('SSE: Queuing speech data', speechData);
         speechQueue.push(speechData);
         processSpeechQueue();
     });
-    // ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^
-
-    eventSource.onerror = (err) => { console.error("Spectator EventSource failed:", err); eventSource.close(); };
+    eventSource.onerror = (err) => { console.error("SSE failed:", err); eventSource.close(); };
 }
 
 function makeDraggable(element) {
