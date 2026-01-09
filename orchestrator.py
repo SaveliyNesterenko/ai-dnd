@@ -6,6 +6,7 @@ Orchestrator.py
 
 import os
 import json
+import time  # <--- ДОБАВЛЕНО: для уникальных имен файлов
 import asyncio
 import redis.asyncio as redis
 from contextlib import asynccontextmanager
@@ -25,7 +26,7 @@ from utils.logger import save_prompt_to_log
 from utils.parser import parse_ai_response
 from prompt_builder import build_prompt, build_observer_prompt
 from archivist import router as archivist_router
-from tts_service import TTSService  # <-- 1. ИМПОРТИРУЕМ СЕРВИС
+from tts_service import TTSService
 
 # --- Настройка Redis и жизненного цикла приложения ---
 load_dotenv()
@@ -33,7 +34,7 @@ load_dotenv()
 REDIS_URL = "redis://127.0.0.1:6379"
 SPEECH_LIST_KEY = "speech_list"
 CHARACTER_UPDATE_QUEUE = "character_update_queue"
-DICE_ROLL_QUEUE = "dice_roll_queue" # <-- Новая очередь для бросков кубика
+DICE_ROLL_QUEUE = "dice_roll_queue"
 
 app_state = {}
 
@@ -44,16 +45,13 @@ async def lifespan(app: FastAPI):
     app_state["redis_pool"] = redis_pool
     print("--- Redis connection pool created successfully.")
 
-    # --- 2. ИНИЦИАЛИЗАЦИЯ TTS СЕРВИСА ---
     print("--- Application startup: Initializing TTS Service...")
     try:
         tts_service = TTSService()
         app_state["tts_service"] = tts_service
-        # Сообщение о статусе загрузки модели будет выведено в консоль самим TTSService
     except Exception as e:
         app_state["tts_service"] = None
         print(f"--- CRITICAL: Failed to initialize TTSService: {e}")
-    # -------------------------------------
 
     yield
     
@@ -99,8 +97,7 @@ class UpdateCharactersRequest(BaseModel): characters_id: List[str]
 class ObserverRequest(BaseModel): action: str; dice_roll: Optional[int] = None
 class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
 class SetLocationRequest(BaseModel): location_id: str
-class DiceRollRequest(BaseModel): roll: int # <-- Новая модель для броска
-
+class DiceRollRequest(BaseModel): roll: int
 
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
@@ -115,12 +112,8 @@ async def spectator_stream_generator(request: Request):
 
     while True:
         try:
-            if await request.is_disconnected():
-                break
-
-            # Слушаем сразу две очереди: для реплик и для бросков кубика
+            if await request.is_disconnected(): break
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
-            
             if message_tuple:
                 queue_name, message_data = message_tuple
                 if queue_name == SPEECH_LIST_KEY:
@@ -128,7 +121,6 @@ async def spectator_stream_generator(request: Request):
                 elif queue_name == DICE_ROLL_QUEUE:
                     yield sse_format("dice_roll", json.loads(message_data))
 
-            # Логика обновления из файлов остается без изменений
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
                 last_game_state = current_game_state
@@ -150,11 +142,9 @@ async def spectator_stream_generator(request: Request):
                         yield sse_format("character_full_update", {"id": char_id, "data": current_char_data})
             
             removed_ids = set(last_character_states.keys()) - set(current_active_char_ids)
-            for char_id in removed_ids:
-                del last_character_states[char_id]
+            for char_id in removed_ids: del last_character_states[char_id]
 
-        except asyncio.CancelledError:
-            break
+        except asyncio.CancelledError: break
         except Exception as e:
             print(f"Error in spectator stream: {e}")
             await asyncio.sleep(1)
@@ -205,6 +195,7 @@ async def character_say(character_id: str, request: SpeechRequest):
         print(f"--- ERROR during Redis RPUSH in /say: {e}")
     return {"status": "success"}
 
+# vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
 @app.post("/act")
 async def generate_action(request: ActionRequest):
     char_key = request.character_key
@@ -225,19 +216,46 @@ async def generate_action(request: ActionRequest):
     except Exception as e:
         print(f"AI API call failed: {e}")
         raise HTTPException(status_code=502, detail="AI model API call failed.")
-    
+
+    # --- БЛОК СИНТЕЗА РЕЧИ ---
+    audio_path = None
+    tts_service = app_state.get("tts_service")
+    if tts_service and ai_response: # Проверяем, что есть что озвучивать
+        voice_sample_path = char.get("meta", {}).get("voice_sample")
+        if voice_sample_path:
+            print(f"--- Synthesizing full response for {char_key} using {voice_sample_path}...")
+            output_filename = f"{char_key}_{int(time.time())}.wav"
+            
+            # Синтезируем ПОЛНЫЙ ответ
+            audio_path = tts_service.synthesize(
+                text=ai_response, 
+                speaker_wav_path=voice_sample_path,
+                output_filename=output_filename
+            )
+            if audio_path:
+                print(f"--- Audio generated: {audio_path}")
+        else:
+            print(f"--- WARNING: No 'voice_sample' path for char '{char_key}'. Skipping TTS.")
+    # --- КОНЕЦ БЛОКА СИНТЕЗА ---
+
     parsed_data = parse_ai_response(ai_response)
     print(f"--- Parsed AI response: {parsed_data}")
 
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
+        # Отправляем мысль (без аудио)
         if parsed_data.get("thought"):
             message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
             print(f"--- Successfully PUSHED THOUGHT for {char_key} to list '{SPEECH_LIST_KEY}'")
 
+        # Отправляем действие (С АУДИО, если оно было создано)
         if parsed_data.get("action"):
             message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
+            if audio_path:
+                # Прикрепляем путь к аудиофайлу к сообщению с действием
+                message["audio_url"] = audio_path.replace("\\", "/")
+            
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
             print(f"--- Successfully PUSHED ACTION for {char_key} to list '{SPEECH_LIST_KEY}'")
             
@@ -251,8 +269,8 @@ async def generate_action(request: ActionRequest):
     save_json(EVENT_LOG_FILE, updated_event_data)
     
     return {"response": ai_response}
+# ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^
 
-# --- Новый эндпоинт для трансляции броска кубика ---
 @app.post("/api/broadcast_dice_roll")
 async def broadcast_dice_roll(request: DiceRollRequest):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
