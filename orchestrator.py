@@ -25,6 +25,7 @@ from utils.logger import save_prompt_to_log
 from utils.parser import parse_ai_response
 from prompt_builder import build_prompt, build_observer_prompt
 from archivist import router as archivist_router
+from tts_service import TTSService  # <-- 1. ИМПОРТИРУЕМ СЕРВИС
 
 # --- Настройка Redis и жизненного цикла приложения ---
 load_dotenv()
@@ -42,7 +43,20 @@ async def lifespan(app: FastAPI):
     redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
     app_state["redis_pool"] = redis_pool
     print("--- Redis connection pool created successfully.")
+
+    # --- 2. ИНИЦИАЛИЗАЦИЯ TTS СЕРВИСА ---
+    print("--- Application startup: Initializing TTS Service...")
+    try:
+        tts_service = TTSService()
+        app_state["tts_service"] = tts_service
+        # Сообщение о статусе загрузки модели будет выведено в консоль самим TTSService
+    except Exception as e:
+        app_state["tts_service"] = None
+        print(f"--- CRITICAL: Failed to initialize TTSService: {e}")
+    # -------------------------------------
+
     yield
+    
     print("--- Application shutdown: Closing Redis connection pool...")
     pool = app_state.get("redis_pool")
     if pool:
