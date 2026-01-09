@@ -6,7 +6,7 @@ Orchestrator.py
 
 import os
 import json
-import time  # <--- ДОБАВЛЕНО: для уникальных имен файлов
+import time
 import asyncio
 import redis.asyncio as redis
 from contextlib import asynccontextmanager
@@ -115,7 +115,7 @@ async def spectator_stream_generator(request: Request):
             if await request.is_disconnected(): break
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
             if message_tuple:
-                queue_name, message_data = message_tuple
+                queue_name, message_data = tuple(message_tuple)
                 if queue_name == SPEECH_LIST_KEY:
                     yield sse_format("character_speech", json.loads(message_data))
                 elif queue_name == DICE_ROLL_QUEUE:
@@ -217,45 +217,58 @@ async def generate_action(request: ActionRequest):
         print(f"AI API call failed: {e}")
         raise HTTPException(status_code=502, detail="AI model API call failed.")
 
-    # --- БЛОК СИНТЕЗА РЕЧИ ---
-    audio_path = None
-    tts_service = app_state.get("tts_service")
-    if tts_service and ai_response: # Проверяем, что есть что озвучивать
-        voice_sample_path = char.get("meta", {}).get("voice_sample")
-        if voice_sample_path:
-            print(f"--- Synthesizing full response for {char_key} using {voice_sample_path}...")
-            output_filename = f"{char_key}_{int(time.time())}.wav"
-            
-            # Синтезируем ПОЛНЫЙ ответ
-            audio_path = tts_service.synthesize(
-                text=ai_response, 
-                speaker_wav_path=voice_sample_path,
-                output_filename=output_filename
-            )
-            if audio_path:
-                print(f"--- Audio generated: {audio_path}")
-        else:
-            print(f"--- WARNING: No 'voice_sample' path for char '{char_key}'. Skipping TTS.")
-    # --- КОНЕЦ БЛОКА СИНТЕЗА ---
-
     parsed_data = parse_ai_response(ai_response)
     print(f"--- Parsed AI response: {parsed_data}")
 
+    tts_service = app_state.get("tts_service")
+    voice_sample_path = char.get("meta", {}).get("voice_sample")
+    timestamp = int(time.time())
+
+    thought_audio_path = None
+    action_audio_path = None
+
+    # --- Блок синтеза для МЫСЛЕЙ ---
+    thought_text = parsed_data.get("thought")
+    if tts_service and voice_sample_path and thought_text:
+        clean_thought_text = thought_text.replace("[THOUGHTS]", "").strip()
+        if clean_thought_text:
+            print(f"--- Synthesizing THOUGHT for {char_key}...")
+            output_filename = f"{char_key}_{timestamp}_thought.wav"
+            thought_audio_path = tts_service.synthesize(
+                text=clean_thought_text, 
+                speaker_wav_path=voice_sample_path,
+                output_filename=output_filename
+            )
+            if thought_audio_path: print(f"--- THOUGHT audio generated: {thought_audio_path}")
+
+    # --- Блок синтеза для ДЕЙСТВИЙ ---
+    action_text = parsed_data.get("action")
+    if tts_service and voice_sample_path and action_text:
+        clean_action_text = action_text.replace("[ACTION]", "").strip()
+        if clean_action_text:
+            print(f"--- Synthesizing ACTION for {char_key}...")
+            output_filename = f"{char_key}_{timestamp}_action.wav"
+            action_audio_path = tts_service.synthesize(
+                text=clean_action_text, 
+                speaker_wav_path=voice_sample_path,
+                output_filename=output_filename
+            )
+            if action_audio_path: print(f"--- ACTION audio generated: {action_audio_path}")
+
+    # --- Отправка сообщений в Redis ---
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
-        # Отправляем мысль (без аудио)
-        if parsed_data.get("thought"):
-            message = {"character": char_key, "type": "thought", "text": parsed_data["thought"]}
+        if thought_text:
+            message = {"character": char_key, "type": "thought", "text": thought_text}
+            if thought_audio_path:
+                message["audio_url"] = thought_audio_path.replace("\\", "/")
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
             print(f"--- Successfully PUSHED THOUGHT for {char_key} to list '{SPEECH_LIST_KEY}'")
 
-        # Отправляем действие (С АУДИО, если оно было создано)
-        if parsed_data.get("action"):
-            message = {"character": char_key, "type": "action", "text": parsed_data["action"]}
-            if audio_path:
-                # Прикрепляем путь к аудиофайлу к сообщению с действием
-                message["audio_url"] = audio_path.replace("\\", "/")
-            
+        if action_text:
+            message = {"character": char_key, "type": "action", "text": action_text}
+            if action_audio_path:
+                message["audio_url"] = action_audio_path.replace("\\", "/")
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(message))
             print(f"--- Successfully PUSHED ACTION for {char_key} to list '{SPEECH_LIST_KEY}'")
             
@@ -314,7 +327,7 @@ async def get_npcs(): return load_json(NPC_FILE)
 @app.get("/api/locations")
 async def get_locations(): return (load_json(LOCATIONS_FILE) or {}).get("locations", {})
 
-@app.get("/api/all_characters")
+@app.get("//api/all_characters")
 async def get_all_characters(): return {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
 
 @app.get("/api/event_log")
