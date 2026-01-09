@@ -106,23 +106,22 @@ def sse_format(event: str, data: Any) -> str:
 
 async def spectator_stream_generator(request: Request):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
-    last_game_state = None
-    last_active_chars = None
-    last_character_states = {}
+    last_game_state, last_active_chars, last_character_states = None, None, {}
 
     while True:
         try:
             if await request.is_disconnected(): break
+            
+            # Прослушиваем только SPEECH_LIST_KEY и DICE_ROLL_QUEUE
             message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
             if message_tuple:
                 queue_name, message_data = tuple(message_tuple)
                 data = json.loads(message_data)
-                event_type = data.pop("event_type", "character_speech")
-                if queue_name == SPEECH_LIST_KEY:
-                    yield sse_format(event_type, data)
-                elif queue_name == DICE_ROLL_QUEUE:
-                    yield sse_format("dice_roll", data)
+                event_type = data.pop("event_type", "generic_event") # Более общее имя по умолчанию
+                yield sse_format(event_type, data)
+                continue # После обработки события из Redis, начинаем цикл заново
 
+            # Логика обновления состояния (выполняется, если нет сообщений в Redis)
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
             if current_game_state != last_game_state:
                 last_game_state = current_game_state
@@ -130,7 +129,6 @@ async def spectator_stream_generator(request: Request):
             
             current_active_chars_doc = load_json(ACTIVE_CHARACTERS_FILE) or {}
             current_active_char_ids = current_active_chars_doc.get("characters_id", [])
-
             if current_active_chars_doc != last_active_chars:
                 last_active_chars = current_active_chars_doc
                 yield sse_format("active_characters_update", current_active_char_ids)
@@ -171,51 +169,60 @@ async def gm_stream_generator(request: Request):
     finally:
         pass
 
-# --- Хелпер для асинхронного синтеза речи и обновления лога ---
-async def synthesize_and_update_log(
-    tts_service, char_key: str, text_type: str, text: str, voice_sample_path: str, step: int
+# --- Новый оркестратор синтеза речи --- (ИЗМЕНЕНО)
+async def sequential_synthesis_orchestrator(
+    redis_pool, tts_service, char_key: str, 
+    thought_text: Optional[str], action_text: Optional[str],
+    voice_sample_path: str, step: int
 ):
-    """Синтезирует аудио в фоновом режиме и обновляет event_log.json."""
-    print(f"--- Starting background synthesis for {char_key} ({text_type}) step {step}...")
-    timestamp = int(time.time())
-    clean_text = text.replace("[THOUGHTS]", "").replace("[ACTION]", "").strip()
+    """Последовательно синтезирует Мысли, а затем Действия, отправляя события по мере готовности."""
+    redis_conn = redis.Redis(connection_pool=redis_pool)
     
-    if not clean_text:
-        print(f"--- Skipped synthesis for {char_key} ({text_type}) due to empty text.")
-        return
-
-    output_filename = f"{char_key}_{timestamp}_{text_type}.wav"
-    
-    audio_path = tts_service.synthesize(
-        text=clean_text,
-        speaker_wav_path=voice_sample_path,
-        output_filename=output_filename
-    )
-
-    if audio_path:
-        print(f"--- SUCCESS: Audio generated for {char_key} ({text_type}) at {audio_path}")
-        
-        try:
-            event_data = load_json(EVENT_LOG_FILE) or {"history": []}
-            history = event_data.get("history", [])
-            
-            target_event = next((event for event in history if event.get("step") == step), None)
-
+    # --- Шаг 1: Синтез МЫСЛЕЙ ---
+    if thought_text:
+        print(f"--- Starting TTS for THOUGHTS (step {step})...")
+        audio_path = tts_service.synthesize(
+            text=thought_text, speaker_wav_path=voice_sample_path,
+            output_filename=f"{char_key}_{int(time.time())}_thought.wav"
+        )
+        if audio_path:
+            print(f"--- SUCCESS: THOUGHTS audio generated (step {step}).")
+            # Отправка Зрителю
+            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({
+                "event_type": "audio_update", "character": char_key, "type": "thought",
+                "step": step, "audio_url": audio_path.replace("\\", "/")
+            }))
+            # Обновление лога для ГМ-а
+            event_data = load_json(EVENT_LOG_FILE)
+            target_event = next((e for e in event_data['history'] if e['step'] == step), None)
             if target_event:
-                url_key = f"audio_{text_type}_url"
-                target_event[url_key] = audio_path.replace("\\", "/")
+                target_event['audio_thought_url'] = audio_path.replace("\\", "/")
                 save_json(EVENT_LOG_FILE, event_data)
-                print(f"--- Updated event_log.json for step {step} with {url_key}.")
-            else:
-                print(f"--- ERROR: Could not find step {step} in event_log.json to add audio.")
+        else: print(f"--- FAILURE: THOUGHTS audio synthesis failed (step {step}).")
 
-        except Exception as e:
-            print(f"--- CRITICAL ERROR while updating event_log.json: {e}")
-    else:
-        print(f"--- FAILURE: Audio synthesis failed for {char_key} ({text_type}).")
+    # --- Шаг 2: Синтез ДЕЙСТВИЙ ---
+    if action_text:
+        print(f"--- Starting TTS for ACTION (step {step})...")
+        audio_path = tts_service.synthesize(
+            text=action_text, speaker_wav_path=voice_sample_path,
+            output_filename=f"{char_key}_{int(time.time())}_action.wav"
+        )
+        if audio_path:
+            print(f"--- SUCCESS: ACTION audio generated (step {step}).")
+            # Отправка Зрителю
+            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({
+                "event_type": "audio_update", "character": char_key, "type": "action",
+                "step": step, "audio_url": audio_path.replace("\\", "/")
+            }))
+            # Обновление лога для ГМ-а
+            event_data = load_json(EVENT_LOG_FILE)
+            target_event = next((e for e in event_data['history'] if e['step'] == step), None)
+            if target_event:
+                target_event['audio_action_url'] = audio_path.replace("\\", "/")
+                save_json(EVENT_LOG_FILE, event_data)
+        else: print(f"--- FAILURE: ACTION audio synthesis failed (step {step}).")
 
 # --- Основные API эндпоинты ---
-
 @app.get("/api/spectator_stream")
 async def spectator_stream(request: Request): return StreamingResponse(spectator_stream_generator(request), media_type="text/event-stream")
 
@@ -228,18 +235,6 @@ async def root(): return "/gm/console-gm.html"
 @app.get("/spectator", response_class=RedirectResponse, include_in_schema=False)
 async def spectator_redirect(): return "/sp/spectator.html"
 
-@app.post("/api/character/{character_id}/say")
-async def character_say(character_id: str, request: SpeechRequest):
-    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
-    try:
-        if request.thought_text:
-            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"character": character_id, "type": "thought", "text": request.thought_text, "event_type": "text_update"}))
-        if request.action_text:
-            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"character": character_id, "type": "action", "text": request.action_text, "event_type": "text_update"}))
-    except Exception as e:
-        print(f"--- ERROR during Redis RPUSH in /say: {e}")
-    return {"status": "success"}
-
 @app.post("/act")
 async def generate_action(request: ActionRequest):
     char_key = request.character_key
@@ -247,7 +242,6 @@ async def generate_action(request: ActionRequest):
     if char_key not in all_chars: raise HTTPException(404, f"Character '{char_key}' not found.")
     
     char = all_chars[char_key]
-    
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
     history = event_data.get("history", [])
     new_step_number = len(history) + 1
@@ -262,59 +256,49 @@ async def generate_action(request: ActionRequest):
         )
         ai_response = response.choices[0].message.content
     except Exception as e:
-        print(f"AI API call failed: {e}")
         raise HTTPException(status_code=502, detail="AI model API call failed.")
 
+    # 1. Сохраняем текстовую версию в лог (для ГМ-а)
     updated_event_data = handle_response(
         ai_response, event_data, char.get("identity", {}).get('name'), 
         char.get("meta", {}).get('role'), new_step_number
     )
     save_json(EVENT_LOG_FILE, updated_event_data)
-    print(f"--- Saved text-only event for step {new_step_number} to event_log.json")
 
+    # 2. Отправляем текстовые обновления в Redis (для Зрителя)
     parsed_data = parse_ai_response(ai_response)
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     thought_text = parsed_data.get("thought")
-    if thought_text:
-        text_message = {"character": char_key, "type": "thought", "text": thought_text, "step": new_step_number, "event_type": "text_update"}
-        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
-
     action_text = parsed_data.get("action")
-    if action_text:
-        text_message = {"character": char_key, "type": "action", "text": action_text, "step": new_step_number, "event_type": "text_update"}
-        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
 
+    if thought_text:
+        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"event_type": "text_update", "character": char_key, "type": "thought", "text": thought_text, "step": new_step_number}))
+    if action_text:
+        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"event_type": "text_update", "character": char_key, "type": "action", "text": action_text, "step": new_step_number}))
+
+    # 3. Запускаем единую фоновую задачу для последовательного синтеза и отправки аудио
     tts_service = app_state.get("tts_service")
     voice_sample_path = char.get("meta", {}).get("voice_sample")
-
     if tts_service and voice_sample_path:
-        if thought_text:
-            asyncio.create_task(
-                synthesize_and_update_log(
-                    tts_service=tts_service, char_key=char_key, text_type="thought",
-                    text=thought_text, voice_sample_path=voice_sample_path, step=new_step_number
-                )
+        asyncio.create_task(
+            sequential_synthesis_orchestrator(
+                redis_pool=app_state["redis_pool"], tts_service=tts_service, char_key=char_key,
+                thought_text=thought_text, action_text=action_text,
+                voice_sample_path=voice_sample_path, step=new_step_number
             )
-        if action_text:
-            asyncio.create_task(
-                synthesize_and_update_log(
-                    tts_service=tts_service, char_key=char_key, text_type="action",
-                    text=action_text, voice_sample_path=voice_sample_path, step=new_step_number
-                )
-            )
+        )
     
     return {"response": ai_response}
 
+# ... (остальные эндпоинты без изменений) ...
 @app.post("/api/broadcast_dice_roll")
 async def broadcast_dice_roll(request: DiceRollRequest):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
         await redis_conn.rpush(DICE_ROLL_QUEUE, json.dumps({"roll": request.roll}))
-        print(f"--- Successfully PUSHED DICE ROLL: {request.roll} to list '{DICE_ROLL_QUEUE}'")
-        return {"status": "success", "message": f"Dice roll {request.roll} broadcasted."}
+        return {"status": "success"}
     except Exception as e:
-        print(f"--- CRITICAL ERROR during Redis RPUSH in /broadcast_dice_roll: {e}")
-        raise HTTPException(status_code=500, detail="Failed to broadcast dice roll to Redis.")
+        raise HTTPException(status_code=500, detail="Failed to broadcast dice roll.")
 
 @app.post("/api/characters/activate")
 async def activate_character(request: CharacterActionRequest):

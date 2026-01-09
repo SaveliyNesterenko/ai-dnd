@@ -9,16 +9,16 @@ const modalCharacterDetails = document.getElementById('modal-character-details')
 const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
-// --- Переменные для управления очередью речи ---
-let speechQueue = [];
-let isPlayingSpeech = false;
-let currentAnimationId = null; // Для отмены анимации
+// --- Новая система управления очередью и состоянием речи ---
+let speechQueue = []; // Очередь шагов (steps), а не отдельных реплик
+let speechDataStore = {}; // Кэш для сборки данных: { step: { thought: {text, audio_url}, action: {text, audio_url} } }
+let isProcessingQueue = false;
+let currentAnimationId = null;
 
 // --- Состояние для Drag-and-Drop ---
 let activeDrag = null;
 
 // --- Функции-обработчики данных ---
-
 function updateBackground(gameState) {
     if (!gameState || !gameState.current_location) {
         backgroundContainer.style.backgroundImage = 'none';
@@ -27,16 +27,13 @@ function updateBackground(gameState) {
     const location = gameState.current_location;
     const imageUrl = `${API_BASE_URL}/${location.image_url}`;
     if (backgroundContainer.style.backgroundImage !== `url("${imageUrl}")`) {
-        console.log(`SSE: Updating background to ${location.name}`);
         backgroundContainer.style.backgroundImage = `url('${imageUrl}')`;
     }
 }
 
 function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
-    const identity = charData.identity || {};
-    const stats = charData.stats || {};
-    const meta = charData.meta || {};
+    const { identity = {}, stats = {}, meta = {} } = charData;
     if (!card) {
         card = document.createElement('div');
         card.id = `card-${charId}`;
@@ -45,20 +42,18 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
-            <div class="model">${meta.model_id || 'N/A'}</div>
             <div class="stat-bar-container"><div class="stat-bar hp-bar"></div></div>
             <div class="stat-bar-container"><div class="stat-bar mp-bar"></div></div>
         `;
         characterCardsContainer.appendChild(card);
-        card.addEventListener('click', () => openCharacterModal(charId, charData));
+        card.addEventListener('click', () => openCharacterModal(charId));
     }
-    card.onclick = () => openCharacterModal(charId, charData);
-    card.querySelector('.model').textContent = meta.model_id || 'N/A';
+    card.onclick = () => openCharacterModal(charId);
     const portrait = card.querySelector('.portrait');
     const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
     if (portrait.src !== newPortraitSrc) {
         portrait.src = newPortraitSrc;
-        portrait.onerror = () => { portrait.onerror = null; portrait.src = `${API_BASE_URL}/assets/characters/default_portrait.png`; };
+        portrait.onerror = () => { portrait.src = `${API_BASE_URL}/assets/characters/default_portrait.png`; };
     }
     const hp = stats.hp?.current || 0, maxHp = stats.hp?.max || 100;
     const mp = stats.mp?.current || 0, maxMp = stats.mp?.max || 100;
@@ -66,7 +61,12 @@ function addOrUpdateCharacterCard(charId, charData) {
     card.querySelector('.mp-bar').style.width = `${maxMp > 0 ? (mp / maxMp) * 100 : 0}%`;
 }
 
-function openCharacterModal(charId, charData) {
+async function openCharacterModal(charId) {
+    const response = await fetch(`${API_BASE_URL}/api/all_characters`);
+    const allChars = await response.json();
+    const charData = allChars[charId];
+    if (!charData) return;
+
     const { identity = {}, stats = {}, meta = {}, inventory = [] } = charData;
     const { hp = {}, mp = {}, attributes = {}, status_effects = [] } = stats;
     const hpPercentage = (hp.max || 100) > 0 ? ((hp.current || 0) / hp.max) * 100 : 0;
@@ -103,7 +103,7 @@ function renderAvatars(characterIds) {
             avatar.id = `avatar-${charId}`;
             avatar.className = 'character-avatar';
             avatar.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
-            avatar.onerror = () => { avatar.onerror = null; avatar.src = `${API_BASE_URL}/assets/characters/default.png`; };
+            avatar.onerror = () => { avatar.src = `${API_BASE_URL}/assets/characters/default.png`; };
             wrapper.append(avatar);
             wrapper.style.left = `${100 + index * 150}px`;
             wrapper.style.top = `100px`;
@@ -113,42 +113,32 @@ function renderAvatars(characterIds) {
     });
 }
 
-// vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
+// vvvvvv НАЧАЛО НОВОЙ ЛОГИКИ ОЗВУЧКИ vvvvvv
 
 function showSpeechBubble(characterId, text, type) {
     const charWrapper = document.getElementById(`wrapper-${characterId}`);
     if (!charWrapper) return null;
-
     const bubbleWrapper = document.createElement('div');
     bubbleWrapper.className = `speech-bubble ${type}`;
     bubbleWrapper.style.bottom = '280px';
-
     const bubbleContent = document.createElement('div');
     bubbleContent.className = 'speech-bubble-content';
     bubbleContent.textContent = text;
-
     bubbleWrapper.appendChild(bubbleContent);
     charWrapper.appendChild(bubbleWrapper);
-    
-    // Возвращаем оба элемента для анимации
     return { wrapper: bubbleWrapper, content: bubbleContent };
 }
 
 function animateScrollTransform(wrapper, content, duration) {
-    // Даем браузеру "тик" на отрисовку, чтобы размеры были верными
     requestAnimationFrame(() => {
         const distance = content.offsetHeight - wrapper.offsetHeight;
         if (distance <= 0) return;
-
         let startTime = null;
-
         function step(timestamp) {
             if (!startTime) startTime = timestamp;
             const elapsed = timestamp - startTime;
             const progress = Math.min(elapsed / (duration * 1000), 1);
-
             content.style.transform = `translate3d(0, ${-distance * progress}px, 0)`;
-
             if (progress < 1) {
                 currentAnimationId = requestAnimationFrame(step);
             }
@@ -157,32 +147,37 @@ function animateScrollTransform(wrapper, content, duration) {
     });
 }
 
-function processSpeechQueue() {
-    if (isPlayingSpeech || speechQueue.length === 0) return;
+// Функция проигрывания одной части (Мысли или Действия)
+// Возвращает Promise, который разрешается по окончании воспроизведения
+function playPart(step, type) {
+    return new Promise(async (resolve) => {
+        // 1. Ждем, пока в кэше не появятся и текст, и аудио
+        let partData;
+        while (!(partData = speechDataStore[step]?.[type]) || !partData.text || !partData.audio_url) {
+            await new Promise(r => setTimeout(r, 100)); // Опрашиваем каждые 100мс
+        }
 
-    isPlayingSpeech = true;
-    const speechData = speechQueue.shift();
-    const bubbleElements = showSpeechBubble(speechData.character, speechData.text, speechData.type);
-    
-    if (!bubbleElements) {
-        isPlayingSpeech = false; return;
-    }
+        const characterId = speechDataStore[step].character;
 
-    if (speechData.audio_url) {
-        const audio = new Audio(`${API_BASE_URL}/${speechData.audio_url}`);
+        // 2. Показываем текст и начинаем воспроизведение
+        const bubbleElements = showSpeechBubble(characterId, partData.text, type);
+        if (!bubbleElements) {
+            console.error(`Could not create speech bubble for ${characterId}.`);
+            resolve(); // Разрешаем Promise, чтобы не блокировать очередь
+            return;
+        }
+
+        const audio = new Audio(`${API_BASE_URL}/${partData.audio_url}`);
         
-        const cleanup = () => {
+        const cleanupAndResolve = () => {
             if (currentAnimationId) cancelAnimationFrame(currentAnimationId);
             currentAnimationId = null;
-            bubbleElements.wrapper.remove(); // Удаляем внешний контейнер
-            if (speechData.type === 'thought') {
-                setTimeout(() => {
-                    isPlayingSpeech = false;
-                    processSpeechQueue();
-                }, 1000);
+            bubbleElements.wrapper.remove();
+            // Задержка после мыслей, как в старой логике
+            if (type === 'thought') {
+                setTimeout(resolve, 1000);
             } else {
-                isPlayingSpeech = false;
-                processSpeechQueue();
+                resolve();
             }
         };
 
@@ -190,23 +185,39 @@ function processSpeechQueue() {
             animateScrollTransform(bubbleElements.wrapper, bubbleElements.content, audio.duration);
             audio.play().catch(e => {
                 console.error("Error playing audio:", e);
-                cleanup();
+                cleanupAndResolve();
             });
         };
         
-        audio.onended = cleanup;
-        audio.onerror = () => { console.error("Audio error"); cleanup(); };
-
-    } else {
-        setTimeout(() => {
-            bubbleElements.wrapper.remove();
-            isPlayingSpeech = false;
-            processSpeechQueue();
-        }, 8000);
-    }
+        audio.onended = cleanupAndResolve;
+        audio.onerror = (e) => { 
+            console.error("Audio error:", e.message);
+            cleanupAndResolve();
+        };
+    });
 }
 
-// ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^
+// Главный обработчик очереди
+async function processSpeechQueue() {
+    if (isProcessingQueue || speechQueue.length === 0) return;
+    isProcessingQueue = true;
+
+    const step = speechQueue.shift();
+    console.log(`Processing step ${step}`);
+
+    // Последовательно воспроизводим Мысли, затем Действия
+    if (speechDataStore[step]?.thought) {
+        await playPart(step, 'thought');
+    }
+    if (speechDataStore[step]?.action) {
+        await playPart(step, 'action');
+    }
+
+    console.log(`Finished processing step ${step}`);
+    isProcessingQueue = false;
+    processSpeechQueue(); // Проверяем, не появилось ли в очереди что-то еще
+}
+
 
 function showDiceRoll(rollValue) {
     if (!diceRollContainer) return;
@@ -229,14 +240,43 @@ function subscribeToSpectatorStream() {
     eventSource.addEventListener('active_characters_update', (e) => renderAvatars(JSON.parse(e.data)));
     eventSource.addEventListener('character_full_update', (e) => { const u = JSON.parse(e.data); addOrUpdateCharacterCard(u.id, u.data); });
     eventSource.addEventListener('dice_roll', (e) => showDiceRoll(JSON.parse(e.data).roll));
-    eventSource.addEventListener('character_speech', (e) => {
-        const speechData = JSON.parse(e.data);
-        console.log('SSE: Queuing speech data', speechData);
-        speechQueue.push(speechData);
-        processSpeechQueue();
+
+    // Обработчик текстовых данных
+    eventSource.addEventListener('text_update', (e) => {
+        const data = JSON.parse(e.data);
+        const { step, character, type, text } = data;
+
+        if (!speechDataStore[step]) {
+            speechDataStore[step] = { character: character };
+            speechQueue.push(step); // Добавляем в очередь только один раз на шаг
+        }
+        if (!speechDataStore[step][type]) {
+            speechDataStore[step][type] = {};
+        }
+        speechDataStore[step][type].text = text;
+        console.log(`Cached text for step ${step}, type ${type}`);
+        processSpeechQueue(); // Пытаемся запустить обработку
     });
+
+    // Обработчик аудио данных
+    eventSource.addEventListener('audio_update', (e) => {
+        const data = JSON.parse(e.data);
+        const { step, type, audio_url } = data;
+        if (speechDataStore[step] && speechDataStore[step][type]) {
+            speechDataStore[step][type].audio_url = audio_url;
+            console.log(`Cached audio_url for step ${step}, type ${type}`);
+        } else {
+            // Это может произойти, если аудио пришло раньше текста. Создадим заглушку.
+            if (!speechDataStore[step]) speechDataStore[step] = {};
+            if (!speechDataStore[step][type]) speechDataStore[step][type] = {};
+            speechDataStore[step][type].audio_url = audio_url;
+        }
+    });
+
     eventSource.onerror = (err) => { console.error("SSE failed:", err); eventSource.close(); };
 }
+
+// ^^^^^^ КОНЕЦ НОВОЙ ЛОГИКИ ОЗВУЧКИ ^^^^^^
 
 function makeDraggable(element) {
     element.addEventListener('mousedown', (e) => { e.preventDefault(); activeDrag = { element, offsetX: e.clientX - element.getBoundingClientRect().left, offsetY: e.clientY - element.getBoundingClientRect().top }; element.classList.add('dragging'); });
