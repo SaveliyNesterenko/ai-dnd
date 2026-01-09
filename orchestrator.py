@@ -195,7 +195,6 @@ async def character_say(character_id: str, request: SpeechRequest):
         print(f"--- ERROR during Redis RPUSH in /say: {e}")
     return {"status": "success"}
 
-# vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
 @app.post("/act")
 async def generate_action(request: ActionRequest):
     char_key = request.character_key
@@ -227,7 +226,6 @@ async def generate_action(request: ActionRequest):
     thought_audio_path = None
     action_audio_path = None
 
-    # --- Блок синтеза для МЫСЛЕЙ ---
     thought_text = parsed_data.get("thought")
     if tts_service and voice_sample_path and thought_text:
         clean_thought_text = thought_text.replace("[THOUGHTS]", "").strip()
@@ -241,7 +239,6 @@ async def generate_action(request: ActionRequest):
             )
             if thought_audio_path: print(f"--- THOUGHT audio generated: {thought_audio_path}")
 
-    # --- Блок синтеза для ДЕЙСТВИЙ ---
     action_text = parsed_data.get("action")
     if tts_service and voice_sample_path and action_text:
         clean_action_text = action_text.replace("[ACTION]", "").strip()
@@ -255,7 +252,6 @@ async def generate_action(request: ActionRequest):
             )
             if action_audio_path: print(f"--- ACTION audio generated: {action_audio_path}")
 
-    # --- Отправка сообщений в Redis ---
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
         if thought_text:
@@ -282,7 +278,6 @@ async def generate_action(request: ActionRequest):
     save_json(EVENT_LOG_FILE, updated_event_data)
     
     return {"response": ai_response}
-# ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^
 
 @app.post("/api/broadcast_dice_roll")
 async def broadcast_dice_roll(request: DiceRollRequest):
@@ -327,7 +322,7 @@ async def get_npcs(): return load_json(NPC_FILE)
 @app.get("/api/locations")
 async def get_locations(): return (load_json(LOCATIONS_FILE) or {}).get("locations", {})
 
-@app.get("//api/all_characters")
+@app.get("/api/all_characters")
 async def get_all_characters(): return {**(load_json(CHARACTERS_FILE) or {}), **(load_json(NPC_FILE) or {})}
 
 @app.get("/api/event_log")
