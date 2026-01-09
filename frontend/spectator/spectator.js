@@ -12,7 +12,7 @@ const diceRollContainer = document.getElementById('dice-roll-container');
 // --- Переменные для управления очередью речи ---
 let speechQueue = [];
 let isPlayingSpeech = false;
-let currentAnimationId = null; // Для отмены анимации скролла
+let currentAnimationId = null; // Для отмены анимации
 
 // --- Состояние для Drag-and-Drop ---
 let activeDrag = null;
@@ -116,46 +116,45 @@ function renderAvatars(characterIds) {
 // vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv
 
 function showSpeechBubble(characterId, text, type) {
-    const wrapper = document.getElementById(`wrapper-${characterId}`);
-    if (!wrapper) return null;
-    const bubble = document.createElement('div');
-    bubble.className = `speech-bubble ${type}`;
-    bubble.textContent = text;
-    wrapper.appendChild(bubble);
-    bubble.style.bottom = '280px'; // Единая позиция для всех пузырей
-    return bubble;
+    const charWrapper = document.getElementById(`wrapper-${characterId}`);
+    if (!charWrapper) return null;
+
+    const bubbleWrapper = document.createElement('div');
+    bubbleWrapper.className = `speech-bubble ${type}`;
+    bubbleWrapper.style.bottom = '280px';
+
+    const bubbleContent = document.createElement('div');
+    bubbleContent.className = 'speech-bubble-content';
+    bubbleContent.textContent = text;
+
+    bubbleWrapper.appendChild(bubbleContent);
+    charWrapper.appendChild(bubbleWrapper);
+    
+    // Возвращаем оба элемента для анимации
+    return { wrapper: bubbleWrapper, content: bubbleContent };
 }
 
-function animateScroll(element, duration) {
-    const scrollHeight = element.scrollHeight - element.clientHeight;
-    if (scrollHeight <= 0) return; // Скролл не нужен
+function animateScrollTransform(wrapper, content, duration) {
+    // Даем браузеру "тик" на отрисовку, чтобы размеры были верными
+    requestAnimationFrame(() => {
+        const distance = content.offsetHeight - wrapper.offsetHeight;
+        if (distance <= 0) return;
 
-    let startTime = null;
+        let startTime = null;
 
-    // Функция плавности (Ease Out Cubic), предложенная вами
-    function easeOutCubic(x) {
-        return 1 - Math.pow(1 - x, 3);
-    }
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / (duration * 1000), 1);
 
-    function step(timestamp) {
-        if (!startTime) startTime = timestamp;
-        
-        const elapsedTime = timestamp - startTime;
-        // Линейный прогресс (0...1)
-        const linearProgress = Math.min(elapsedTime / (duration * 1000), 1);
-        
-        // Применяем магию плавности
-        const easedProgress = easeOutCubic(linearProgress);
-        
-        // Используем easedProgress вместо обычного
-        element.scrollTop = scrollHeight * easedProgress;
+            content.style.transform = `translate3d(0, ${-distance * progress}px, 0)`;
 
-        if (linearProgress < 1) {
-            currentAnimationId = requestAnimationFrame(step);
+            if (progress < 1) {
+                currentAnimationId = requestAnimationFrame(step);
+            }
         }
-    }
-
-    currentAnimationId = requestAnimationFrame(step);
+        currentAnimationId = requestAnimationFrame(step);
+    });
 }
 
 function processSpeechQueue() {
@@ -163,8 +162,9 @@ function processSpeechQueue() {
 
     isPlayingSpeech = true;
     const speechData = speechQueue.shift();
-    const bubbleElement = showSpeechBubble(speechData.character, speechData.text, speechData.type);
-    if (!bubbleElement) {
+    const bubbleElements = showSpeechBubble(speechData.character, speechData.text, speechData.type);
+    
+    if (!bubbleElements) {
         isPlayingSpeech = false; return;
     }
 
@@ -174,7 +174,7 @@ function processSpeechQueue() {
         const cleanup = () => {
             if (currentAnimationId) cancelAnimationFrame(currentAnimationId);
             currentAnimationId = null;
-            bubbleElement.remove();
+            bubbleElements.wrapper.remove(); // Удаляем внешний контейнер
             if (speechData.type === 'thought') {
                 setTimeout(() => {
                     isPlayingSpeech = false;
@@ -187,7 +187,7 @@ function processSpeechQueue() {
         };
 
         audio.onloadedmetadata = () => {
-            animateScroll(bubbleElement, audio.duration);
+            animateScrollTransform(bubbleElements.wrapper, bubbleElements.content, audio.duration);
             audio.play().catch(e => {
                 console.error("Error playing audio:", e);
                 cleanup();
@@ -199,7 +199,7 @@ function processSpeechQueue() {
 
     } else {
         setTimeout(() => {
-            bubbleElement.remove();
+            bubbleElements.wrapper.remove();
             isPlayingSpeech = false;
             processSpeechQueue();
         }, 8000);

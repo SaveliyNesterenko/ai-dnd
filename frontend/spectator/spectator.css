@@ -286,7 +286,7 @@ body, html {
 }
 
 /* Остальные стили */
-#background-container, #avatars-container, .character-wrapper, .character-avatar, .speech-bubble, .speech-bubble.thought {
+#background-container, #avatars-container, .character-wrapper, .character-avatar {
     /* Existing styles are fine */
 }
 
@@ -331,6 +331,9 @@ body, html {
     display: block;
 }
 
+
+/* vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv */
+
 .speech-bubble {
     position: absolute;
     left: 50%;
@@ -339,28 +342,23 @@ body, html {
     max-width: 350px;
     background-color: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
-    padding: 15px 20px;
-    font-size: 18px;
-    line-height: 1.4;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 5;
     opacity: 0;
     transition: opacity 0.3s ease-out;
     color: #333;
     
-    /* vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv */
     max-height: 200px;  /* Ограничение высоты */
-    overflow-y: auto;   /* Включение прокрутки */
-    scrollbar-width: none; /* Скрытие скроллбара для Firefox */
-    /* ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^ */
+    overflow: hidden;   /* Прячем все, что не помещается */
+    padding: 0;         /* Убираем внутренний отступ у контейнера-маски */
 }
 
-/* vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv */
-/* Скрытие скроллбара для Chrome, Safari, Edge */
-.speech-bubble::-webkit-scrollbar {
-    display: none;
+.speech-bubble-content {
+    padding: 15px 20px; /* Переносим отступы сюда */
+    font-size: 18px;
+    line-height: 1.4;
+    /* Этот блок будет анимироваться через transform */
 }
-/* ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^ */
 
 .speech-bubble:not(:empty) { opacity: 1; }
 
@@ -384,6 +382,8 @@ body, html {
 }
 
 .speech-bubble.thought::after { display: none; }
+
+/* ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^ */
 
 /* --- Стили для броска кубика --- */
 #dice-roll-container {
