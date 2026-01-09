@@ -133,7 +133,7 @@ function showSpeechBubble(characterId, text, type) {
     if (type === 'thought') {
         bubble.style.bottom = '280px';
     } else {
-        bubble.style.bottom = '250px';
+        bubble.style.bottom = '280px';
     }
     return bubble; // Возвращаем элемент, чтобы им можно было управлять
 }
