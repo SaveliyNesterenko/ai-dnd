@@ -195,12 +195,10 @@ async def synthesize_and_update_log(
     if audio_path:
         print(f"--- SUCCESS: Audio generated for {char_key} ({text_type}) at {audio_path}")
         
-        # Обновляем event_log.json, как и договаривались
         try:
             event_data = load_json(EVENT_LOG_FILE) or {"history": []}
             history = event_data.get("history", [])
             
-            # Ищем нужный шаг. Для надежности ищем по всему списку.
             target_event = next((event for event in history if event.get("step") == step), None)
 
             if target_event:
@@ -250,7 +248,6 @@ async def generate_action(request: ActionRequest):
     
     char = all_chars[char_key]
     
-    # Сначала обновляем лог, чтобы получить text-only запись
     event_data = load_json(EVENT_LOG_FILE) or {"history": []}
     history = event_data.get("history", [])
     new_step_number = len(history) + 1
@@ -268,7 +265,6 @@ async def generate_action(request: ActionRequest):
         print(f"AI API call failed: {e}")
         raise HTTPException(status_code=502, detail="AI model API call failed.")
 
-    # Обновляем журнал событий СРАЗУ, чтобы получить текст в консоли ГМ
     updated_event_data = handle_response(
         ai_response, event_data, char.get("identity", {}).get('name'), 
         char.get("meta", {}).get('role'), new_step_number
@@ -276,7 +272,6 @@ async def generate_action(request: ActionRequest):
     save_json(EVENT_LOG_FILE, updated_event_data)
     print(f"--- Saved text-only event for step {new_step_number} to event_log.json")
 
-    # Данные для Зрителя (Spectator) отправляем в Redis
     parsed_data = parse_ai_response(ai_response)
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     thought_text = parsed_data.get("thought")
@@ -289,7 +284,6 @@ async def generate_action(request: ActionRequest):
         text_message = {"character": char_key, "type": "action", "text": action_text, "step": new_step_number, "event_type": "text_update"}
         await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
 
-    # Запускаем синтез, который обновит event_log.json и отправит событие в Redis для Зрителя
     tts_service = app_state.get("tts_service")
     voice_sample_path = char.get("meta", {}).get("voice_sample")
 
@@ -350,7 +344,7 @@ async def get_characters(): return load_json(CHARACTERS_FILE)
 @app.get("/api/npcs")
 async def get_npcs(): return load_json(NPC_FILE)
 
-@get("/api/locations")
+@app.get("/api/locations")
 async def get_locations(): return (load_json(LOCATIONS_FILE) or {}).get("locations", {})
 
 @app.get("/api/all_characters")
