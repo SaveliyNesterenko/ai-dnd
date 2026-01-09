@@ -1,6 +1,6 @@
 import json
 
-def handle_response(response_text, event_log_data, character_name, character_role):
+def handle_response(response_text, event_log_data, character_name, character_role, new_step_number):
     """
     Анализирует ответ модели, обновляет журнал событий и возвращает обновлённый журнал.
 
@@ -9,6 +9,7 @@ def handle_response(response_text, event_log_data, character_name, character_rol
         event_log_data: текущие данные журнала событий (в виде словаря Python).
         character_name: имя персонажа, выполняющего действие.
         character_role: роль персонажа.
+        new_step_number: номер нового шага.
 
     Возвращает:
         обновлённые данные журнала событий.
@@ -29,8 +30,6 @@ def handle_response(response_text, event_log_data, character_name, character_rol
 
     if "history" not in event_log_data:
         event_log_data["history"] = []
-
-    new_step_number = len(event_log_data["history"]) + 1
 
     new_step = {
         "step": new_step_number,

@@ -18,19 +18,42 @@ function renderEventLog(history) {
     history.forEach(event => {
         const logEntry = document.createElement('div');
         logEntry.className = 'log-entry';
+        logEntry.id = `step-${event.step}`;
+
         const characterName = document.createElement('span');
         characterName.className = 'character-name';
         characterName.textContent = `${event.name}: `;
         characterName.style.color = ROLE_COLORS[event.role] || 'white';
-        const thoughts = document.createElement('p');
-        thoughts.className = 'thoughts';
-        thoughts.textContent = event.thoughts ? `Мысли: ${event.thoughts}` : '';
-        const action = document.createElement('p');
-        action.className = 'action';
-        action.textContent = `Действие: ${event.action}`;
         logEntry.appendChild(characterName);
-        if (event.thoughts) logEntry.appendChild(thoughts);
-        logEntry.appendChild(action);
+
+        if (event.thoughts) {
+            const thoughts = document.createElement('p');
+            thoughts.className = 'thoughts';
+            thoughts.textContent = `Мысли: ${event.thoughts}`;
+            logEntry.appendChild(thoughts);
+
+            if (event.audio_thought_url) {
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.src = event.audio_thought_url;
+                thoughts.appendChild(audio);
+            }
+        }
+
+        if (event.action) {
+            const action = document.createElement('p');
+            action.className = 'action';
+            action.textContent = `Действие: ${event.action}`;
+            logEntry.appendChild(action);
+
+            if (event.audio_action_url) {
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.src = event.audio_action_url;
+                action.appendChild(audio);
+            }
+        }
+
         eventLogPanel.appendChild(logEntry);
     });
     eventLogPanel.scrollTop = eventLogPanel.scrollHeight;
