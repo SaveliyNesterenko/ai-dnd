@@ -347,7 +347,20 @@ body, html {
     opacity: 0;
     transition: opacity 0.3s ease-out;
     color: #333;
+    
+    /* vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv */
+    max-height: 200px;  /* Ограничение высоты */
+    overflow-y: auto;   /* Включение прокрутки */
+    scrollbar-width: none; /* Скрытие скроллбара для Firefox */
+    /* ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^ */
 }
+
+/* vvvvvv НАЧАЛО ИЗМЕНЕНИЙ vvvvvv */
+/* Скрытие скроллбара для Chrome, Safari, Edge */
+.speech-bubble::-webkit-scrollbar {
+    display: none;
+}
+/* ^^^^^^ КОНЕЦ ИЗМЕНЕНИЙ ^^^^^^ */
 
 .speech-bubble:not(:empty) { opacity: 1; }
 
