@@ -218,6 +218,21 @@ async def generate_action(request: ActionRequest):
 
     parsed_data = parse_ai_response(ai_response)
     print(f"--- Parsed AI response: {parsed_data}")
+    
+    # --- Шаг 1 Оптимизации: Немедленная отправка текста ---
+    redis_conn_pre = redis.Redis(connection_pool=app_state["redis_pool"])
+    pre_thought_text = parsed_data.get("thought")
+    if pre_thought_text:
+        text_message = {"character": char_key, "type": "thought", "text": pre_thought_text, "event_type": "text_update"}
+        await redis_conn_pre.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
+        print(f"--- PRE-PUSHED THOUGHT TEXT for {char_key}")
+
+    pre_action_text = parsed_data.get("action")
+    if pre_action_text:
+        text_message = {"character": char_key, "type": "action", "text": pre_action_text, "event_type": "text_update"}
+        await redis_conn_pre.rpush(SPEECH_LIST_KEY, json.dumps(text_message))
+        print(f"--- PRE-PUSHED ACTION TEXT for {char_key}")
+    # --- Конец Шага 1 ---
 
     tts_service = app_state.get("tts_service")
     voice_sample_path = char.get("meta", {}).get("voice_sample")
