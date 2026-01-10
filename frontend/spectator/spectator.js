@@ -10,8 +10,8 @@ const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
 // --- Новая система управления очередью и состоянием речи ---
-let speechQueue = []; // Очередь шагов (steps), а не отдельных реплик
-let speechDataStore = {}; // Кэш для сборки данных: { step: { thought: {text, audio_url}, action: {text, audio_url} } }
+let speechQueue = [];
+let speechDataStore = {};
 let isProcessingQueue = false;
 let currentAnimationId = null;
 
@@ -31,6 +31,7 @@ function updateBackground(gameState) {
     }
 }
 
+// vvvvvv ИСПРАВЛЕНИЕ КАРТОЧКИ ПЕРСОНАЖА vvvvvv
 function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
     const { identity = {}, stats = {}, meta = {} } = charData;
@@ -39,9 +40,11 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.id = `card-${charId}`;
         card.className = 'character-card';
         card.dataset.id = charId;
+        // ВОЗВРАЩАЕМ DIV ДЛЯ МОДЕЛИ
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
+            <div class="model">${meta.model_id || 'N/A'}</div>
             <div class="stat-bar-container"><div class="stat-bar hp-bar"></div></div>
             <div class="stat-bar-container"><div class="stat-bar mp-bar"></div></div>
         `;
@@ -49,6 +52,8 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.addEventListener('click', () => openCharacterModal(charId));
     }
     card.onclick = () => openCharacterModal(charId);
+    // ВОЗВРАЩАЕМ ЛОГИКУ ОБНОВЛЕНИЯ МОДЕЛИ
+    card.querySelector('.model').textContent = meta.model_id || 'N/A'; 
     const portrait = card.querySelector('.portrait');
     const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
     if (portrait.src !== newPortraitSrc) {
@@ -60,6 +65,7 @@ function addOrUpdateCharacterCard(charId, charData) {
     card.querySelector('.hp-bar').style.width = `${maxHp > 0 ? (hp / maxHp) * 100 : 0}%`;
     card.querySelector('.mp-bar').style.width = `${maxMp > 0 ? (mp / maxMp) * 100 : 0}%`;
 }
+// ^^^^^^ КОНЕЦ ИСПРАВЛЕНИЯ ^^^^^^
 
 async function openCharacterModal(charId) {
     const response = await fetch(`${API_BASE_URL}/api/all_characters`);
@@ -113,7 +119,7 @@ function renderAvatars(characterIds) {
     });
 }
 
-// vvvvvv НАЧАЛО НОВОЙ ЛОГИКИ ОЗВУЧКИ vvvvvv
+// --- Новая логика озвучки ---
 
 function showSpeechBubble(characterId, text, type) {
     const charWrapper = document.getElementById(`wrapper-${characterId}`);
@@ -147,23 +153,18 @@ function animateScrollTransform(wrapper, content, duration) {
     });
 }
 
-// Функция проигрывания одной части (Мысли или Действия)
-// Возвращает Promise, который разрешается по окончании воспроизведения
 function playPart(step, type) {
     return new Promise(async (resolve) => {
-        // 1. Ждем, пока в кэше не появятся и текст, и аудио
         let partData;
         while (!(partData = speechDataStore[step]?.[type]) || !partData.text || !partData.audio_url) {
-            await new Promise(r => setTimeout(r, 100)); // Опрашиваем каждые 100мс
+            await new Promise(r => setTimeout(r, 100));
         }
 
         const characterId = speechDataStore[step].character;
-
-        // 2. Показываем текст и начинаем воспроизведение
         const bubbleElements = showSpeechBubble(characterId, partData.text, type);
         if (!bubbleElements) {
             console.error(`Could not create speech bubble for ${characterId}.`);
-            resolve(); // Разрешаем Promise, чтобы не блокировать очередь
+            resolve();
             return;
         }
 
@@ -173,7 +174,6 @@ function playPart(step, type) {
             if (currentAnimationId) cancelAnimationFrame(currentAnimationId);
             currentAnimationId = null;
             bubbleElements.wrapper.remove();
-            // Задержка после мыслей, как в старой логике
             if (type === 'thought') {
                 setTimeout(resolve, 1000);
             } else {
@@ -197,7 +197,6 @@ function playPart(step, type) {
     });
 }
 
-// Главный обработчик очереди
 async function processSpeechQueue() {
     if (isProcessingQueue || speechQueue.length === 0) return;
     isProcessingQueue = true;
@@ -205,7 +204,6 @@ async function processSpeechQueue() {
     const step = speechQueue.shift();
     console.log(`Processing step ${step}`);
 
-    // Последовательно воспроизводим Мысли, затем Действия
     if (speechDataStore[step]?.thought) {
         await playPart(step, 'thought');
     }
@@ -215,7 +213,7 @@ async function processSpeechQueue() {
 
     console.log(`Finished processing step ${step}`);
     isProcessingQueue = false;
-    processSpeechQueue(); // Проверяем, не появилось ли в очереди что-то еще
+    processSpeechQueue();
 }
 
 
@@ -241,24 +239,22 @@ function subscribeToSpectatorStream() {
     eventSource.addEventListener('character_full_update', (e) => { const u = JSON.parse(e.data); addOrUpdateCharacterCard(u.id, u.data); });
     eventSource.addEventListener('dice_roll', (e) => showDiceRoll(JSON.parse(e.data).roll));
 
-    // Обработчик текстовых данных
     eventSource.addEventListener('text_update', (e) => {
         const data = JSON.parse(e.data);
         const { step, character, type, text } = data;
 
         if (!speechDataStore[step]) {
             speechDataStore[step] = { character: character };
-            speechQueue.push(step); // Добавляем в очередь только один раз на шаг
+            speechQueue.push(step);
         }
         if (!speechDataStore[step][type]) {
             speechDataStore[step][type] = {};
         }
         speechDataStore[step][type].text = text;
         console.log(`Cached text for step ${step}, type ${type}`);
-        processSpeechQueue(); // Пытаемся запустить обработку
+        processSpeechQueue();
     });
 
-    // Обработчик аудио данных
     eventSource.addEventListener('audio_update', (e) => {
         const data = JSON.parse(e.data);
         const { step, type, audio_url } = data;
@@ -266,7 +262,6 @@ function subscribeToSpectatorStream() {
             speechDataStore[step][type].audio_url = audio_url;
             console.log(`Cached audio_url for step ${step}, type ${type}`);
         } else {
-            // Это может произойти, если аудио пришло раньше текста. Создадим заглушку.
             if (!speechDataStore[step]) speechDataStore[step] = {};
             if (!speechDataStore[step][type]) speechDataStore[step][type] = {};
             speechDataStore[step][type].audio_url = audio_url;
@@ -275,8 +270,6 @@ function subscribeToSpectatorStream() {
 
     eventSource.onerror = (err) => { console.error("SSE failed:", err); eventSource.close(); };
 }
-
-// ^^^^^^ КОНЕЦ НОВОЙ ЛОГИКИ ОЗВУЧКИ ^^^^^^
 
 function makeDraggable(element) {
     element.addEventListener('mousedown', (e) => { e.preventDefault(); activeDrag = { element, offsetX: e.clientX - element.getBoundingClientRect().left, offsetY: e.clientY - element.getBoundingClientRect().top }; element.classList.add('dragging'); });
