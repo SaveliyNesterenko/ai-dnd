@@ -116,8 +116,17 @@ async def spectator_stream_generator(request: Request):
             if message_tuple:
                 queue_name, message_data = tuple(message_tuple)
                 data = json.loads(message_data)
-                event_type = data.pop("event_type", "generic_event")
-                yield sse_format(event_type, data)
+                
+                # --- ИСПРАВЛЕНИЕ: Определяем тип события по очереди ---
+                event_type = None
+                if queue_name == SPEECH_LIST_KEY:
+                    event_type = data.pop("event_type", "generic_event")
+                elif queue_name == DICE_ROLL_QUEUE:
+                    event_type = "dice_roll"
+                # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
+                if event_type:
+                    yield sse_format(event_type, data)
                 continue
 
             current_game_state = load_json(PUBLIC_STATE_FILE) or {}
@@ -182,23 +191,17 @@ async def sequential_synthesis_orchestrator(
 
         print(f"--- Starting NON-BLOCKING TTS for {text_type.upper()} (step {step})...")
         
-        # Выполняем блокирующую операцию в отдельном потоке
         audio_path = await loop.run_in_executor(
-            None,  # Используем исполнитель по умолчанию (ThreadPoolExecutor)
-            tts_service.synthesize, 
-            text, 
-            voice_sample_path, 
-            f"{char_key}_{int(time.time())}_{text_type}.wav"
+            None, tts_service.synthesize, text, 
+            voice_sample_path, f"{char_key}_{int(time.time())}_{text_type}.wav"
         )
 
         if audio_path:
             print(f"--- SUCCESS: {text_type.upper()} audio generated (step {step}).")
-            # Отправка Зрителю
             await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({
                 "event_type": "audio_update", "character": char_key, "type": text_type,
                 "step": step, "audio_url": audio_path.replace("\\", "/")
             }))
-            # Обновление лога для ГМ-а
             event_data = load_json(EVENT_LOG_FILE)
             target_event = next((e for e in event_data.get('history', []) if e.get('step') == step), None)
             if target_event:
