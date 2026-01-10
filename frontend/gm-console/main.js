@@ -31,13 +31,6 @@ function renderEventLog(history) {
             thoughts.className = 'thoughts';
             thoughts.textContent = `Мысли: ${event.thoughts}`;
             logEntry.appendChild(thoughts);
-
-            if (event.audio_thought_url) {
-                const audio = document.createElement('audio');
-                audio.controls = true;
-                audio.src = event.audio_thought_url;
-                thoughts.appendChild(audio);
-            }
         }
 
         if (event.action) {
@@ -45,13 +38,6 @@ function renderEventLog(history) {
             action.className = 'action';
             action.textContent = `Действие: ${event.action}`;
             logEntry.appendChild(action);
-
-            if (event.audio_action_url) {
-                const audio = document.createElement('audio');
-                audio.controls = true;
-                audio.src = event.audio_action_url;
-                action.appendChild(audio);
-            }
         }
 
         eventLogPanel.appendChild(logEntry);
