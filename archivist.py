@@ -139,3 +139,27 @@ async def handle_compress_context():
     except Exception as e:
         print(f"Ошибка при сжатии контекста: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate_player_notes", tags=["Archivist"])
+async def handle_player_recollection():
+    """
+    Создает персональные заметки для каждого игрока на основе последних событий.
+    """
+    try:
+        event_log = load_json("data/event_log.json")
+        if not event_log or not event_log.get("history"):
+            return {"status": "success", "message": "Нет событий для создания заметок."}
+
+        active_characters_data = load_json("data/active_characters.json")
+        active_character_keys = active_characters_data.get("characters_id", [])
+        characters = load_json("data/characters.json") or {}
+
+        players_found = []
+        for char_key in active_character_keys:
+            if char_key in characters and characters[char_key].get("meta", {}).get("role") == "Player":
+                players_found.append(characters[char_key].get("identity", {}).get("name", char_key))
+
+        return {"status": "success", "players_found": players_found}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
