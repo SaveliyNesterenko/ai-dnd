@@ -31,20 +31,24 @@ function updateBackground(gameState) {
     }
 }
 
-// vvvvvv ИСПРАВЛЕНИЕ КАРТОЧКИ ПЕРСОНАЖА vvvvvv
+// vvvvvv ИСПРАВЛЕНИЕ ОТОБРАЖЕНИЯ МОДЕЛИ vvvvvv
 function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
     const { identity = {}, stats = {}, meta = {} } = charData;
+    
+    // Получаем и обрабатываем model_id
+    const modelId = meta.model_id || 'N/A';
+    const displayModelName = modelId.includes('/') ? modelId.split('/').pop() : modelId;
+
     if (!card) {
         card = document.createElement('div');
         card.id = `card-${charId}`;
         card.className = 'character-card';
         card.dataset.id = charId;
-        // ВОЗВРАЩАЕМ DIV ДЛЯ МОДЕЛИ
         card.innerHTML = `
             <img src="" class="portrait"/>
             <div class="name">${identity.name || 'Unknown'}</div>
-            <div class="model">${meta.model_id || 'N/A'}</div>
+            <div class="model">${displayModelName}</div>
             <div class="stat-bar-container"><div class="stat-bar hp-bar"></div></div>
             <div class="stat-bar-container"><div class="stat-bar mp-bar"></div></div>
         `;
@@ -52,8 +56,10 @@ function addOrUpdateCharacterCard(charId, charData) {
         card.addEventListener('click', () => openCharacterModal(charId));
     }
     card.onclick = () => openCharacterModal(charId);
-    // ВОЗВРАЩАЕМ ЛОГИКУ ОБНОВЛЕНИЯ МОДЕЛИ
-    card.querySelector('.model').textContent = meta.model_id || 'N/A'; 
+    
+    card.querySelector('.model').textContent = displayModelName;
+    card.querySelector('.name').textContent = identity.name || 'Unknown';
+
     const portrait = card.querySelector('.portrait');
     const newPortraitSrc = `${API_BASE_URL}/assets/characters/${meta.sprite_id}`;
     if (portrait.src !== newPortraitSrc) {
