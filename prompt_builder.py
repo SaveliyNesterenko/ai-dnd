@@ -95,3 +95,42 @@ def create_archivist_prompt(event_summary):
 Проанализируй лог и напиши краткий конспект произошедшего. Отрази только ключевые факты, решения и их последствия. Не добавляй лишних деталей, художественных описаний или диалогов. Конспект должен быть написан в прошедшем времени от третьего лица.
 """
     return final_prompt
+
+def create_player_recollection_prompt(character, event_history):
+    """
+    Формирует промт для персонажа-игрока, чтобы он сделал личные заметки.
+    """
+    char_name = character.get("identity", {}).get("name", "Неизвестный")
+    char_bio = character.get("identity", {}).get("bio", "")
+
+    # Формируем персонализированную сводку событий
+    event_summary = ""
+    for event in event_history:
+        actor = event.get("name", "N/A")
+        action = event.get("action", "")
+        event_step = event.get("step", "N/A")
+        
+        event_line = f'Ход {event_step}: [{actor}]\n{action}\n'
+        
+        # Добавляем мысли, если это ход текущего персонажа
+        if actor == char_name and "thoughts" in event:
+            thoughts = event.get("thoughts", "")
+            if thoughts:
+                event_line += f'Мои мысли в тот момент: {thoughts}\n'
+
+        event_summary += event_line + "\n"
+
+    # Системная инструкция и задача
+    instruction = f'''Ты — {char_name}, {char_bio}. Проанализируй события, которые только что произошли. Вспомни не только действия других, но и свои собственные мысли в ключевые моменты.'''
+    
+    task = '''Твоя задача — записать свои личные соображения о произошедшем. Сделай краткие, но ёмкие заметки от первого лица в стиле личного дневника. Что ты думаешь о случившемся? Какие у тебя появились планы или опасения? Как ты оцениваешь действия других и свои собственные? Эти записи — только для тебя.'''
+
+    # Собираем финальный промт
+    final_prompt = f"""{instruction}
+
+--- ХРОНИКА СОБЫТИЙ ДЛЯ АНАЛИЗА ---
+{event_summary}
+--- ТВОЯ ЗАДАЧА ---
+{task}"""
+    
+    return final_prompt
