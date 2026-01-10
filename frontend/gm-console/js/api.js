@@ -118,6 +118,12 @@ export async function archiveEvent() {
     return await response.json();
 }
 
+export async function generatePlayerNotes() {
+    const response = await fetch(`${API_BASE_URL}/api/generate_player_notes`, { method: 'POST' });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Failed to generate player notes');
+    return await response.json();
+}
+
 export async function compressContext() {
     const response = await fetch(`${API_BASE_URL}/api/compress_context`, { method: 'POST' });
     if (!response.ok) throw new Error((await response.json()).detail || 'Failed to compress context');
