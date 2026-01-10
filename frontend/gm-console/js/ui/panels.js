@@ -227,15 +227,26 @@ export async function initializeTopPanel() {
         } else {
             eventButton.disabled = true;
             eventButton.style.backgroundColor = '#6c757d'; // Серый цвет
-            console.log("Отправка запроса на архивацию события...");
+            const originalText = eventButton.textContent;
 
             try {
+                // 1. Генерация заметок игроков
+                eventButton.textContent = '1/2: Заметки...';
+                const notesResponse = await api.generatePlayerNotes();
+                console.log("Заметки игроков сгенерированы:", notesResponse);
+
+                // 2. Архивация события
+                eventButton.textContent = '2/2: Архив...';
                 await api.archiveEvent();
                 console.log("Событие успешно заархивировано.");
+
+                // 3. Сброс состояния кнопки
                 eventButton.textContent = 'Запустить событие';
+
             } catch (error) {
-                console.error('Failed to archive event:', error);
-                alert('Ошибка архивации события!');
+                console.error('Ошибка в процессе завершения события:', error);
+                alert('Произошла ошибка! Проверьте консоль для деталей.');
+                eventButton.textContent = originalText; // Возвращаем исходный текст в случае ошибки
             } finally {
                 eventButton.disabled = false;
                 eventButton.style.backgroundColor = ''; // Сброс цвета
