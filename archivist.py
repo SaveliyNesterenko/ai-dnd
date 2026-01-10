@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from utils.file_utils import load_json, save_json
 from utils.logger import save_prompt_to_log
-from prompt_builder import create_archivist_prompt
+from prompt_builder import create_archivist_prompt, create_player_recollection_prompt
 
 # Инициализация роутера
 router = APIRouter()
@@ -147,19 +147,50 @@ async def handle_player_recollection():
     """
     try:
         event_log = load_json("data/event_log.json")
-        if not event_log or not event_log.get("history"):
+        history = event_log.get("history")
+
+        if not history:
             return {"status": "success", "message": "Нет событий для создания заметок."}
 
         active_characters_data = load_json("data/active_characters.json")
         active_character_keys = active_characters_data.get("characters_id", [])
         characters = load_json("data/characters.json") or {}
 
-        players_found = []
+        updated_character_names = []
+
         for char_key in active_character_keys:
             if char_key in characters and characters[char_key].get("meta", {}).get("role") == "Player":
-                players_found.append(characters[char_key].get("identity", {}).get("name", char_key))
+                char_data = characters[char_key]
+                
+                prompt = create_player_recollection_prompt(char_data, history)
+                save_prompt_to_log(f"recollection_{char_key}", prompt)
+                
+                response = client.chat.completions.create(
+                    model=char_data.get("meta", {}).get("model_id", "google/gemini-2.5-flash-lite"),
+                    messages=[
+                        {"role": "system", "content": "Ты — Актёр, исполняющий роль своего персонажа. Твоя задача — вести личный дневник от его лица."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                note = response.choices[0].message.content
 
-        return {"status": "success", "players_found": players_found}
+                if "memory" not in char_data:
+                    char_data["memory"] = {}
+                if "private_notes" not in char_data["memory"]:
+                    char_data["memory"]["private_notes"] = []
+                
+                if isinstance(char_data["memory"]["private_notes"], list):
+                    char_data["memory"]["private_notes"].append(note)
+                else:
+                    old_notes = char_data["memory"]["private_notes"]
+                    char_data["memory"]["private_notes"] = [old_notes, note]
+
+                updated_character_names.append(char_data.get("identity", {}).get("name", char_key))
+
+        save_json("data/characters.json", characters)
+
+        return {"status": "success", "message": "Заметки успешно сгенерированы.", "notes_generated_for": updated_character_names}
 
     except Exception as e:
+        print(f"Ошибка при генерации заметок игрока: {e}")
         raise HTTPException(status_code=500, detail=str(e))
