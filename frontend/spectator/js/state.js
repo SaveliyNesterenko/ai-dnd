@@ -1,95 +1,59 @@
 import { showSpeechBubble, animateScrollTransform, stopAnimations } from './ui.js';
 import { API_BASE_URL } from './api.js';
 
-let speechQueue = [];
-let speechDataStore = {};
-let isProcessingQueue = false;
+// Вся сложная логика очереди и кеширования больше не нужна благодаря единому событию `speech`.
 
-export function addTextUpdate(data) {
-    const { step, character, type, text } = data;
+/**
+ * Обрабатывает единое событие реплики от сервера.
+ * Отображает текстовый "пузырь" и проигрывает аудио, если оно доступно.
+ * @param {object} data - Данные события от сервера.
+ * @param {string} data.character - ID персонажа.
+ * @param {string} data.text - Текст реплики.
+ * @param {string} data.type - Тип реплики ('thought' или 'action').
+ * @param {string|null} data.audio_url - URL аудиофайла или null.
+ */
+export function handleSpeechEvent(data) {
+    const { character, text, type, audio_url } = data;
 
-    if (!speechDataStore[step]) {
-        speechDataStore[step] = { character: character };
-        speechQueue.push(step);
+    console.log(`Received speech event for ${character}: ${type}`);
+
+    // 1. Всегда немедленно показываем текстовый "пузырь"
+    const bubbleElements = showSpeechBubble(character, text, type);
+    if (!bubbleElements) {
+        console.error(`Could not create speech bubble for ${character}.`);
+        return;
     }
-    if (!speechDataStore[step][type]) {
-        speechDataStore[step][type] = {};
-    }
-    speechDataStore[step][type].text = text;
-    console.log(`Cached text for step ${step}, type ${type}`);
-    processSpeechQueue();
-}
 
-export function addAudioUpdate(data) {
-    const { step, type, audio_url } = data;
-    if (speechDataStore[step] && speechDataStore[step][type]) {
-        speechDataStore[step][type].audio_url = audio_url;
-        console.log(`Cached audio_url for step ${step}, type ${type}`);
-    } else {
-        if (!speechDataStore[step]) speechDataStore[step] = {};
-        if (!speechDataStore[step][type]) speechDataStore[step][type] = {};
-        speechDataStore[step][type].audio_url = audio_url;
-    }
-}
+    // Функция для очистки и удаления "пузыря"
+    const cleanup = () => {
+        stopAnimations();
+        bubbleElements.wrapper.remove();
+    };
 
-async function playPart(step, type) {
-    return new Promise(async (resolve) => {
-        let partData;
-        while (!(partData = speechDataStore[step]?.[type]) || !partData.text || !partData.audio_url) {
-            await new Promise(r => setTimeout(r, 100));
-        }
-
-        const characterId = speechDataStore[step].character;
-        const bubbleElements = showSpeechBubble(characterId, partData.text, type);
-        if (!bubbleElements) {
-            console.error(`Could not create speech bubble for ${characterId}.`);
-            resolve();
-            return;
-        }
-
-        const audio = new Audio(`${API_BASE_URL}/${partData.audio_url}`);
+    // 2. Проверяем, есть ли аудио
+    if (audio_url) {
+        // Сценарий С АУДИО: проигрываем звук и анимируем текст
+        const audio = new Audio(`${API_BASE_URL}/${audio_url}`);
         
-        const cleanupAndResolve = () => {
-            stopAnimations();
-            bubbleElements.wrapper.remove();
-            if (type === 'thought') {
-                setTimeout(resolve, 1000);
-            } else {
-                resolve();
-            }
-        };
-
         audio.onloadedmetadata = () => {
+            // Запускаем анимацию текста синхронно с длительностью аудио
             animateScrollTransform(bubbleElements.wrapper, bubbleElements.content, audio.duration);
             audio.play().catch(e => {
                 console.error("Error playing audio:", e);
-                cleanupAndResolve();
+                cleanup(); // Если проигрывание не удалось, просто убираем "пузырь"
             });
         };
         
-        audio.onended = cleanupAndResolve;
+        audio.onended = cleanup; // Убираем "пузырь", когда аудио закончилось
         audio.onerror = (e) => { 
-            console.error("Audio error:", e.message);
-            cleanupAndResolve();
+            console.error("Audio loading error:", e.message);
+            cleanup(); // Если аудио не загрузилось, убираем "пузырь"
         };
-    });
-}
 
-async function processSpeechQueue() {
-    if (isProcessingQueue || speechQueue.length === 0) return;
-    isProcessingQueue = true;
-
-    const step = speechQueue.shift();
-    console.log(`Processing step ${step}`);
-
-    if (speechDataStore[step]?.thought) {
-        await playPart(step, 'thought');
+    } else {
+        // Сценарий БЕЗ АУДИО: просто показываем текст на несколько секунд
+        console.log('No audio provided. Displaying text for a few seconds.');
+        const displayDuration = Math.max(3000, text.length * 80); // Динамическая длительность
+        setTimeout(cleanup, displayDuration);
     }
-    if (speechDataStore[step]?.action) {
-        await playPart(step, 'action');
-    }
-
-    console.log(`Finished processing step ${step}`);
-    isProcessingQueue = false;
-    processSpeechQueue();
 }

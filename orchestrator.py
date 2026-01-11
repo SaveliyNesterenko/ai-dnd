@@ -117,13 +117,11 @@ async def spectator_stream_generator(request: Request):
                 queue_name, message_data = tuple(message_tuple)
                 data = json.loads(message_data)
                 
-                # --- ИСПРАВЛЕНИЕ: Определяем тип события по очереди ---
                 event_type = None
                 if queue_name == SPEECH_LIST_KEY:
                     event_type = data.pop("event_type", "generic_event")
                 elif queue_name == DICE_ROLL_QUEUE:
                     event_type = "dice_roll"
-                # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
                 if event_type:
                     yield sse_format(event_type, data)
@@ -176,42 +174,62 @@ async def gm_stream_generator(request: Request):
     finally:
         pass
 
-# --- Оркестратор синтеза речи (ИЗМЕНЕНО с run_in_executor) ---
-async def sequential_synthesis_orchestrator(
+# --- НОВЫЙ ОТКАЗОУСТОЙЧИВЫЙ ОРКЕСТРАТОР РЕПЛИК ---
+async def dispatch_speech_events(
     redis_pool, tts_service, char_key: str, 
     thought_text: Optional[str], action_text: Optional[str],
     voice_sample_path: str, step: int
 ):
-    """Последовательно синтезирует Мысли и Действия в неблокирующем режиме."""
+    """Последовательно обрабатывает реплики и отправляет единые события на фронтенд."""
     loop = asyncio.get_running_loop()
     redis_conn = redis.Redis(connection_pool=redis_pool)
     
-    async def synthesize_and_dispatch(text_type: str, text: str):
-        if not text: return
+    async def process_and_dispatch(text_type: str, text: str):
+        if not text:
+            return
 
-        print(f"--- Starting NON-BLOCKING TTS for {text_type.upper()} (step {step})...")
-        
+        print(f"--- Preparing '{text_type.upper()}' speech event for step {step}...")
+
+        # 1. Пытаемся синтезировать аудио в фоновом потоке
         audio_path = await loop.run_in_executor(
             None, tts_service.synthesize, text, 
             voice_sample_path, f"{char_key}_{int(time.time())}_{text_type}.wav"
         )
 
-        if audio_path:
-            print(f"--- SUCCESS: {text_type.upper()} audio generated (step {step}).")
-            await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({
-                "event_type": "audio_update", "character": char_key, "type": text_type,
-                "step": step, "audio_url": audio_path.replace("\\", "/")
-            }))
-            event_data = load_json(EVENT_LOG_FILE)
-            target_event = next((e for e in event_data.get('history', []) if e.get('step') == step), None)
-            if target_event:
-                target_event[f'audio_{text_type}_url'] = audio_path.replace("\\", "/")
-                save_json(EVENT_LOG_FILE, event_data)
-        else: 
-            print(f"--- FAILURE: {text_type.upper()} audio synthesis failed (step {step}).")
+        # 2. Готовим URL для события (будет None, если синтез не удался)
+        final_audio_url = audio_path.replace("\\", "/") if audio_path else None
 
-    await synthesize_and_dispatch('thought', thought_text)
-    await synthesize_and_dispatch('action', action_text)
+        if final_audio_url:
+            print(f"--- SUCCESS: {text_type.upper()} audio generated (step {step}).")
+            # Обновляем лог игры, добавляя ссылку на аудиофайл
+            try:
+                event_data = load_json(EVENT_LOG_FILE)
+                target_event = next((e for e in event_data.get('history', []) if e.get('step') == step), None)
+                if target_event:
+                    # Ключ в event_log.json - 'thoughts' для мыслей
+                    log_key_type = 'thoughts' if text_type == 'thought' else 'action'
+                    target_event[f'audio_{log_key_type}_url'] = final_audio_url
+                    save_json(EVENT_LOG_FILE, event_data)
+            except Exception as e:
+                print(f"--- WARNING: Failed to save audio URL to event log: {e}")
+        else: 
+            print(f"--- FAILURE: {text_type.upper()} audio synthesis failed (step {step}). Proceeding with text only.")
+
+        # 3. ВСЕГДА отправляем единое событие, содержащее текст и опциональное аудио
+        speech_event = {
+            "event_type": "speech",
+            "character": char_key,
+            "type": text_type,      # 'thought' или 'action'
+            "text": text,           # Текст реплики (обязательно)
+            "step": step,
+            "audio_url": final_audio_url # Путь к аудио или null
+        }
+        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps(speech_event))
+        print(f"--- Dispatched '{text_type.upper()}' speech event to spectator.")
+
+    # Последовательно обрабатываем сначала мысль, потом действие
+    await process_and_dispatch('thought', thought_text)
+    await process_and_dispatch('action', action_text)
 
 # --- Основные API эндпоинты ---
 @app.get("/api/spectator_stream")
@@ -255,24 +273,32 @@ async def generate_action(request: ActionRequest):
     )
     save_json(EVENT_LOG_FILE, updated_event_data)
 
+    # Логика отправки текста и аудио теперь полностью делегирована dispatch_speech_events
     parsed_data = parse_ai_response(ai_response)
-    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     thought_text = parsed_data.get("thought")
     action_text = parsed_data.get("action")
 
-    if thought_text:
-        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"event_type": "text_update", "character": char_key, "type": "thought", "text": thought_text, "step": new_step_number}))
-    if action_text:
-        await redis_conn.rpush(SPEECH_LIST_KEY, json.dumps({"event_type": "text_update", "character": char_key, "type": "action", "text": action_text, "step": new_step_number}))
-
     tts_service = app_state.get("tts_service")
     voice_sample_path = char.get("meta", {}).get("voice_sample")
+    
+    # Запускаем фоновую задачу для синтеза и отправки событий
+    # Это гарантирует, что эндпоинт /act вернет ответ немедленно
     if tts_service and voice_sample_path:
         asyncio.create_task(
-            sequential_synthesis_orchestrator(
+            dispatch_speech_events(
                 redis_pool=app_state["redis_pool"], tts_service=tts_service, char_key=char_key,
                 thought_text=thought_text, action_text=action_text,
                 voice_sample_path=voice_sample_path, step=new_step_number
+            )
+        )
+    else:
+        # ОТКАЗОУСТОЙЧИВОСТЬ: Если TTS не работает или нет голоса, отправляем только текст
+        print("--- TTS service not available or no voice sample. Dispatching text only.")
+        asyncio.create_task(
+            dispatch_speech_events(
+                redis_pool=app_state["redis_pool"], tts_service=None, char_key=char_key,
+                thought_text=thought_text, action_text=action_text,
+                voice_sample_path="", step=new_step_number
             )
         )
     
