@@ -184,7 +184,7 @@
 }
 
 .modal-hp-bar { background: linear-gradient(to right, #b82a1f, #e85a4f); }
-.mp-bar { background: linear-gradient(to right, #2962b9, #4a90e2); }
+.modal-mp-bar { background: linear-gradient(to right, #2962b9, #4a90e2); }
 
 .stat-text {
     position: absolute;
