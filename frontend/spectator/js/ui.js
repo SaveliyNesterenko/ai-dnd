@@ -1,6 +1,6 @@
-const API_BASE_URL = 'http://127.0.0.1:8000';
+import { fetchCharacterData } from './api.js';
+import { API_BASE_URL } from './api.js';
 
-// --- DOM Элементы ---
 const backgroundContainer = document.getElementById('background-container');
 const avatarsContainer = document.getElementById('avatars-container');
 const characterCardsContainer = document.getElementById('character-cards-container');
@@ -9,17 +9,9 @@ const modalCharacterDetails = document.getElementById('modal-character-details')
 const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
-// --- Новая система управления очередью и состоянием речи ---
-let speechQueue = [];
-let speechDataStore = {};
-let isProcessingQueue = false;
 let currentAnimationId = null;
 
-// --- Состояние для Drag-and-Drop ---
-let activeDrag = null;
-
-// --- Функции-обработчики данных ---
-function updateBackground(gameState) {
+export function updateBackground(gameState) {
     if (!gameState || !gameState.current_location) {
         backgroundContainer.style.backgroundImage = 'none';
         return;
@@ -31,12 +23,10 @@ function updateBackground(gameState) {
     }
 }
 
-// vvvvvv ИСПРАВЛЕНИЕ ОТОБРАЖЕНИЯ МОДЕЛИ vvvvvv
-function addOrUpdateCharacterCard(charId, charData) {
+export function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
     const { identity = {}, stats = {}, meta = {} } = charData;
     
-    // Получаем и обрабатываем model_id
     const modelId = meta.model_id || 'N/A';
     const displayModelName = modelId.includes('/') ? modelId.split('/').pop() : modelId;
 
@@ -71,12 +61,9 @@ function addOrUpdateCharacterCard(charId, charData) {
     card.querySelector('.hp-bar').style.width = `${maxHp > 0 ? (hp / maxHp) * 100 : 0}%`;
     card.querySelector('.mp-bar').style.width = `${maxMp > 0 ? (mp / maxMp) * 100 : 0}%`;
 }
-// ^^^^^^ КОНЕЦ ИСПРАВЛЕНИЯ ^^^^^^
 
 async function openCharacterModal(charId) {
-    const response = await fetch(`${API_BASE_URL}/api/all_characters`);
-    const allChars = await response.json();
-    const charData = allChars[charId];
+    const charData = await fetchCharacterData(charId);
     if (!charData) return;
 
     const { identity = {}, stats = {}, meta = {}, inventory = [] } = charData;
@@ -102,7 +89,7 @@ async function openCharacterModal(charId) {
 closeButton.onclick = () => { characterModal.style.display = "none"; };
 window.onclick = (event) => { if (event.target == characterModal) characterModal.style.display = "none"; };
 
-function renderAvatars(characterIds) {
+export function renderAvatars(characterIds, makeDraggable) {
     const idSet = new Set(characterIds);
     document.querySelectorAll('.character-wrapper').forEach(w => { if (!idSet.has(w.dataset.id)) { w.remove(); document.getElementById(`card-${w.dataset.id}`)?.remove(); } });
     characterIds.forEach((charId, index) => {
@@ -125,9 +112,7 @@ function renderAvatars(characterIds) {
     });
 }
 
-// --- Новая логика озвучки ---
-
-function showSpeechBubble(characterId, text, type) {
+export function showSpeechBubble(characterId, text, type) {
     const charWrapper = document.getElementById(`wrapper-${characterId}`);
     if (!charWrapper) return null;
     const bubbleWrapper = document.createElement('div');
@@ -141,7 +126,7 @@ function showSpeechBubble(characterId, text, type) {
     return { wrapper: bubbleWrapper, content: bubbleContent };
 }
 
-function animateScrollTransform(wrapper, content, duration) {
+export function animateScrollTransform(wrapper, content, duration) {
     requestAnimationFrame(() => {
         const distance = content.offsetHeight - wrapper.offsetHeight;
         if (distance <= 0) return;
@@ -159,71 +144,7 @@ function animateScrollTransform(wrapper, content, duration) {
     });
 }
 
-function playPart(step, type) {
-    return new Promise(async (resolve) => {
-        let partData;
-        while (!(partData = speechDataStore[step]?.[type]) || !partData.text || !partData.audio_url) {
-            await new Promise(r => setTimeout(r, 100));
-        }
-
-        const characterId = speechDataStore[step].character;
-        const bubbleElements = showSpeechBubble(characterId, partData.text, type);
-        if (!bubbleElements) {
-            console.error(`Could not create speech bubble for ${characterId}.`);
-            resolve();
-            return;
-        }
-
-        const audio = new Audio(`${API_BASE_URL}/${partData.audio_url}`);
-        
-        const cleanupAndResolve = () => {
-            if (currentAnimationId) cancelAnimationFrame(currentAnimationId);
-            currentAnimationId = null;
-            bubbleElements.wrapper.remove();
-            if (type === 'thought') {
-                setTimeout(resolve, 1000);
-            } else {
-                resolve();
-            }
-        };
-
-        audio.onloadedmetadata = () => {
-            animateScrollTransform(bubbleElements.wrapper, bubbleElements.content, audio.duration);
-            audio.play().catch(e => {
-                console.error("Error playing audio:", e);
-                cleanupAndResolve();
-            });
-        };
-        
-        audio.onended = cleanupAndResolve;
-        audio.onerror = (e) => { 
-            console.error("Audio error:", e.message);
-            cleanupAndResolve();
-        };
-    });
-}
-
-async function processSpeechQueue() {
-    if (isProcessingQueue || speechQueue.length === 0) return;
-    isProcessingQueue = true;
-
-    const step = speechQueue.shift();
-    console.log(`Processing step ${step}`);
-
-    if (speechDataStore[step]?.thought) {
-        await playPart(step, 'thought');
-    }
-    if (speechDataStore[step]?.action) {
-        await playPart(step, 'action');
-    }
-
-    console.log(`Finished processing step ${step}`);
-    isProcessingQueue = false;
-    processSpeechQueue();
-}
-
-
-function showDiceRoll(rollValue) {
+export function showDiceRoll(rollValue) {
     if (!diceRollContainer) return;
     const rollElement = document.createElement('div');
     rollElement.className = 'dice-roll';
@@ -236,66 +157,9 @@ function showDiceRoll(rollValue) {
     }, 4000);
 }
 
-function subscribeToSpectatorStream() {
-    console.log("Connecting to the unified spectator stream...");
-    const eventSource = new EventSource(`${API_BASE_URL}/api/spectator_stream`);
-
-    eventSource.addEventListener('game_state_update', (e) => updateBackground(JSON.parse(e.data)));
-    eventSource.addEventListener('active_characters_update', (e) => renderAvatars(JSON.parse(e.data)));
-    eventSource.addEventListener('character_full_update', (e) => { const u = JSON.parse(e.data); addOrUpdateCharacterCard(u.id, u.data); });
-    eventSource.addEventListener('dice_roll', (e) => showDiceRoll(JSON.parse(e.data).roll));
-
-    eventSource.addEventListener('text_update', (e) => {
-        const data = JSON.parse(e.data);
-        const { step, character, type, text } = data;
-
-        if (!speechDataStore[step]) {
-            speechDataStore[step] = { character: character };
-            speechQueue.push(step);
-        }
-        if (!speechDataStore[step][type]) {
-            speechDataStore[step][type] = {};
-        }
-        speechDataStore[step][type].text = text;
-        console.log(`Cached text for step ${step}, type ${type}`);
-        processSpeechQueue();
-    });
-
-    eventSource.addEventListener('audio_update', (e) => {
-        const data = JSON.parse(e.data);
-        const { step, type, audio_url } = data;
-        if (speechDataStore[step] && speechDataStore[step][type]) {
-            speechDataStore[step][type].audio_url = audio_url;
-            console.log(`Cached audio_url for step ${step}, type ${type}`);
-        } else {
-            if (!speechDataStore[step]) speechDataStore[step] = {};
-            if (!speechDataStore[step][type]) speechDataStore[step][type] = {};
-            speechDataStore[step][type].audio_url = audio_url;
-        }
-    });
-
-    eventSource.onerror = (err) => { console.error("SSE failed:", err); eventSource.close(); };
-}
-
-function makeDraggable(element) {
-    element.addEventListener('mousedown', (e) => { e.preventDefault(); activeDrag = { element, offsetX: e.clientX - element.getBoundingClientRect().left, offsetY: e.clientY - element.getBoundingClientRect().top }; element.classList.add('dragging'); });
-}
-document.addEventListener('mousemove', (e) => { if (!activeDrag) return; e.preventDefault(); activeDrag.element.style.left = `${e.clientX - activeDrag.offsetX}px`; activeDrag.element.style.top = `${e.clientY - activeDrag.offsetY}px`; });
-document.addEventListener('mouseup', () => { if (activeDrag) { activeDrag.element.classList.remove('dragging'); activeDrag = null; } });
-
-async function main() {
-    console.log("Spectator screen initializing...");
-    try {
-        const [gameStateRes, activeCharsRes] = await Promise.all([ fetch(`${API_BASE_URL}/api/game_state`), fetch(`${API_BASE_URL}/api/active_characters`) ]);
-        const initialState = await gameStateRes.json();
-        const initialCharacterIds = await activeCharsRes.json();
-        updateBackground(initialState);
-        if(initialCharacterIds) renderAvatars(initialCharacterIds);
-    } catch (error) {
-        console.error("Failed to fetch initial data:", error);
+export function stopAnimations() {
+    if (currentAnimationId) {
+        cancelAnimationFrame(currentAnimationId);
+        currentAnimationId = null;
     }
-    subscribeToSpectatorStream();
-    console.log("Spectator screen initialized and connected to stream.");
 }
-
-main();
