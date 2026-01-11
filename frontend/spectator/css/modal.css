@@ -1,0 +1,198 @@
+/* --- Стили для модального окна --- */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    position: relative;
+    background: #1e1814 url('/assets/ui/bg_texture.png');
+    width: 90%;
+    max-width: 800px;
+    border-radius: 15px;
+    border: 2px solid #5a4a3a;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
+    padding: 25px;
+    margin: auto;
+}
+
+#modal-character-details {
+    display: flex;
+    gap: 25px;
+}
+
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: #aaa;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
+    z-index: 10;
+}
+
+.close-button:hover, .close-button:focus {
+    color: #fff;
+}
+
+.modal-left-column {
+    flex: 0 0 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.modal-portrait {
+    width: 250px;
+    height: 250px;
+    object-fit: cover;
+    border: 4px solid #7a6a5a;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+}
+
+.modal-character-name {
+    font-family: 'Georgia', serif;
+    font-size: 28px;
+    font-weight: bold;
+    color: #fde0bd;
+    text-shadow: 0 0 10px rgba(255, 200, 100, 0.4);
+    margin: 0 0 20px 0;
+}
+
+.modal-right-column {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Fix for flexbox child overflow */
+}
+
+.modal-section-title {
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    color: #d9b38a;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #4a3a2a;
+    padding-bottom: 5px;
+}
+
+/* --- Стили для прокручиваемых блоков --- */
+.modal-bio, .modal-inventory-list {
+    overflow-y: auto;
+    padding-right: 10px; /* Space for scrollbar */
+}
+
+.modal-bio {
+    max-height: 80px;
+    font-size: 14px;
+    font-style: italic;
+    color: #b0a090;
+    margin-bottom: 20px;
+}
+
+.modal-inventory-list {
+    max-height: 120px;
+}
+
+/* Кастомный скроллбар */
+.modal-bio::-webkit-scrollbar, 
+.modal-inventory-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-bio::-webkit-scrollbar-track, 
+.modal-inventory-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.modal-bio::-webkit-scrollbar-thumb, 
+.modal-inventory-list::-webkit-scrollbar-thumb {
+    background: #5a4a3a;
+    border-radius: 4px;
+    border: 1px solid #3c2f21;
+}
+
+.modal-bio::-webkit-scrollbar-thumb:hover, 
+.modal-inventory-list::-webkit-scrollbar-thumb:hover {
+    background: #7a6a5a;
+}
+
+.modal-attributes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.attribute-item {
+    background: rgba(0,0,0,0.2);
+    padding: 8px 12px;
+    border-radius: 5px;
+    border-left: 3px solid #b89060;
+    font-size: 16px;
+}
+
+.attribute-item strong { color: #e0c09a; }
+
+.modal-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.modal-list li {
+    background: rgba(0,0,0,0.15);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 15px;
+    color: #ccc;
+}
+
+.modal-list li strong { color: #e0c09a; }
+
+.modal-stat-bar-container {
+    width: 100%;
+    height: 25px;
+    background-color: #1a110a;
+    border-radius: 8px;
+    border: 1px solid #3c2f21;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.modal-stat-bar {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease-in-out;
+}
+
+.modal-hp-bar { background: linear-gradient(to right, #b82a1f, #e85a4f); }
+.mp-bar { background: linear-gradient(to right, #2962b9, #4a90e2); }
+
+.stat-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px #000;
+}
