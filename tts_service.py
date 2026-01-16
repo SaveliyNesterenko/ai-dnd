@@ -45,7 +45,8 @@ class TTSService:
                 text=text,
                 speaker_wav=speaker_wav_path,
                 language=self.language,
-                file_path=output_path
+                file_path=output_path,
+                temperature=0.75
             )
             print(f"Audio synthesized and saved to {output_path}")
             return output_path
