@@ -10,16 +10,36 @@ const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
 let currentAnimationId = null;
+let currentAvatarSize = null; // Variable to store the current avatar size
+
+// Helper function to apply avatar size to all character avatars
+function applyAvatarSize(size) {
+    const avatars = document.querySelectorAll('.character-avatar');
+    avatars.forEach(avatar => {
+        avatar.style.width = `${size}px`;
+        avatar.style.height = `${size}px`;
+    });
+    currentAvatarSize = size;
+}
 
 export function updateBackground(gameState) {
-    if (!gameState || !gameState.current_location) {
+    if (!gameState) return;
+
+    // Update background image
+    if (gameState.current_location) {
+        const location = gameState.current_location;
+        const imageUrl = `${API_BASE_URL}/${location.image_url}`;
+        if (backgroundContainer.style.backgroundImage !== `url("${imageUrl}")`) {
+            backgroundContainer.style.backgroundImage = `url('${imageUrl}')`;
+        }
+    } else {
         backgroundContainer.style.backgroundImage = 'none';
-        return;
     }
-    const location = gameState.current_location;
-    const imageUrl = `${API_BASE_URL}/${location.image_url}`;
-    if (backgroundContainer.style.backgroundImage !== `url("${imageUrl}")`) {
-        backgroundContainer.style.backgroundImage = `url('${imageUrl}')`;
+
+    // Update avatar size if it has changed
+    const newSize = gameState.avatar_size;
+    if (newSize && newSize !== currentAvatarSize) {
+        applyAvatarSize(newSize);
     }
 }
 
@@ -103,6 +123,13 @@ export function renderAvatars(characterIds, makeDraggable) {
             avatar.className = 'character-avatar';
             avatar.src = `${API_BASE_URL}/assets/characters/${charId}.png`;
             avatar.onerror = () => { avatar.src = `${API_BASE_URL}/assets/characters/default.png`; };
+
+            // Apply the current avatar size when creating a new avatar
+            if (currentAvatarSize) {
+                avatar.style.width = `${currentAvatarSize}px`;
+                avatar.style.height = `${currentAvatarSize}px`;
+            }
+
             wrapper.append(avatar);
             wrapper.style.left = `${100 + index * 150}px`;
             wrapper.style.top = `100px`;

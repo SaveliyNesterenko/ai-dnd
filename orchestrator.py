@@ -98,6 +98,7 @@ class ObserverRequest(BaseModel): action: str; dice_roll: Optional[int] = None
 class JsonPatchRequest(BaseModel): patch: Dict[str, Any]
 class SetLocationRequest(BaseModel): location_id: str
 class DiceRollRequest(BaseModel): roll: int
+class AvatarSizeRequest(BaseModel): avatar_size: int
 
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
@@ -326,6 +327,13 @@ async def deactivate_character(request: CharacterActionRequest):
     if request.character_id in d["characters_id"]: d["characters_id"].remove(request.character_id)
     save_json(ACTIVE_CHARACTERS_FILE, d)
     return {"status": "success"}
+
+@app.post("/api/settings/avatar-size")
+async def update_avatar_size(request: AvatarSizeRequest):
+    state = load_json(PUBLIC_STATE_FILE) or {}
+    state["avatar_size"] = request.avatar_size
+    save_json(PUBLIC_STATE_FILE, state)
+    return {"status": "success", "avatar_size": request.avatar_size}
 
 @app.post("/api/update_active_characters")
 async def update_active_characters(request: UpdateCharactersRequest):
