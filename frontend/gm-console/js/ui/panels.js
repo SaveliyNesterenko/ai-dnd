@@ -285,6 +285,26 @@ export async function initializeTopPanel() {
     );
 
     updateEventButtonState();
+
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeButton = document.querySelector('#settings-modal .close-button');
+
+    if (settingsBtn && settingsModal && closeButton) {
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'block';
+        });
+
+        closeButton.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target == settingsModal) {
+                settingsModal.style.display = 'none';
+            }
+        });
+    }
 }
 
 export function initializeBottomPanel() {
