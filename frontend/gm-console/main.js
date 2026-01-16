@@ -8,7 +8,7 @@ const ROLE_COLORS = {
     Player: 'green',
     gm: 'blue',
     npc: 'yellow',
-    Enemy: 'red'
+    enemy: 'red'
 };
 
 function renderEventLog(history) {
