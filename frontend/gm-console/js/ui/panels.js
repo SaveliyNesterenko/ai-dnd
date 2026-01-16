@@ -288,11 +288,11 @@ export async function initializeTopPanel() {
 
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
-    const closeButton = document.querySelector('#settings-modal .close-button');
+    const closeButton = document.querySelector('#settings-modal .modal-close-btn');
 
     if (settingsBtn && settingsModal && closeButton) {
         settingsBtn.addEventListener('click', () => {
-            settingsModal.style.display = 'block';
+            settingsModal.style.display = 'flex'; // Используем flex для центрирования
         });
 
         closeButton.addEventListener('click', () => {
