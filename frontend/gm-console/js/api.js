@@ -82,6 +82,16 @@ export async function applyJsonPatch(patch) {
     return await response.json();
 }
 
+export async function updateAvatarSize(size) {
+    const response = await fetch(`${API_BASE_URL}/api/settings/avatar-size`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_size: size }),
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Failed to update avatar size');
+    return await response.json();
+}
+
 export async function fetchAllCharacters() {
     const response = await fetch(`${API_BASE_URL}/api/all_characters`);
     if (!response.ok) throw new Error('Failed to fetch all characters');
