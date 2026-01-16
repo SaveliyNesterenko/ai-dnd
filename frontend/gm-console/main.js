@@ -78,7 +78,7 @@ function initializeObserver() {
     const resetButton = document.getElementById('reset-button');
     const observerTextarea = document.getElementById('observer-textarea');
 
-    confirmButton.addEventListener('click', async () => {
+    if(confirmButton) confirmButton.addEventListener('click', async () => {
         const text = observerTextarea.value;
         const patchMatch = text.match(/\[JSON PATCH\]([\s\S]*)/);
         if (patchMatch && patchMatch[1]) {
@@ -95,46 +95,52 @@ function initializeObserver() {
         }
     });
 
-    retryButton.addEventListener('click', () => {
+    if(retryButton) retryButton.addEventListener('click', () => {
         if (state.lastAction) triggerObserver(state.lastAction, state.lastDiceRoll);
     });
-    resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
+    if(resetButton) resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     const panelConfigs = {
         "top-panel": "panels/top-panel.html", "left-panel": "panels/left-panel.html",
         "center-panel": "panels/center-panel.html", "right-panel": "panels/right-panel.html",
-        "bottom-panel": "panels/bottom-panel.html"
+        "bottom-panel": "panels/bottom-panel.html",
+        "settings-modal-container": "panels/settings-modal.html"
     };
 
     function loadPanel(panelId, url) {
-        fetch(url)
+        return fetch(url)
             .then(response => response.text())
             .then(html => {
-                document.getElementById(panelId).innerHTML = html;
-                if (panelId === "center-panel") panels.initializeCenterPanel(triggerObserver);
-                if (panelId === "top-panel") panels.initializeTopPanel();
-                if (panelId === "bottom-panel") panels.initializeBottomPanel();
-                if (panelId === "left-panel") panels.initializeLeftPanel();
-                if (panelId === "right-panel") initializeObserver();
+                const element = document.getElementById(panelId);
+                if (element) {
+                    element.innerHTML = html;
+                }
             });
     }
 
     async function main() {
         try {
-            // 1. Кэшируем данные и загружаем панели
+            // 1. Кэшируем данные и загружаем HTML для панелей
             const allChars = await api.fetchAllCharacters();
             cacheAllCharacters(allChars);
-            Object.entries(panelConfigs).forEach(([id, url]) => loadPanel(id, url));
+            const loadPromises = Object.entries(panelConfigs).map(([id, url]) => loadPanel(id, url));
+            await Promise.all(loadPromises);
+            
+            // 2. Инициализируем JS для панелей после загрузки всего HTML
+            panels.initializeCenterPanel(triggerObserver);
+            panels.initializeTopPanel(); // Эта функция теперь также настроит модальное окно
+            panels.initializeBottomPanel();
+            panels.initializeLeftPanel();
+            initializeObserver();
 
-            // 2. Первоначальная загрузка лога
+            // 3. Первоначальная загрузка лога
             const initialLogData = await api.fetchEventLog();
             renderEventLog(initialLogData.history || []);
 
-            // 3. Подписка на ЕДИНЫЙ ПОТОК ДАННЫХ ДЛЯ ГМ
+            // 4. Подписка на SSE
             api.subscribeToGmStream(
-                // Колбэк для обновления лога
                 (eventLogData) => {
                     console.log('SSE: Received event log update');
                     renderEventLog(eventLogData.history || []);
@@ -147,7 +153,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                 },
-                // Колбэк для обновления персонажа
                 (characterUpdateData) => {
                     console.log('SSE: Received character update:', characterUpdateData);
                     handleCharacterUpdate(characterUpdateData);

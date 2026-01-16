@@ -26,7 +26,7 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
-#event-button, #compress-context-btn {
+#event-button, #compress-context-btn, .settings-button {
     color: white;
     border: none;
     padding: 9px 15px;
@@ -45,12 +45,23 @@
     background-color: #20c997; /* бирюзовый */
 }
 
+.settings-button {
+    background-color: #6c757d; /* серый */
+    font-size: 18px; /* Размер иконки */
+    padding: 5px 10px; /* Адаптация под иконку */
+    line-height: 1; /* Выравнивание иконки */
+}
+
 #event-button:not(:disabled):hover {
     background-color: #0056b3;
 }
 
 #compress-context-btn:not(:disabled):hover {
     background-color: #17a2b8; /* более темный бирюзовый */
+}
+
+.settings-button:hover {
+    background-color: #5a6268;
 }
 
 #event-button:disabled, #compress-context-btn:disabled {
