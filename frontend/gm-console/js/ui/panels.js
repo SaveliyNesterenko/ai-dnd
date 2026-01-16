@@ -286,14 +286,13 @@ export async function initializeTopPanel() {
 
     updateEventButtonState();
 
-    // Settings Modal Logic
     const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal-container'); // Changed to container
-    const closeButton = settingsModal.querySelector('.modal-close-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeButton = document.querySelector('#settings-modal .modal-close-btn');
 
     if (settingsBtn && settingsModal && closeButton) {
         settingsBtn.addEventListener('click', () => {
-            settingsModal.style.display = 'flex';
+            settingsModal.style.display = 'flex'; // Используем flex для центрирования
         });
 
         closeButton.addEventListener('click', () => {
