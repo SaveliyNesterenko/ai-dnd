@@ -1,5 +1,3 @@
-import { updateAvatarSize } from './api.js';
-
 /**
  * Глобальное состояние приложения.
  * @property {object} allCharactersData - Кэш данных всех персонажей (PC и NPC).
@@ -15,23 +13,6 @@ export const state = {
     lastAction: null,
     lastDiceRoll: null,
 };
-
-document.addEventListener('DOMContentLoaded', () => {
-    const avatarSizeSlider = document.getElementById('avatar-size-slider');
-    const avatarSizeValue = document.getElementById('avatar-size-value');
-
-    if (avatarSizeSlider && avatarSizeValue) {
-        avatarSizeSlider.addEventListener('input', () => {
-            const size = avatarSizeSlider.value;
-            avatarSizeValue.textContent = `${size}px`;
-        });
-
-        avatarSizeSlider.addEventListener('change', () => {
-            const size = avatarSizeSlider.value;
-            updateAvatarSize(size).catch(error => console.error('Failed to update avatar size:', error));
-        });
-    }
-});
 
 /**
  * Кэширует данные всех персонажей.

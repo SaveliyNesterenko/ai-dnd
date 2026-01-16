@@ -286,13 +286,14 @@ export async function initializeTopPanel() {
 
     updateEventButtonState();
 
+    // Settings Modal Logic
     const settingsBtn = document.getElementById('settings-btn');
-    const settingsModal = document.getElementById('settings-modal');
-    const closeButton = document.querySelector('#settings-modal .modal-close-btn');
+    const settingsModal = document.getElementById('settings-modal-container'); // Changed to container
+    const closeButton = settingsModal.querySelector('.modal-close-btn');
 
     if (settingsBtn && settingsModal && closeButton) {
         settingsBtn.addEventListener('click', () => {
-            settingsModal.style.display = 'flex'; // Используем flex для центрирования
+            settingsModal.style.display = 'flex';
         });
 
         closeButton.addEventListener('click', () => {
@@ -303,6 +304,22 @@ export async function initializeTopPanel() {
             if (event.target == settingsModal) {
                 settingsModal.style.display = 'none';
             }
+        });
+    }
+
+    // Avatar Size Slider Logic
+    const avatarSizeSlider = document.getElementById('avatar-size-slider');
+    const avatarSizeValue = document.getElementById('avatar-size-value');
+
+    if (avatarSizeSlider && avatarSizeValue) {
+        avatarSizeSlider.addEventListener('input', () => {
+            const size = avatarSizeSlider.value;
+            avatarSizeValue.textContent = `${size}px`;
+        });
+
+        avatarSizeSlider.addEventListener('change', () => {
+            const size = avatarSizeSlider.value;
+            api.updateAvatarSize(size).catch(error => console.error('Failed to update avatar size:', error));
         });
     }
 }
