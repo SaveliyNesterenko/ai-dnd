@@ -10,6 +10,9 @@ export function showInventoryModal(inventoryData) {
         return;
     }
 
+    // Очищаем контейнер перед показом нового модального окна
+    modalContainer.innerHTML = '';
+
     // Создаем оверлей
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
