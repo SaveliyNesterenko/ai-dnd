@@ -192,7 +192,6 @@ export function toggleCharacterCard(characterId) {
 
         // Клик на "Inventory"
         inventoryButton.addEventListener('click', (event) => {
-            console.log("Inventory button clicked");
             event.stopPropagation();
             const inventoryData = charData.inventory || [];
             showInventoryModal(inventoryData);
