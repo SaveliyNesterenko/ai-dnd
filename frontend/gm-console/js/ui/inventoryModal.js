@@ -3,6 +3,7 @@
  * @param {Array} inventoryData - Массив объектов, представляющих предметы в инвентаре.
  */
 export function showInventoryModal(inventoryData) {
+    console.log("showInventoryModal called with data:", inventoryData);
     // Находим контейнер для модального окна
     const modalContainer = document.getElementById('modal-container');
     if (!modalContainer) {
@@ -73,6 +74,7 @@ export function showInventoryModal(inventoryData) {
     modalContent.appendChild(table);
     overlay.appendChild(modalContent);
     modalContainer.appendChild(overlay);
+    console.log("Inventory modal appended to modal-container");
 
     // Закрытие по клику на оверлей
     overlay.addEventListener('click', (event) => {
