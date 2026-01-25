@@ -36,7 +36,18 @@ async def handle_archive_event():
         for event in event_log["history"]:
             event_summary += f'Ход {event["step"]}: [{event["name"]}]\n{event["action"]}\n\n'
 
-        prompt = create_archivist_prompt(event_summary)
+        characters = load_json("data/characters.json") or {}
+        active_characters_data = load_json("data/active_characters.json")
+        active_character_keys = active_characters_data.get("characters_id", [])
+        
+        # Получаем предыдущую хронику от первого активного персонажа (она у всех одинаковая)
+        previous_chronicle = []
+        if active_character_keys:
+            first_char_key = active_character_keys[0]
+            if first_char_key in characters:
+                previous_chronicle = characters[first_char_key].get("memory", {}).get("global_chronicle", [])
+
+        prompt = create_archivist_prompt(event_summary, previous_chronicle)
         save_prompt_to_log("archivist", prompt)
 
         response = client.chat.completions.create(
@@ -46,25 +57,16 @@ async def handle_archive_event():
                 {"role": "user", "content": prompt}
             ]
         )
-        summary = response.choices[0].message.content
+        new_chronicle = response.choices[0].message.content.strip()
 
-        active_characters_data = load_json("data/active_characters.json")
-        active_character_keys = active_characters_data.get("characters_id", [])
-        characters = load_json("data/characters.json") or {}
-
-        formatted_summary = f"Событие от {datetime.now().strftime('%Y-%m-%d')}:\n{summary}"
-
+        # Обновляем хронику для всех активных персонажей
         for char_key in active_character_keys:
             if char_key in characters:
                 char = characters[char_key]
-                if "memory" not in char: char["memory"] = {}
-                if "global_chronicle" not in char["memory"]: char["memory"]["global_chronicle"] = []
-
-                if isinstance(char["memory"]["global_chronicle"], list):
-                    char["memory"]["global_chronicle"].append(formatted_summary)
-                else:
-                    old_data = char["memory"]["global_chronicle"]
-                    char["memory"]["global_chronicle"] = [old_data, formatted_summary]
+                if "memory" not in char: 
+                    char["memory"] = {}
+                # Полностью заменяем хронику новым содержанием
+                char["memory"]["global_chronicle"] = [new_chronicle]
 
         save_json("data/characters.json", characters)
 
@@ -75,7 +77,7 @@ async def handle_archive_event():
         event_log["history"] = []
         save_json("data/event_log.json", event_log)
 
-        return {"status": "success", "message": "Событие успешно заархивировано."}
+        return {"status": "success", "message": "Событие успешно заархивировано, глобальная хроника обновлена."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -103,8 +105,8 @@ async def handle_compress_context():
             name = event.get("name", "Game Master")
             action = event.get("action", "")
             event_summary += f'Ход {step}: [{name}]\n{action}\n\n'
-
-        prompt = create_archivist_prompt(event_summary)
+        # Для сжатия контекста нам не нужна предыдущая хроника, поэтому передаем пустой список
+        prompt = create_archivist_prompt(event_summary, [])
         save_prompt_to_log("context_compressor", prompt)
 
         response = client.chat.completions.create(
