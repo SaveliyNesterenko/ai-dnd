@@ -46,7 +46,7 @@ export function updateBackground(gameState) {
 export function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
     const { identity = {}, stats = {}, meta = {} } = charData;
-    
+
     const modelId = meta.model_id || 'N/A';
     const displayModelName = modelId.includes('/') ? modelId.split('/').pop() : modelId;
 
@@ -66,7 +66,7 @@ export function addOrUpdateCharacterCard(charId, charData) {
         card.addEventListener('click', () => openCharacterModal(charId));
     }
     card.onclick = () => openCharacterModal(charId);
-    
+
     card.querySelector('.model').textContent = displayModelName;
     card.querySelector('.name').textContent = identity.name || 'Unknown';
 
@@ -144,7 +144,7 @@ export function showSpeechBubble(characterId, text, type) {
     if (!charWrapper) return null;
     const bubbleWrapper = document.createElement('div');
     bubbleWrapper.className = `speech-bubble ${type}`;
-    bubbleWrapper.style.bottom = '280px';
+    bubbleWrapper.style.bottom = '320px';
     const bubbleContent = document.createElement('div');
     bubbleContent.className = 'speech-bubble-content';
     bubbleContent.textContent = text;
