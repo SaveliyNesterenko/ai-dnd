@@ -172,24 +172,20 @@ async def handle_player_recollection():
                         {"role": "user", "content": prompt}
                     ]
                 )
-                note = response.choices[0].message.content
+                new_note = response.choices[0].message.content.strip()
 
+                # Создаем структуру, если она отсутствует
                 if "memory" not in char_data:
                     char_data["memory"] = {}
-                if "private_notes" not in char_data["memory"]:
-                    char_data["memory"]["private_notes"] = []
                 
-                if isinstance(char_data["memory"]["private_notes"], list):
-                    char_data["memory"]["private_notes"].append(note)
-                else:
-                    old_notes = char_data["memory"]["private_notes"]
-                    char_data["memory"]["private_notes"] = [old_notes, note]
+                # Полностью заменяем заметки новым содержанием
+                char_data["memory"]["private_notes"] = [new_note]
 
                 updated_character_names.append(char_data.get("identity", {}).get("name", char_key))
 
         save_json("data/characters.json", characters)
 
-        return {"status": "success", "message": "Заметки успешно сгенерированы.", "notes_generated_for": updated_character_names}
+        return {"status": "success", "message": "Заметки успешно сгенерированы и обновлены.", "notes_generated_for": updated_character_names}
 
     except Exception as e:
         print(f"Ошибка при генерации заметок игрока: {e}")
