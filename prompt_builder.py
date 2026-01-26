@@ -1,7 +1,7 @@
 import json
 from utils.logger import save_prompt_to_log
 
-def build_prompt(char, history):
+def build_prompt(char, history, active_characters_data):
     meta = char.get("meta", {})
     identity = char.get("identity", {})
     stats = char.get("stats", {})
@@ -22,8 +22,40 @@ def build_prompt(char, history):
     private_mem = "\n".join(memory.get("private_notes", []))
     memory_block = f"Глобальные знания:\n{global_mem}\n\nЛичные заметки:\n{private_mem}"
 
-    # Формируем КОНТЕКСТ ИГРЫ с учетом мыслей персонажа
+    # --- Формирование блока "УЧАСТНИКИ СЦЕНЫ" ---
     char_name = identity.get('name', 'Unknown')
+    my_team = []
+    npcs = []
+    enemies = []
+
+    for active_char in active_characters_data:
+        active_char_name = active_char.get("identity", {}).get("name")
+        if not active_char_name or active_char_name == char_name:
+            continue
+        
+        role = active_char.get("meta", {}).get("role", "npc").lower()
+
+        if role == "player":
+            my_team.append(active_char_name)
+        elif role == "npc":
+            npcs.append(active_char_name)
+        elif role == "enemy":
+            enemies.append(active_char_name)
+
+    scene_participants_lines = []
+    if my_team:
+        scene_participants_lines.append(f"Моя команда: {', '.join(my_team)}")
+    if npcs:
+        scene_participants_lines.append(f"NPC: {', '.join(npcs)}")
+    if enemies:
+        scene_participants_lines.append(f"Противники: {', '.join(enemies)}")
+    
+    scene_participants_block = ""
+    if scene_participants_lines:
+        scene_participants_block = "--- УЧАСТНИКИ СЦЕНЫ ---\n" + "\n".join(scene_participants_lines)
+    # --- Конец блока ---
+
+    # Формируем КОНТЕКСТ ИГРЫ с учетом мыслей персонажа
     context_lines = []
     for e in history:
         actor = e.get('name', 'N/A')
@@ -32,7 +64,6 @@ def build_prompt(char, history):
         
         event_line = f"[Ход {step}] {actor}: {action}"
         
-        # Добавляем мысли, если это ход текущего персонажа
         if actor == char_name and "thoughts" in e:
             thoughts = e.get("thoughts", "")
             if thoughts:
@@ -47,6 +78,7 @@ def build_prompt(char, history):
 [THOUGHTS] Здесь твои внутренние рассуждения, оценка ситуации и формирование плана действий. 
 [ACTION] Здесь твои действия описанные от первого лица: прямая речь, движения, применение заклинаний или предметов. Это то, что видят и слышат другие."""
 
+    # Собираем финальный промт, вставляя новый блок
     final_prompt = f"""--- ИНФОРМАЦИЯ О ПЕРСОНАЖЕ ---
 {bio_block}
 
@@ -55,7 +87,12 @@ def build_prompt(char, history):
 
 --- ПАМЯТЬ ---
 {memory_block}
+"""
 
+    if scene_participants_block:
+        final_prompt += f"\n{scene_participants_block}\n"
+
+    final_prompt += f"""
 --- КОНТЕКСТ ИГРЫ ---
 {context_block}
 
@@ -65,29 +102,26 @@ def build_prompt(char, history):
 --- ФОРМАТ ОТВЕТА ---
 {format_block}"""
 
-    return final_prompt
+    return final_prompt.strip()
+
 
 def build_observer_prompt(action, dice_roll, characters):
     """
     Формирует промт для "Наблюдателя".
     """
-    # Системная инструкция для модели
     instruction_block = """Ты — Процессор Игровой Логики (Game Logic Engine) и эксперт по механикам D&D 5e. Твоя основная задача — технический анализ игровых событий, расчет изменений характеристик персонажей и подготовка данных для обновления системы. Каждый твой ответ должен строго следовать структуре из двух блоков:
 [GM BRIEF]
 Краткая сводка для ГМ-а: что произошло технически, какие ресурсы потрачены, какие изменения внесены.
 [JSON PATCH]
 Фрагмент кода в формате JSON, содержащий только обновленные поля персонажей."""
 
-    # Блок с описанием события
     event_block = f"Событие: {action}"
     if dice_roll:
         event_block += f"\nБросок кубика d20: {dice_roll}"
 
-    # Блок с данными персонажей в формате JSON
     characters_json = json.dumps(characters, indent=2, ensure_ascii=False)
     characters_block = f"Текущие данные персонажей:\n{characters_json}"
 
-    # Финальный промт
     final_prompt = f"""{instruction_block}
 
 --- ВХОДНЫЕ ДАННЫЕ ---
@@ -96,7 +130,6 @@ def build_observer_prompt(action, dice_roll, characters):
 """
     
     save_prompt_to_log("observer", final_prompt)
-
     return final_prompt
 
 def create_archivist_prompt(event_summary, unique_chronicles):
@@ -138,11 +171,9 @@ def create_player_recollection_prompt(character, event_history):
     char_bio = character.get("identity", {}).get("bio", "")
     previous_notes = character.get("memory", {}).get("private_notes", [])
     
-    # Форматируем предыдущие заметки
     previous_notes_str = "\n".join(previous_notes) if previous_notes else "Пока что у тебя нет никаких личных заметок."
     previous_notes_block = f"--- ПРЕДЫДУЩИЕ ЗАМЕТКИ ---\n{previous_notes_str}"
 
-    # Формируем персонализированную сводку событий
     event_summary = ""
     for event in event_history:
         actor = event.get("name", "N/A")
@@ -151,7 +182,6 @@ def create_player_recollection_prompt(character, event_history):
         
         event_line = f'Ход {event_step}: [{actor}]\n{action}\n'
         
-        # Добавляем мысли, если это ход текущего персонажа
         if actor == char_name and "thoughts" in event:
             thoughts = event.get("thoughts", "")
             if thoughts:
@@ -159,12 +189,9 @@ def create_player_recollection_prompt(character, event_history):
 
         event_summary += event_line + "\n"
 
-    # Системная инструкция и задача
     instruction = f'Ты — {char_name}, {char_bio}. Проанализируй события, которые только что произошли. Вспомни не только действия других, но и свои собственные мысли в ключевые моменты.'
-    
     task = 'Твоя задача — обновить и дополнить свои личные заметки в свете новых событий. Перепиши их полностью от первого лица в стиле личного дневника, сохранив важные старые мысли и добавив новые. Твой ответ должен содержать только итоговый, полный текст заметок. Не используй никаких тегов или специального форматирования.'
 
-    # Собираем финальный промт
     final_prompt = f"""{instruction}
 
 {previous_notes_block}

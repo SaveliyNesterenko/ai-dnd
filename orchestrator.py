@@ -39,7 +39,7 @@ DICE_ROLL_QUEUE = "dice_roll_queue"
 app_state = {}
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+asyn def lifespan(app: FastAPI):
     print("--- Application startup: Connecting to Redis...")
     redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
     app_state["redis_pool"] = redis_pool
@@ -256,7 +256,11 @@ async def generate_action(request: ActionRequest):
     history = event_data.get("history", [])
     new_step_number = len(history) + 1
 
-    prompt = build_prompt(char, history)
+    # Загружаем данные об активных персонажах
+    active_char_ids = (load_json(ACTIVE_CHARACTERS_FILE) or {}).get("characters_id", [])
+    active_characters = [all_chars[char_id] for char_id in active_char_ids if char_id in all_chars]
+
+    prompt = build_prompt(char, history, active_characters)
     save_prompt_to_log(char_key, prompt)
 
     try:
