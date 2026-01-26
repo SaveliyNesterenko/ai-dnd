@@ -24,31 +24,35 @@ def build_prompt(char, history, active_characters_data):
 
     # --- Формирование блока "УЧАСТНИКИ СЦЕНЫ" ---
     char_name = identity.get('name', 'Unknown')
-    my_team = []
-    npcs = []
+    heroes = []
     enemies = []
+    neutrals = []
 
     for active_char in active_characters_data:
         active_char_name = active_char.get("identity", {}).get("name")
-        if not active_char_name or active_char_name == char_name:
+        if not active_char_name:
             continue
-        
+
+        display_name = active_char_name
+        if active_char_name == char_name:
+            display_name += " (Вы)"
+
         role = active_char.get("meta", {}).get("role", "npc").lower()
 
         if role == "player":
-            my_team.append(active_char_name)
-        elif role == "npc":
-            npcs.append(active_char_name)
+            heroes.append(display_name)
         elif role == "enemy":
-            enemies.append(active_char_name)
+            enemies.append(display_name)
+        else: # npc и другие
+            neutrals.append(display_name)
 
     scene_participants_lines = []
-    if my_team:
-        scene_participants_lines.append(f"Моя команда: {', '.join(my_team)}")
-    if npcs:
-        scene_participants_lines.append(f"NPC: {', '.join(npcs)}")
+    if heroes:
+        scene_participants_lines.append(f"Команда героев: {', '.join(heroes)}")
     if enemies:
-        scene_participants_lines.append(f"Противники: {', '.join(enemies)}")
+        scene_participants_lines.append(f"Команда противников: {', '.join(enemies)}")
+    if neutrals:
+        scene_participants_lines.append(f"Нейтральные персонажи: {', '.join(neutrals)}")
     
     scene_participants_block = ""
     if scene_participants_lines:
