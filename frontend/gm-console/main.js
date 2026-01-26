@@ -5,7 +5,7 @@ import { updateCharacterCard } from './js/ui/characterCard.js';
 import './js/ui/inventoryModal.js';
 
 const ROLE_COLORS = {
-    Player: 'green',
+    player: 'green',
     gm: 'blue',
     npc: 'yellow',
     enemy: 'red'
@@ -78,7 +78,7 @@ function initializeObserver() {
     const resetButton = document.getElementById('reset-button');
     const observerTextarea = document.getElementById('observer-textarea');
 
-    if(confirmButton) confirmButton.addEventListener('click', async () => {
+    if (confirmButton) confirmButton.addEventListener('click', async () => {
         const text = observerTextarea.value;
         const patchMatch = text.match(/\[JSON PATCH\]([\s\S]*)/);
         if (patchMatch && patchMatch[1]) {
@@ -95,10 +95,10 @@ function initializeObserver() {
         }
     });
 
-    if(retryButton) retryButton.addEventListener('click', () => {
+    if (retryButton) retryButton.addEventListener('click', () => {
         if (state.lastAction) triggerObserver(state.lastAction, state.lastDiceRoll);
     });
-    if(resetButton) resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
+    if (resetButton) resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
             cacheAllCharacters(allChars);
             const loadPromises = Object.entries(panelConfigs).map(([id, url]) => loadPanel(id, url));
             await Promise.all(loadPromises);
-            
+
             // 2. Инициализируем JS для панелей после загрузки всего HTML
             panels.initializeCenterPanel(triggerObserver);
             panels.initializeTopPanel(); // Эта функция теперь также настроит модальное окно
