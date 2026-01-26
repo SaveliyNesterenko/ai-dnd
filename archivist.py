@@ -24,7 +24,7 @@ client = OpenAI(
 @router.post("/archive_event", tags=["Archivist"])
 async def handle_archive_event():
     """
-    Архивирует текущее игровое событие, обновляя хронику только для персонажей (не NPC).
+    Архивирует текущее игровое событие, обновляя и синхронизируя глобальную хронику для всех активных персонажей.
     """
     try:
         event_log = load_json("data/event_log.json")
@@ -32,24 +32,31 @@ async def handle_archive_event():
         if not event_log or not event_log.get("history"):
             return {"status": "success", "message": "Нет событий для архивации."}
 
+        # 1. Сводка новых событий
         event_summary = ""
         for event in event_log["history"]:
             event_summary += f'Ход {event["step"]}: [{event["name"]}]\n{event["action"]}\n\n'
 
+        # 2. Сбор уникальных хроник
         characters = load_json("data/characters.json") or {}
         active_characters_data = load_json("data/active_characters.json")
         active_character_keys = active_characters_data.get("characters_id", [])
         
-        # Получаем предыдущую хронику от первого активного персонажа (она у всех одинаковая)
-        previous_chronicle = []
-        if active_character_keys:
-            first_char_key = active_character_keys[0]
-            if first_char_key in characters:
-                previous_chronicle = characters[first_char_key].get("memory", {}).get("global_chronicle", [])
+        unique_chronicles_set = set()
+        for char_key in active_character_keys:
+            if char_key in characters:
+                char = characters[char_key]
+                chronicle_list = char.get("memory", {}).get("global_chronicle", [])
+                chronicle_str = "\n".join(chronicle_list)
+                unique_chronicles_set.add(chronicle_str)
+        
+        unique_chronicles = list(unique_chronicles_set)
 
-        prompt = create_archivist_prompt(event_summary, previous_chronicle)
+        # 3. Создание промта с учетом всех версий
+        prompt = create_archivist_prompt(event_summary, unique_chronicles)
         save_prompt_to_log("archivist", prompt)
 
+        # 4. Вызов модели для получения единой хроники
         response = client.chat.completions.create(
             model="google/gemini-2.5-flash-lite",
             messages=[
@@ -57,27 +64,28 @@ async def handle_archive_event():
                 {"role": "user", "content": prompt}
             ]
         )
-        new_chronicle = response.choices[0].message.content.strip()
+        unified_chronicle = response.choices[0].message.content.strip()
 
-        # Обновляем хронику для всех активных персонажей
+        # 5. Обновление хроники у ВСЕХ активных персонажей
         for char_key in active_character_keys:
             if char_key in characters:
                 char = characters[char_key]
                 if "memory" not in char: 
                     char["memory"] = {}
-                # Полностью заменяем хронику новым содержанием
-                char["memory"]["global_chronicle"] = [new_chronicle]
+                char["memory"]["global_chronicle"] = [unified_chronicle]
 
         save_json("data/characters.json", characters)
 
+        # 6. Архивирование лога
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_file_name = f"logs/event_log_{timestamp}.json"
         save_json(log_file_name, event_log)
 
+        # 7. Очистка текущего лога
         event_log["history"] = []
         save_json("data/event_log.json", event_log)
 
-        return {"status": "success", "message": "Событие успешно заархивировано, глобальная хроника обновлена."}
+        return {"status": "success", "message": "Событие успешно заархивировано, глобальная хроника синхронизирована."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -105,7 +113,7 @@ async def handle_compress_context():
             name = event.get("name", "Game Master")
             action = event.get("action", "")
             event_summary += f'Ход {step}: [{name}]\n{action}\n\n'
-        # Для сжатия контекста нам не нужна предыдущая хроника, поэтому передаем пустой список
+        
         prompt = create_archivist_prompt(event_summary, [])
         save_prompt_to_log("context_compressor", prompt)
 
@@ -176,11 +184,9 @@ async def handle_player_recollection():
                 )
                 new_note = response.choices[0].message.content.strip()
 
-                # Создаем структуру, если она отсутствует
                 if "memory" not in char_data:
                     char_data["memory"] = {}
                 
-                # Полностью заменяем заметки новым содержанием
                 char_data["memory"]["private_notes"] = [new_note]
 
                 updated_character_names.append(char_data.get("identity", {}).get("name", char_key))
