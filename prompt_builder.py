@@ -22,7 +22,24 @@ def build_prompt(char, history):
     private_mem = "\n".join(memory.get("private_notes", []))
     memory_block = f"Глобальные знания:\n{global_mem}\n\nЛичные заметки:\n{private_mem}"
 
-    context_lines = [f"[Ход {e.get('step')}] {e.get('name')}: Действие/Речь: {e.get('action')}" for e in history]
+    # Формируем КОНТЕКСТ ИГРЫ с учетом мыслей персонажа
+    char_name = identity.get('name', 'Unknown')
+    context_lines = []
+    for e in history:
+        actor = e.get('name', 'N/A')
+        action = e.get('action', '')
+        step = e.get('step', 'N/A')
+        
+        event_line = f"[Ход {step}] {actor}: Действие/Речь: {action}"
+        
+        # Добавляем мысли, если это ход текущего персонажа
+        if actor == char_name and "thoughts" in e:
+            thoughts = e.get("thoughts", "")
+            if thoughts:
+                event_line += f'\nМои мысли в тот момент: {thoughts}'
+                
+        context_lines.append(event_line)
+
     context_block = "История событий (Лог):\n" + "\n".join(context_lines)
 
     goal_block = "Твоя задача — отыгрывать роль своего персонажа, опираясь на его характер, состояние и историю событий."
