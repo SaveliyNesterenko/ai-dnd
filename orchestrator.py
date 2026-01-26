@@ -39,7 +39,7 @@ DICE_ROLL_QUEUE = "dice_roll_queue"
 app_state = {}
 
 @asynccontextmanager
-asyn def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     print("--- Application startup: Connecting to Redis...")
     redis_pool = redis.ConnectionPool.from_url(REDIS_URL, decode_responses=True)
     app_state["redis_pool"] = redis_pool
