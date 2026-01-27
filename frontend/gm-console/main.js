@@ -5,7 +5,7 @@ import { updateCharacterCard } from './js/ui/characterCard.js';
 import './js/ui/inventoryModal.js';
 
 const ROLE_COLORS = {
-    player: 'green',
+    Player: 'green',
     gm: 'blue',
     npc: 'yellow',
     enemy: 'red'
