@@ -1,6 +1,7 @@
 import json
 from utils.logger import save_prompt_to_log
 
+
 def build_prompt(char, history, active_characters_data):
     meta = char.get("meta", {})
     identity = char.get("identity", {})
@@ -9,13 +10,18 @@ def build_prompt(char, history, active_characters_data):
     memory = char.get("memory", {})
 
     bio_block = f"Роль: {meta.get('role', 'Unknown')}\nИмя: {identity.get('name', 'Unknown')}\nБиография: {identity.get('bio', '')}"
-    hp_curr, hp_max = stats.get('hp', {}).get('current', '?'), stats.get('hp', {}).get('max', '?')
-    mp_curr, mp_max = stats.get('mp', {}).get('current', '?'), stats.get('mp', {}).get('max', '?')
-    attributes_str = ", ".join([f"{k}: {v}" for k, v in stats.get('attributes', {}).items()])
+    hp_curr, hp_max = stats.get('hp', {}).get(
+        'current', '?'), stats.get('hp', {}).get('max', '?')
+    mp_curr, mp_max = stats.get('mp', {}).get(
+        'current', '?'), stats.get('mp', {}).get('max', '?')
+    attributes_str = ", ".join(
+        [f"{k}: {v}" for k, v in stats.get('attributes', {}).items()])
     effects_str = ", ".join(stats.get('status_effects', [])) or "Нет"
     stats_str = f"Здоровье (HP): {hp_curr}/{hp_max} | Мана (MP): {mp_curr}/{mp_max}\nАтрибуты: {attributes_str}\nЭффекты: {effects_str}"
-    
-    inv_str = "Инвентарь:\n" + ("\n".join([f"- {item.get('name')} ({item.get('quantity')} шт): {item.get('description')}" for item in inventory]) if inventory else "Пусто.")
+
+    inv_str = "Инвентарь:\n" + \
+        ("\n".join([f"- {item.get('name')} ({item.get('quantity')} шт): {item.get('description')}" for item in inventory])
+         if inventory else "Пусто.")
     state_block = f"{stats_str}\n{inv_str}"
 
     global_mem = "\n".join(memory.get("global_chronicle", []))
@@ -43,20 +49,23 @@ def build_prompt(char, history, active_characters_data):
             heroes.append(display_name)
         elif role == "enemy":
             enemies.append(display_name)
-        else: # npc и другие
+        else:  # npc и другие
             neutrals.append(display_name)
 
     scene_participants_lines = []
     if heroes:
         scene_participants_lines.append(f"Команда героев: {', '.join(heroes)}")
     if enemies:
-        scene_participants_lines.append(f"Команда противников: {', '.join(enemies)}")
+        scene_participants_lines.append(
+            f"Команда противников: {', '.join(enemies)}")
     if neutrals:
-        scene_participants_lines.append(f"Нейтральные персонажи: {', '.join(neutrals)}")
-    
+        scene_participants_lines.append(
+            f"Нейтральные персонажи: {', '.join(neutrals)}")
+
     scene_participants_block = ""
     if scene_participants_lines:
-        scene_participants_block = "--- УЧАСТНИКИ СЦЕНЫ ---\n" + "\n".join(scene_participants_lines)
+        scene_participants_block = "--- УЧАСТНИКИ СЦЕНЫ ---\n" + \
+            "\n".join(scene_participants_lines)
     # --- Конец блока ---
 
     # Формируем КОНТЕКСТ ИГРЫ с учетом мыслей персонажа
@@ -65,14 +74,14 @@ def build_prompt(char, history, active_characters_data):
         actor = e.get('name', 'N/A')
         action = e.get('action', '')
         step = e.get('step', 'N/A')
-        
+
         event_line = f"[Ход {step}] {actor}: {action}"
-        
+
         if actor == char_name and "thoughts" in e:
             thoughts = e.get("thoughts", "")
             if thoughts:
                 event_line += f'\nМои мысли в тот момент: {thoughts}'
-                
+
         context_lines.append(event_line)
 
     context_block = "История событий (Лог):\n" + "\n".join(context_lines)
@@ -132,30 +141,31 @@ def build_observer_prompt(action, dice_roll, characters):
 {event_block}
 {characters_block}
 """
-    
+
     save_prompt_to_log("observer", final_prompt)
     return final_prompt
+
 
 def create_archivist_prompt(event_summary, unique_chronicles):
     """
     Формирует промт для "Архивариуса" с учетом возможных расхождений в хрониках.
     """
-    instruction = """Ты — Синтезатор Хроники. Твоя задача — поддерживать единую и актуальную летопись игровых событий."""
+    instruction = """Ты — Синтезатор Хроники в рамках кампании по ДНД. Твоя задача — поддерживать единую и актуальную летопись игровых событий."""
 
     if not unique_chronicles:
         previous_chronicle_block = "--- СУЩЕСТВУЮЩАЯ ХРОНИКА ---\nХроника пока пуста."
-        task = "Проанализируй лог и напиши краткий конспект произошедшего, который станет началом глобальной хроники. Отрази только ключевые факты, решения и их последствия. Конспект должен быть написан в прошедшем времени от третьего лица. Твой ответ должен содержать только итоговый текст хроники."
+        task = "Проанализируй лог и напиши краткий конспект произошедшего, который станет началом глобальной хроники. Отрази только ключевые факты, решения и их последствия для формирования целостной общей картины. Конспект должен быть написан в прошедшем времени от третьего лица. Твой ответ должен содержать только итоговый текст хроники."
     elif len(unique_chronicles) == 1:
         previous_chronicle_block = f"--- СУЩЕСТВУЮЩАЯ ХРОНИКА ---\n{unique_chronicles[0]}"
         instruction += " Проанализируй новые события и обнови существующую хронику, создав единый, целостный текст."
-        task = "Твоя задача — переписать и дополнить существующую хронику в свете новых событий. Сохрани стиль и целостность повествования. Твой ответ должен содержать только итоговый, полный текст обновленной хроники. Не используй никаких тегов или специального форматирования."
-    else: # More than one unique chronicle
+        task = "Перепиши и дополни существующую хронику в свете новых событий. Сохрани стиль и целостность повествования. Отрази только ключевые факты, решения и их последствия для формирования целостной общей картины. Твой ответ должен содержать только итоговый, полный текст обновленной хроники. Не используй никаких тегов или специального форматирования."
+    else:  # More than one unique chronicle
         instruction += " У разных участников оказались разные версии хроники. Проанализируй все версии и новые события, чтобы объединить их в единую, непротиворечивую летопись."
         chronicle_versions_str = ""
         for i, chronicle in enumerate(unique_chronicles, 1):
             chronicle_versions_str += f"--- ВЕРСИЯ {i} ---\n{chronicle}\n\n"
         previous_chronicle_block = f"--- СУЩЕСТВУЮЩИЕ ВЕРСИИ ХРОНИКИ ---\n{chronicle_versions_str.strip()}"
-        task = "Твоя задача — внимательно изучить все представленные версии хроники и лог новых событий. Создай на их основе единую, общую и непротиворечивую хронику. Устрани расхождения, объединив информацию. Твой ответ должен содержать только итоговый, полный текст объединенной хроники. Не используй никаких тегов или специального форматирования."
+        task = "Внимательно изучи все представленные версии хроники и лог новых событий. Создай на их основе единую, общую и непротиворечивую хронику. Устрани расхождения, объединив информацию. Отрази только ключевые факты, решения и их последствия для формирования целостной общей картины. Твой ответ должен содержать только итоговый, полный текст объединенной хроники. Не используй никаких тегов или специального форматирования."
 
     final_prompt = f"""{instruction}
 
@@ -167,6 +177,7 @@ def create_archivist_prompt(event_summary, unique_chronicles):
 {task}"""
     return final_prompt
 
+
 def create_player_recollection_prompt(character, event_history):
     """
     Формирует промт для персонажа-игрока, чтобы он сделал личные заметки.
@@ -174,8 +185,9 @@ def create_player_recollection_prompt(character, event_history):
     char_name = character.get("identity", {}).get("name", "Неизвестный")
     char_bio = character.get("identity", {}).get("bio", "")
     previous_notes = character.get("memory", {}).get("private_notes", [])
-    
-    previous_notes_str = "\n".join(previous_notes) if previous_notes else "Пока что у тебя нет никаких личных заметок."
+
+    previous_notes_str = "\n".join(
+        previous_notes) if previous_notes else "Пока что у тебя нет никаких личных заметок."
     previous_notes_block = f"--- ПРЕДЫДУЩИЕ ЗАМЕТКИ ---\n{previous_notes_str}"
 
     event_summary = ""
@@ -183,9 +195,9 @@ def create_player_recollection_prompt(character, event_history):
         actor = event.get("name", "N/A")
         action = event.get("action", "")
         event_step = event.get("step", "N/A")
-        
+
         event_line = f'Ход {event_step}: [{actor}]\n{action}\n'
-        
+
         if actor == char_name and "thoughts" in event:
             thoughts = event.get("thoughts", "")
             if thoughts:
@@ -204,5 +216,5 @@ def create_player_recollection_prompt(character, event_history):
 {event_summary}
 --- ТВОЯ ЗАДАЧА ---
 {task}"""
-    
+
     return final_prompt
