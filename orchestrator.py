@@ -343,7 +343,7 @@ async def generate_action(request: ActionRequest):
             status_code=502, detail="AI model API call failed.")
 
     updated_event_data = handle_response(
-        ai_response, event_data, char.get("identity", {}).get('name'),
+        ai_response, event_data, char_key, char.get("identity", {}).get('name'),
         char.get("meta", {}).get('role'), new_step_number
     )
     save_json(EVENT_LOG_FILE, updated_event_data)

@@ -1,12 +1,13 @@
 import json
 
-def handle_response(response_text, event_log_data, character_name, character_role, new_step_number):
+def handle_response(response_text, event_log_data, character_id, character_name, character_role, new_step_number):
     """
     Анализирует ответ модели, обновляет журнал событий и возвращает обновлённый журнал.
 
     Аргументы:
         response_text: необработанный текстовый ответ модели.
         event_log_data: текущие данные журнала событий (в виде словаря Python).
+        character_id: ID персонажа.
         character_name: имя персонажа, выполняющего действие.
         character_role: роль персонажа.
         new_step_number: номер нового шага.
@@ -33,6 +34,7 @@ def handle_response(response_text, event_log_data, character_name, character_rol
 
     new_step = {
         "step": new_step_number,
+        "id": character_id, 
         "name": character_name,
         "role": character_role,
         "thoughts": thoughts,
