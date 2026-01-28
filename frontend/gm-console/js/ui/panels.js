@@ -76,25 +76,22 @@ export function initializeCenterPanel(triggerObserver) {
     };
 
     if(sendResponseBtn) sendResponseBtn.addEventListener('click', () => {
+        const charKey = charInput.value.trim();
         const actionText = outputArea.value;
-        triggerObserver(actionText, null);
+        triggerObserver(actionText, null, charKey);
         resetToActionGenerator();
     });
 
     if(sendWithDiceRollBtn) sendWithDiceRollBtn.addEventListener('click', () => {
+        const charKey = charInput.value.trim();
         const actionText = outputArea.value;
         const diceRoll = Math.floor(Math.random() * 20) + 1;
 
-        // Отправляем бросок на сервер для трансляции зрителю (без ожидания ответа)
-        // Добавляем .catch() чтобы "поймать" ожидаемую ошибку и не дать ей попасть в консоль как "uncaught"
         api.broadcastDiceRoll(diceRoll).catch(error => {
-            // Это ожидаемая ошибка (404), пока мы не создали эндпоинт.
-            // Можно просто проигнорировать или вывести более контролируемое сообщение.
             console.log("Broadcast request sent. A 404 error is expected at this stage.");
         });
 
-        // Вызываем основную логику Наблюдателя
-        triggerObserver(actionText, diceRoll);
+        triggerObserver(actionText, diceRoll, charKey);
         resetToActionGenerator();
     });
 }

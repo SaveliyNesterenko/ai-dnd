@@ -60,12 +60,12 @@ function handleCharacterUpdate(updatedCharData) {
     }
 }
 
-async function triggerObserver(action, diceRoll = null) {
+async function triggerObserver(action, diceRoll, characterId) {
     const observerTextarea = document.getElementById('observer-textarea');
     observerTextarea.value = 'Анализ...';
     setLastObserverRequest(action, diceRoll);
     try {
-        const result = await api.getObserverAnalysis(action, diceRoll);
+        const result = await api.getObserverAnalysis(action, diceRoll, characterId);
         observerTextarea.value = result.response;
     } catch (error) {
         observerTextarea.value = `Ошибка: ${error.message}`;
@@ -96,7 +96,7 @@ function initializeObserver() {
     });
 
     if (retryButton) retryButton.addEventListener('click', () => {
-        if (state.lastAction) triggerObserver(state.lastAction, state.lastDiceRoll);
+        if (state.lastAction) triggerObserver(state.lastAction, state.lastDiceRoll, state.lastCharacterId);
     });
     if (resetButton) resetButton.addEventListener('click', () => { observerTextarea.value = ''; });
 }
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (lastEvent && lastEvent.name !== 'Game Master') {
                         const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
                         if (actionMatch && actionMatch[1]) {
-                            triggerObserver(actionMatch[1].trim());
+                            triggerObserver(actionMatch[1].trim(), null, lastEvent.id);
                         }
                     }
                 },
