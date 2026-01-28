@@ -120,30 +120,89 @@ def build_prompt(char, history, active_characters_data):
 
 def build_observer_prompt(action, dice_roll, characters):
     """
-    Формирует промт для "Наблюдателя".
+    Формирует промт для "Наблюдателя" с подробными инструкциями и примером.
     """
-    instruction_block = """Ты — Процессор Игровой Логики (Game Logic Engine) и эксперт по механикам D&D 5e. Твоя основная задача — технический анализ игровых событий, расчет изменений характеристик персонажей и подготовка данных для обновления системы. Каждый твой ответ должен строго следовать структуре из двух блоков:
-[GM BRIEF]
-Краткая сводка для ГМ-а: что произошло технически, какие ресурсы потрачены, какие изменения внесены.
-[JSON PATCH]
-Фрагмент кода в формате JSON, содержащий только обновленные поля персонажей."""
+    instruction_block = """Ты — Процессор Игровой Логики и эксперт по механикам D&D 5e. Твоя основная задача — технический анализ игровых событий, расчет изменений характеристик персонажей и подготовка данных для обновления системы.
 
-    event_block = f"Событие: {action}"
+Каждый твой ответ должен строго следовать структуре из двух блоков:
+
+1.  **[GM BRIEF]**
+    Краткая, но емкая сводка для ГМ-а: что произошло технически, какие ресурсы потрачены, какие проверки пройдены, каковы эффекты.
+
+2.  **[JSON PATCH]**
+    JSON-объект, описывающий изменения в данных персонажей. **Это самый важный блок, соблюдай формат строго.**
+
+    **Правила для [JSON PATCH]:**
+    *   Ты можешь изменять **только** поля внутри объектов `stats` и `inventory`.
+    *   Ключами верхнего уровня в JSON-объекте должны быть ID персонажей (например, `kael_roan`), которые были затронуты событием.
+    *   Для каждого `char_id` в значении должен быть объект, содержащий **только те поля, которые изменились** (`stats` или `inventory`).
+    *   Для `stats`: можно изменять `hp`, `mp`, `attributes`, `status_effects`. При изменении `hp` или `mp`, передавай весь объект `{"current": ..., "max": ...}`.
+    *   Для `inventory`: это **массив**. Чтобы изменить его, ты должен передать **весь массив целиком** с добавленными, удаленными или измененными предметами.
+    *   **ЗАПРЕЩЕНО** изменять другие поля, такие как `meta`, `identity` или `memory`.
+
+    **[ПРИМЕР]**
+    Событие: "Силия использует `Аптечку-регенератор` на себе, восстанавливая 4 HP. Затем она передает `Рунический ключ` персонажу `kael_roan`."
+    Текущие данные (фрагмент):
+    {
+        "silia": {
+            "stats": { "hp": { "current": 65, "max": 90 } },
+            "inventory": [
+                { "name": "Рунический ключ", "quantity": 1, ... },
+                { "name": "Аптечка-регенератор", "quantity": 1, ... }
+            ]
+        },
+        "kael_roan": {
+            "inventory": [
+                { "name": "Длинный меч ордена", "quantity": 1, ... }
+            ]
+        }
+    }
+
+    Результат в твоем ответе должен выглядеть так:
+    [JSON PATCH]
+    {
+        "silia": {
+            "stats": {
+                "hp": { "current": 69, "max": 90 }
+            },
+            "inventory": [
+                { "name": "Аптечка-регенератор", "quantity": 1, ... }
+            ]
+        },
+        "kael_roan": {
+            "inventory": [
+                { "name": "Длинный меч ордена", "quantity": 1, ... },
+                { "name": "Рунический ключ", "quantity": 1, ... }
+            ]
+        }
+    }
+    **[/ПРИМЕР]**"""
+
+    event_block = f"Событие для анализа: {action}"
     if dice_roll:
-        event_block += f"\nБросок кубика d20: {dice_roll}"
+        event_block += f"\nРезультат броска d20: {dice_roll}"
 
-    characters_json = json.dumps(characters, indent=2, ensure_ascii=False)
-    characters_block = f"Текущие данные персонажей:\n{characters_json}"
+    # Оставляем только нужные для Наблюдателя поля
+    observer_chars = {}
+    for char_id, char_data in characters.items():
+        observer_chars[char_id] = {
+            "stats": char_data.get("stats", {}),
+            "inventory": char_data.get("inventory", [])
+        }
+
+    characters_json = json.dumps(observer_chars, indent=2, ensure_ascii=False)
+    characters_block = f"Текущие данные персонажей (только `stats` и `inventory`):\n{characters_json}"
 
     final_prompt = f"""{instruction_block}
 
 --- ВХОДНЫЕ ДАННЫЕ ---
 {event_block}
 {characters_block}
-"""
+
+--- ТВОЙ ОТВЕТ ---"""
 
     save_prompt_to_log("observer", final_prompt)
-    return final_prompt
+    return final_prompt.strip()
 
 
 def create_archivist_prompt(event_summary, unique_chronicles):
@@ -173,7 +232,7 @@ def create_archivist_prompt(event_summary, unique_chronicles):
 
 --- НОВЫЕ СОБЫТИЯ ДЛЯ АНАЛИЗА ---
 {event_summary}
---- ТВОЯ ЗАДАЧA ---
+--- ТВОЯ ЗАДАЧА ---
 {task}"""
     return final_prompt
 
@@ -192,16 +251,16 @@ def create_player_recollection_prompt(character, event_history):
 
     event_summary = ""
     for event in event_history:
-        actor = event.get("name", "N/A")
-        action = event.get("action", "")
-        event_step = event.get("step", "N/A")
+        actor = event.get('name', 'N/A')
+        action = event.get('action', '')
+        event_step = event.get('step', 'N/A')
 
         event_line = f'Ход {event_step}: [{actor}]\n{action}\n'
 
         if actor == char_name and "thoughts" in event:
             thoughts = event.get("thoughts", "")
             if thoughts:
-                event_line += f'Мои мысли в тот момент: {thoughts}\n'
+                event_line += f'\nМои мысли в тот момент: {thoughts}\n'
 
         event_summary += event_line + "\n"
 
