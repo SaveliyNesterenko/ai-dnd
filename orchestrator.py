@@ -116,6 +116,7 @@ class UpdateCharactersRequest(BaseModel):
 
 class ObserverRequest(BaseModel):
     action: str
+    character_id: str
     dice_roll: Optional[int] = None
 
 
@@ -489,8 +490,19 @@ async def observer_analysis(request: ObserverRequest):
     active_chars = {k: all_chars[k] for k in active_ids if k in all_chars}
     if not active_chars:
         raise HTTPException(404)
+    
+    if request.character_id not in all_chars:
+        raise HTTPException(status_code=404, detail=f"Character with id '{request.character_id}' not found.")
+
+    char_name = all_chars[request.character_id].get("identity", {}).get("name", "Unknown")
+
     prompt = build_observer_prompt(
-        request.action, request.dice_roll, active_chars)
+        action=request.action,
+        dice_roll=request.dice_roll,
+        characters=active_chars,
+        character_name=char_name
+    )
+    
     save_prompt_to_log("observer", prompt)
     response = client.chat.completions.create(model="deepseek/deepseek-v3.2", messages=[
                                               {"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}])

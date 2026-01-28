@@ -62,11 +62,11 @@ export async function setLocation(locationId) {
     return await response.json();
 }
 
-export async function getObserverAnalysis(action, diceRoll) {
+export async function getObserverAnalysis(action, diceRoll, characterId) {
     const response = await fetch(`${API_BASE_URL}/api/observer_analysis`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, dice_roll: diceRoll }),
+        body: JSON.stringify({ action: action, character_id: characterId, dice_roll: diceRoll }),
     });
     if (!response.ok) throw new Error((await response.json()).detail || 'Observer analysis failed');
     return await response.json();

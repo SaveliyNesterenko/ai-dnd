@@ -118,7 +118,7 @@ def build_prompt(char, history, active_characters_data):
     return final_prompt.strip()
 
 
-def build_observer_prompt(action, dice_roll, characters):
+def build_observer_prompt(action, dice_roll, characters, character_name):
     """
     Формирует промт для "Наблюдателя" с подробными инструкциями и примером.
     """
@@ -178,7 +178,7 @@ def build_observer_prompt(action, dice_roll, characters):
     }
     **[/ПРИМЕР]**"""
 
-    event_block = f"Событие для анализа: {action}"
+    event_block = f"Персонаж, совершающий ход: {character_name}\nСобытие для анализа: {action}"
     if dice_roll:
         event_block += f"\nРезультат броска d20: {dice_roll}"
 
