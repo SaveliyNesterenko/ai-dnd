@@ -27,7 +27,7 @@ export async function fetchInitialData() {
             fetch(`${API_BASE_URL}/api/active_characters`)
         ]);
         if (!gameStateRes.ok || !activeCharsRes.ok) {
-            throw new Error(`HTTP error! status: ${gameStateRes.status} or ${activeCharses.status}`);
+            throw new Error(`HTTP error! status: ${gameStateRes.status} or ${activeCharsRes.status}`);
         }
         const initialState = await gameStateRes.json();
         const initialCharacterIds = await activeCharsRes.json();

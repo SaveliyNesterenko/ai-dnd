@@ -147,7 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     const lastEvent = eventLogData.history[eventLogData.history.length - 1];
                     if (lastEvent && lastEvent.name !== 'Game Master') {
-                        const actionMatch = lastEvent.action.match(/\[ACTION']([\s\S]*)/);
+                        const actionMatch = lastEvent.action.match(/\[ACTION\]([\s\S]*)/);
                         if (actionMatch && actionMatch[1]) {
                             triggerObserver(actionMatch[1].trim(), null, lastEvent.id);
                         }
