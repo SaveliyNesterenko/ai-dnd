@@ -76,6 +76,70 @@
 .inventory-table td:nth-child(1) { font-weight: bold; }
 .inventory-table td:nth-child(2) { text-align: center; }
 
+/* === Inventory Editor === */
+.inventory-input {
+    width: 100%;
+    background: #1e242b;
+    border: 1px solid #4a4a52;
+    color: #f0e6d6;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: inherit;
+}
+
+.inventory-row-actions {
+    text-align: right;
+}
+
+.inventory-remove-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.inventory-remove-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.inventory-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.inventory-add-btn,
+.inventory-save-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.inventory-add-btn:hover,
+.inventory-save-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.inventory-status {
+    margin: 8px 0 0 0;
+    color: #d3c4a8;
+    font-size: 0.9em;
+}
+
+.inventory-status--error {
+    color: #ff6b6b;
+}
+
 /* === Settings === */
 .setting-item {
     display: flex;

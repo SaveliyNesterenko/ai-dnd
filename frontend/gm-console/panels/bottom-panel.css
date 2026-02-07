@@ -201,6 +201,120 @@
     border: 2px solid #ffd700;
 }
 
+/* === Inline Editors === */
+.stats-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.25);
+    padding: 6px;
+    border-radius: 6px;
+}
+
+.stat-edit-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 12px 1fr;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+}
+
+.stat-edit-row input {
+    width: 100%;
+    background: #1e242b;
+    border: 1px solid #776a54;
+    color: #f0e6d6;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-family: inherit;
+}
+
+.stat-edit-divider {
+    text-align: center;
+    color: #c9a977;
+}
+
+.stat-edit-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.stat-edit-actions button {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.stat-edit-actions button:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.status-effects-edit {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+
+.status-effect-input {
+    flex: 1;
+    background: #1e242b;
+    border: 1px solid #776a54;
+    color: #f0e6d6;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: inherit;
+}
+
+.status-effect-add-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.status-effect-add-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.status-effect-item {
+    gap: 6px;
+}
+
+.status-effect-text {
+    flex: 1;
+}
+
+.status-effect-remove-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.status-effect-remove-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
 /* Util */
 .hidden {
     display: none !important;
