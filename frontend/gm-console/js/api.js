@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://127.0.0.1:8000';
+﻿const API_BASE_URL = 'http://127.0.0.1:8000';
 
 // ... (все функции fetch остаются без изменений)
 
@@ -180,7 +180,7 @@ export async function broadcastDiceRoll(roll) {
             body: JSON.stringify({ roll: roll }),
         });
         if (!response.ok) {
-            // Попытаемся получить осмысленное сообщение об ошибке с сервера
+            // Пытаемся получить осмысленное сообщение об ошибке от сервера
             const errorData = await response.json().catch(() => null); // .json() может упасть, если тело пустое
             const errorMessage = errorData ? errorData.detail : `HTTP error! status: ${response.status}`;
             console.error('Failed to broadcast dice roll:', errorMessage);
@@ -189,38 +189,78 @@ export async function broadcastDiceRoll(roll) {
         return await response.json();
     } catch (error) {
         console.error('Error in broadcastDiceRoll:', error);
-        // Перебрасываем ошибку, чтобы вызывающий код мог на нее среагировать
+        // Пробрасываем ошибку, чтобы вызывающий код мог отреагировать
         throw error;
     }
 }
 
 
 /**
- * НОВАЯ ЕДИНАЯ ПОДПИСКА ДЛЯ КОНСОЛИ ГМ
- * Подписывается на единый поток данных и вызывает соответствующие колбэки.
- * @param {function(object): void} onLogUpdate - Колбэк для обновления лога событий.
- * @param {function(object): void} onCharUpdate - Колбэк для обновления данных персонажа.
+ * Единая подписка на SSE для консоли GM.
+ * Подписывается на общий поток и вызывает соответствующие коллбэки.
+ * @param {function(object): void} onLogUpdate - Коллбэк для обновления лога событий.
+ * @param {function(object): void} onCharUpdate - Коллбэк для обновления данных персонажа.
  */
 export function subscribeToGmStream(onLogUpdate, onCharUpdate) {
-    console.log("Connecting to the unified GM stream...");
-    const eventSource = new EventSource(`${API_BASE_URL}/api/gm_stream`);
+    let eventSource = null;
+    let retryTimer = null;
+    let retryDelayMs = 1000;
+    const maxRetryDelayMs = 30000;
 
-    // Слушаем событие обновления лога событий
-    eventSource.addEventListener('event_log_update', function(event) {
-        const eventData = JSON.parse(event.data);
-        onLogUpdate(eventData);
-    });
+    const connect = () => {
+        console.log("Connecting to the unified GM stream...");
+        eventSource = new EventSource(`${API_BASE_URL}/api/gm_stream`);
 
-    // Слушаем событие обновления данных персонажа
-    eventSource.addEventListener('character_update', function(event) {
-        const charData = JSON.parse(event.data);
-        onCharUpdate(charData);
-    });
+        eventSource.onopen = async () => {
+            retryDelayMs = 1000;
+            try {
+                const log = await fetchEventLog();
+                onLogUpdate(log);
+                const allChars = await fetchAllCharacters();
+                for (const [id, data] of Object.entries(allChars || {})) {
+                    onCharUpdate({ id, data });
+                }
+            } catch (e) {
+                console.error("Failed to restore GM state:", e);
+            }
+        };
 
-    eventSource.onerror = function(err) {
-        console.error("GM Stream EventSource failed:", err);
-        eventSource.close();
+        // Слушаем событие обновления лога событий
+        eventSource.addEventListener('event_log_update', function(event) {
+            const eventData = JSON.parse(event.data);
+            onLogUpdate(eventData);
+        });
+
+        // Слушаем событие обновления данных персонажа
+        eventSource.addEventListener('character_update', function(event) {
+            const charData = JSON.parse(event.data);
+            onCharUpdate(charData);
+        });
+
+        eventSource.onerror = function(err) {
+            console.error("GM Stream EventSource failed:", err);
+            try { eventSource.close(); } catch (e) {}
+            if (retryTimer) return;
+            const delay = retryDelayMs;
+            retryDelayMs = Math.min(retryDelayMs * 2, maxRetryDelayMs);
+            retryTimer = setTimeout(() => {
+                retryTimer = null;
+                connect();
+            }, delay);
+        };
     };
 
-    return eventSource; // Возвращаем для возможности закрытия
+    connect();
+
+    return {
+        close: () => {
+            if (retryTimer) {
+                clearTimeout(retryTimer);
+                retryTimer = null;
+            }
+            if (eventSource) {
+                try { eventSource.close(); } catch (e) {}
+            }
+        }
+    };
 }
