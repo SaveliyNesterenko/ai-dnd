@@ -1,10 +1,20 @@
-import { showSpeechBubble, animateScrollTransform, stopAnimations } from './ui.js';
+import { showSpeechBubble, animateScrollTransform, stopAnimations, showDiceRoll } from './ui.js';
 import { API_BASE_URL } from './api.js';
 
 // --- СИСТЕМА ОЧЕРЕДИ ДЛЯ ПОСЛЕДОВАТЕЛЬНОГО ВОСПРОИЗВЕДЕНИЯ --- 
 
 let speechQueue = [];
 let isProcessing = false;
+let pendingDiceRolls = [];
+
+/**
+ * Добавляет бросок кубика в очередь, чтобы показать его после завершения реплики.
+ * @param {number} rollValue
+ */
+export function handleDiceRollEvent(rollValue) {
+    if (typeof rollValue !== 'number') return;
+    pendingDiceRolls.push(rollValue);
+}
 
 /**
  * Главная функция, вызываемая извне. Добавляет событие в очередь и запускает обработчик.
@@ -60,6 +70,10 @@ function executeSpeechEvent(data) {
         const cleanupAndResolve = () => {
             stopAnimations();
             bubbleElements.wrapper.remove();
+            if (pendingDiceRolls.length > 0) {
+                const nextRoll = pendingDiceRolls.shift();
+                showDiceRoll(nextRoll);
+            }
             resolve(); // <-- Ключевой момент: Promise завершен, можно начинать следующее событие
         };
 

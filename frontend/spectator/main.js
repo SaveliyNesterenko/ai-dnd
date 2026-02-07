@@ -1,6 +1,6 @@
 import { subscribeToSpectatorStream, fetchInitialData } from './js/api.js';
-import { updateBackground, updateMusic, addOrUpdateCharacterCard, renderAvatars, showDiceRoll } from './js/ui.js';
-import { handleSpeechEvent } from './js/state.js';
+import { updateBackground, updateMusic, addOrUpdateCharacterCard, renderAvatars } from './js/ui.js';
+import { handleSpeechEvent, handleDiceRollEvent } from './js/state.js';
 import { makeDraggable } from './js/drag.js';
 
 async function main() {
@@ -17,7 +17,7 @@ async function main() {
         onGameStateUpdate: (state) => { updateBackground(state); updateMusic(state); },
         onActiveCharactersUpdate: (characterIds) => renderAvatars(characterIds, makeDraggable),
         onCharacterFullUpdate: addOrUpdateCharacterCard,
-        onDiceRoll: showDiceRoll,
+        onDiceRoll: handleDiceRollEvent,
         // *** ИСПОЛЬЗУЕМ НОВЫЙ, ЕДИНЫЙ ОБРАБОТЧИК РЕПЛИК ***
         onSpeech: handleSpeechEvent 
     });
