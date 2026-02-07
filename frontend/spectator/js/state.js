@@ -70,7 +70,7 @@ function executeSpeechEvent(data) {
         const cleanupAndResolve = () => {
             stopAnimations();
             bubbleElements.wrapper.remove();
-            if (pendingDiceRolls.length > 0) {
+            if (type === 'action' && pendingDiceRolls.length > 0) {
                 const nextRoll = pendingDiceRolls.shift();
                 showDiceRoll(nextRoll);
             }
