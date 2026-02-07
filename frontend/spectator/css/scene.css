@@ -44,3 +44,7 @@
     height: 300px;
     display: block;
 }
+
+.character-avatar.flipped {
+    transform: scaleX(-1);
+}

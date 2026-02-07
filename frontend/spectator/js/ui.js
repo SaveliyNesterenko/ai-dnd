@@ -28,6 +28,12 @@ function applyAvatarSize(size) {
     currentAvatarSize = size;
 }
 
+function applyAvatarFlip(charId, flipX) {
+    const avatar = document.getElementById(`avatar-${charId}`);
+    if (!avatar) return;
+    avatar.classList.toggle('flipped', Boolean(flipX));
+}
+
 export function updateBackground(gameState) {
     if (!gameState) return;
 
@@ -86,6 +92,8 @@ export function addOrUpdateCharacterCard(charId, charData) {
     const mp = stats.mp?.current || 0, maxMp = stats.mp?.max || 100;
     card.querySelector('.hp-bar').style.width = `${maxHp > 0 ? (hp / maxHp) * 100 : 0}%`;
     card.querySelector('.mp-bar').style.width = `${maxMp > 0 ? (mp / maxMp) * 100 : 0}%`;
+
+    applyAvatarFlip(charId, meta.flip_x);
 }
 
 async function openCharacterModal(charId) {

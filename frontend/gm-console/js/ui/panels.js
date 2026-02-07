@@ -2,6 +2,30 @@ import * as api from '../api.js';
 import { toggleCharacterCard, selectCharacter, updateCharacterCard } from './characterCard.js';
 import { state } from '../state.js';
 
+let orientationSelectElement = null;
+let lastSelectedCharacterId = null;
+
+const getCharacterFlipX = (charId) => {
+    const meta = state.allCharactersData?.[charId]?.meta || {};
+    return Boolean(meta.flip_x);
+};
+
+const updateOrientationSelectForChar = (charId) => {
+    if (!orientationSelectElement) return;
+    if (!charId || !state.allCharactersData?.[charId]) {
+        orientationSelectElement.selectedIndex = 0;
+        orientationSelectElement.disabled = true;
+        return;
+    }
+    orientationSelectElement.value = getCharacterFlipX(charId) ? 'right' : 'left';
+    orientationSelectElement.disabled = false;
+};
+
+const getOrientationTargetId = () => {
+    const selected = state.selectedCharacterCard?.dataset?.charKey;
+    return selected || lastSelectedCharacterId;
+};
+
 const getNestedProperty = (obj, path) => {
     if (!path) return obj;
     return path.split('.').reduce((acc, part) => acc && acc[part], obj);
@@ -30,6 +54,9 @@ const handleCharacterUpdate = (update) => {
     const cardElement = document.querySelector(`[data-char-key="${charId}"]`);
     if (cardElement) {
         updateCharacterCard(cardElement, state.allCharactersData[charId]);
+    }
+    if (charId === getOrientationTargetId()) {
+        updateOrientationSelectForChar(charId);
     }
 };
 
@@ -140,6 +167,8 @@ export function initializeLeftPanel() {
 }
 
 export async function initializeTopPanel() {
+    orientationSelectElement = document.getElementById('orientation-select');
+
     const populateSelect = async (fetcher, selectId, defaultText, namePath = null) => {
         try {
             const data = await fetcher();
@@ -214,6 +243,9 @@ export async function initializeTopPanel() {
         } else {
             api.deactivateCharacter(selectedId).catch(err => console.error(`Failed to deactivate ${selectedId}:`, err));
         }
+
+        lastSelectedCharacterId = selectedId;
+        updateOrientationSelectForChar(selectedId);
         
         // We use a timeout to ensure the state has been updated by toggleCharacterCard
         setTimeout(updateEventButtonState, 100);
@@ -233,6 +265,31 @@ export async function initializeTopPanel() {
     document.getElementById('character-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('npc-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('location-select')?.addEventListener('change', handleLocationDropdownChange);
+
+    if (orientationSelectElement) {
+        orientationSelectElement.addEventListener('change', async (event) => {
+            const selectedValue = event.target.value;
+            const targetId = getOrientationTargetId();
+            if (!targetId) {
+                alert('Сначала выберите персонажа.');
+                orientationSelectElement.selectedIndex = 0;
+                orientationSelectElement.disabled = true;
+                return;
+            }
+            const flipX = selectedValue === 'right';
+            try {
+                await api.applyJsonPatch({ [targetId]: { meta: { flip_x: flipX } } });
+                if (state.allCharactersData[targetId]) {
+                    state.allCharactersData[targetId].meta = state.allCharactersData[targetId].meta || {};
+                    state.allCharactersData[targetId].meta.flip_x = flipX;
+                }
+            } catch (error) {
+                console.error('Failed to update avatar orientation:', error);
+                alert('Не удалось обновить ориентацию аватара.');
+                updateOrientationSelectForChar(targetId);
+            }
+        });
+    }
 
     const getMusicVolume = () => {
         const value = Number(musicVolume?.value || 0);
@@ -382,6 +439,8 @@ export function initializeBottomPanel() {
             const card = event.target.closest('.character-card');
             if (card) {
                 selectCharacter(card);
+                lastSelectedCharacterId = card.dataset.charKey || null;
+                updateOrientationSelectForChar(lastSelectedCharacterId);
             }
         });
 
