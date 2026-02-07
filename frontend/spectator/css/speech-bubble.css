@@ -8,6 +8,7 @@
     border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     z-index: 20;
+    pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease-out;
     color: #333;

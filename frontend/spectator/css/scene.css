@@ -20,6 +20,7 @@
     width: 100%;
     height: 100%;
     z-index: 4;
+    pointer-events: none;
 }
 
 .character-wrapper {
@@ -29,6 +30,7 @@
     cursor: grab;
     user-select: none;
     transition: transform 0.2s ease-in-out;
+    pointer-events: auto;
 }
 
 .character-wrapper.dragging {
