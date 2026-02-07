@@ -3,11 +3,13 @@
     <div class="modal-content">
         <span class="modal-close-btn">&times;</span>
         <h2>Настройки</h2>
-        <div class="setting-item">
+        <div class="setting-item setting-item--range">
             <label for="avatar-size-slider">Размер аватаров:</label>
-            <input type="range" id="avatar-size-slider" min="50" max="500" value="300">
-            <span id="avatar-size-value">300px</span>
+            <div class="range-control">
+                <input type="range" id="avatar-size-slider" min="50" max="500" value="300">
+                <span id="avatar-size-value" class="range-value">300px</span>
+            </div>
         </div>
-        <!-- Содержимое настроएको -->
+        <!-- Содержимое настроек -->
     </div>
 </div>
