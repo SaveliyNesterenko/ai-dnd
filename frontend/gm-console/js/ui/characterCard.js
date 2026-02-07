@@ -73,6 +73,31 @@ const renderStatusEffects = (charData) => {
     return `${listHtml}${editorHtml}`;
 };
 
+const renderStatsEditor = () => `
+    <div class="stats-edit-back">
+        <div class="stat-edit-row">
+            <span class="stat-edit-label">HP</span>
+            <div class="stat-edit-values">
+                <input class="hp-current" type="number" min="0" placeholder="Cur" />
+                <span class="stat-edit-divider">/</span>
+                <input class="hp-max" type="number" min="0" placeholder="Max" />
+            </div>
+        </div>
+        <div class="stat-edit-row">
+            <span class="stat-edit-label">MP</span>
+            <div class="stat-edit-values">
+                <input class="mp-current" type="number" min="0" placeholder="Cur" />
+                <span class="stat-edit-divider">/</span>
+                <input class="mp-max" type="number" min="0" placeholder="Max" />
+            </div>
+        </div>
+        <div class="stat-edit-actions">
+            <button class="stats-save-btn" type="button">Save</button>
+            <button class="stats-cancel-btn" type="button">Cancel</button>
+        </div>
+    </div>
+`;
+
 const setStatsEditValues = (cardElement, charData) => {
     const stats = charData?.stats || {};
     const hpCurrent = stats.hp?.current ?? 0;
@@ -80,10 +105,10 @@ const setStatsEditValues = (cardElement, charData) => {
     const mpCurrent = stats.mp?.current ?? 0;
     const mpMax = stats.mp?.max ?? 0;
 
-    const hpCurrentInput = cardElement.querySelector('.stats-edit .hp-current');
-    const hpMaxInput = cardElement.querySelector('.stats-edit .hp-max');
-    const mpCurrentInput = cardElement.querySelector('.stats-edit .mp-current');
-    const mpMaxInput = cardElement.querySelector('.stats-edit .mp-max');
+    const hpCurrentInput = cardElement.querySelector('.hp-current');
+    const hpMaxInput = cardElement.querySelector('.hp-max');
+    const mpCurrentInput = cardElement.querySelector('.mp-current');
+    const mpMaxInput = cardElement.querySelector('.mp-max');
 
     if (hpCurrentInput) hpCurrentInput.value = hpCurrent;
     if (hpMaxInput) hpMaxInput.value = hpMax;
@@ -92,15 +117,16 @@ const setStatsEditValues = (cardElement, charData) => {
 };
 
 const setStatsEditMode = (cardElement, enabled) => {
-    const statsGrid = cardElement.querySelector('.stats-grid');
-    const statsEdit = cardElement.querySelector('.stats-edit');
-    if (!statsGrid || !statsEdit) return;
+    const statsEditBack = cardElement.querySelector('.stats-edit-back');
+    const attributesContent = cardElement.querySelector('.attributes-content');
+    const statusEffectsContent = cardElement.querySelector('.status-effects-content');
+    if (!statsEditBack) return;
     if (enabled) {
-        statsGrid.classList.add('hidden');
-        statsEdit.classList.remove('hidden');
+        statsEditBack.classList.remove('hidden');
+        attributesContent?.classList.add('hidden');
+        statusEffectsContent?.classList.add('hidden');
     } else {
-        statsEdit.classList.add('hidden');
-        statsGrid.classList.remove('hidden');
+        statsEditBack.classList.add('hidden');
     }
 };
 
@@ -122,7 +148,7 @@ export function updateCharacterCard(cardElement, charData) {
         statsGrid.innerHTML = renderStatsGrid(charData);
     }
 
-    const statsEdit = cardElement.querySelector('.stats-edit');
+    const statsEdit = cardElement.querySelector('.stats-edit-back');
     const isEditing = statsEdit && !statsEdit.classList.contains('hidden');
     if (!isEditing) {
         setStatsEditValues(cardElement, charData);
@@ -186,6 +212,7 @@ export function toggleCharacterCard(characterId) {
     const statsHtml = renderStatsGrid(charData);
     const attributesHtml = `<div class="attributes-content hidden">${renderAttributes(charData)}</div>`;
     const statusEffectsHtml = `<div class="status-effects-content hidden">${renderStatusEffects(charData)}</div>`;
+    const statsEditHtml = `<div class="stats-edit-back hidden">${renderStatsEditor()}</div>`;
 
     card.innerHTML = `
         <div class="card-inner">
@@ -195,24 +222,6 @@ export function toggleCharacterCard(characterId) {
                     <p class="role">${role}</p>
                     <div class="stats-grid">
                         ${statsHtml}
-                    </div>
-                    <div class="stats-edit hidden">
-                        <div class="stat-edit-row">
-                            <span>HP</span>
-                            <input class="hp-current" type="number" min="0" />
-                            <span class="stat-edit-divider">/</span>
-                            <input class="hp-max" type="number" min="0" />
-                        </div>
-                        <div class="stat-edit-row">
-                            <span>MP</span>
-                            <input class="mp-current" type="number" min="0" />
-                            <span class="stat-edit-divider">/</span>
-                            <input class="mp-max" type="number" min="0" />
-                        </div>
-                        <div class="stat-edit-actions">
-                            <button class="stats-save-btn" type="button">Save</button>
-                            <button class="stats-cancel-btn" type="button">Cancel</button>
-                        </div>
                     </div>
                     <div class="card-buttons">
                         <button class="card-btn stats-edit-btn" title="Edit HP/MP">E</button>
@@ -226,6 +235,7 @@ export function toggleCharacterCard(characterId) {
                 <h3 class="card-back-title"></h3>
                 ${attributesHtml}
                 ${statusEffectsHtml}
+                ${statsEditHtml}
             </div>
         </div>
     `;
@@ -241,12 +251,14 @@ export function toggleCharacterCard(characterId) {
     const cardBackTitle = card.querySelector('.card-back-title');
     const attributesContent = card.querySelector('.attributes-content');
     const statusEffectsContent = card.querySelector('.status-effects-content');
+    const statsEditBack = card.querySelector('.stats-edit-back');
 
     attributesButton.addEventListener('click', (event) => {
         event.stopPropagation();
         cardBackTitle.textContent = 'Attributes';
         attributesContent.classList.remove('hidden');
         statusEffectsContent.classList.add('hidden');
+        statsEditBack.classList.add('hidden');
         card.classList.add('flipped');
     });
 
@@ -255,6 +267,7 @@ export function toggleCharacterCard(characterId) {
         cardBackTitle.textContent = 'Status Effects';
         statusEffectsContent.classList.remove('hidden');
         attributesContent.classList.add('hidden');
+        statsEditBack.classList.add('hidden');
         card.classList.add('flipped');
     });
 
@@ -265,7 +278,7 @@ export function toggleCharacterCard(characterId) {
     });
 
     cardBack.addEventListener('click', (event) => {
-        const isControlClick = event.target.closest('.status-effects-content')
+        const isControlClick = (event.target.closest('.status-effects-content') || event.target.closest('.stats-edit-back'))
             && (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT');
         if (isControlClick) return;
         event.stopPropagation();
@@ -277,7 +290,9 @@ export function toggleCharacterCard(characterId) {
         if (editBtn) {
             event.stopPropagation();
             setStatsEditValues(card, state.allCharactersData[characterId]);
+            cardBackTitle.textContent = 'HP / MP';
             setStatsEditMode(card, true);
+            card.classList.add('flipped');
             return;
         }
 
@@ -303,6 +318,7 @@ export function toggleCharacterCard(characterId) {
                 });
                 updateCharacterCard(card, state.allCharactersData[characterId]);
                 setStatsEditMode(card, false);
+                card.classList.remove('flipped');
             } catch (error) {
                 alert(`Failed to save stats: ${error.message}`);
             }
@@ -313,6 +329,7 @@ export function toggleCharacterCard(characterId) {
         if (cancelBtn) {
             event.stopPropagation();
             setStatsEditMode(card, false);
+            card.classList.remove('flipped');
             return;
         }
 

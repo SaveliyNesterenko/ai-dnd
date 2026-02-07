@@ -201,8 +201,8 @@
     border: 2px solid #ffd700;
 }
 
-/* === Inline Editors === */
-.stats-edit {
+/* === Back Editors === */
+.stats-edit-back {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -213,26 +213,42 @@
 }
 
 .stat-edit-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9em;
+}
+
+.stat-edit-label {
+    font-weight: bold;
+    color: #c9a977;
+    text-align: left;
+    letter-spacing: 0.5px;
+}
+
+.stat-edit-values {
     display: grid;
-    grid-template-columns: 28px 1fr 12px 1fr;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 6px;
-    font-size: 0.9em;
 }
 
 .stat-edit-row input {
     width: 100%;
+    min-width: 0;
     background: #1e242b;
     border: 1px solid #776a54;
     color: #f0e6d6;
     border-radius: 4px;
-    padding: 4px 6px;
+    padding: 3px 6px;
     font-family: inherit;
+    font-size: 0.9em;
 }
 
 .stat-edit-divider {
     text-align: center;
     color: #c9a977;
+    font-size: 0.9em;
 }
 
 .stat-edit-actions {
