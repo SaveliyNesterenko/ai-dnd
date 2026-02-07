@@ -158,13 +158,35 @@ export async function initializeTopPanel() {
         }
     };
 
+    const populateMusicSelect = async () => {
+        const select = document.getElementById('music-select');
+        if (!select) return;
+        select.innerHTML = `<option disabled selected>Music</option>`;
+        try {
+            const tracks = await api.fetchMusicList();
+            tracks.forEach(track => {
+                const option = document.createElement('option');
+                option.value = track.id;
+                option.textContent = track.filename;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error populating music-select:', error);
+        }
+    };
+
     await populateSelect(api.fetchCharacters, 'character-select', 'Characters', 'identity.name');
     await populateSelect(api.fetchNpcs, 'npc-select', 'NPCs', 'identity.name');
     await populateSelect(api.fetchLocations, 'location-select', 'Locations');
+    await populateMusicSelect();
 
     const eventButton = document.getElementById('event-button');
     const compressButton = document.getElementById('compress-context-btn');
     const locationSelect = document.getElementById('location-select');
+    const musicSelect = document.getElementById('music-select');
+    const musicPlayBtn = document.getElementById('music-play-btn');
+    const musicStopBtn = document.getElementById('music-stop-btn');
+    const musicVolume = document.getElementById('music-volume');
     
     const updateEventButtonState = () => {
         const charactersCount = state.visibleCharacterIds.size;
@@ -211,6 +233,39 @@ export async function initializeTopPanel() {
     document.getElementById('character-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('npc-select')?.addEventListener('change', handleCharacterDropdownChange);
     document.getElementById('location-select')?.addEventListener('change', handleLocationDropdownChange);
+
+    const getMusicVolume = () => {
+        const value = Number(musicVolume?.value || 0);
+        return Math.min(1, Math.max(0, value / 100));
+    };
+
+    musicPlayBtn?.addEventListener('click', async () => {
+        if (!musicSelect || !musicSelect.value) return;
+        musicPlayBtn.disabled = true;
+        try {
+            await api.playMusic(musicSelect.value, getMusicVolume());
+            if (musicStopBtn) musicStopBtn.disabled = false;
+        } catch (error) {
+            console.error('Failed to play music:', error);
+        } finally {
+            musicPlayBtn.disabled = false;
+        }
+    });
+
+    musicStopBtn?.addEventListener('click', async () => {
+        try {
+            await api.stopMusic();
+            musicStopBtn.disabled = true;
+        } catch (error) {
+            console.error('Failed to stop music:', error);
+        }
+    });
+
+    musicVolume?.addEventListener('change', () => {
+        api.setMusicVolume(getMusicVolume()).catch(error => {
+            console.error('Failed to set music volume:', error);
+        });
+    });
 
     eventButton.addEventListener('click', async () => {
         if (eventButton.textContent === 'Запустить событие') {

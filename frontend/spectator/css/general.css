@@ -9,3 +9,22 @@ body, html {
     color: #f1f1f1;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+
+.music-unlock-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 9999;
+    background: rgba(20, 20, 20, 0.85);
+    color: #f1f1f1;
+    border: 1px solid #444;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.music-unlock-btn:hover {
+    background: rgba(40, 40, 40, 0.9);
+}

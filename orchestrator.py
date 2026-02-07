@@ -135,9 +135,36 @@ class DiceRollRequest(BaseModel):
 class AvatarSizeRequest(BaseModel):
     avatar_size: int
 
+class MusicPlayRequest(BaseModel):
+    track_id: str
+    volume: Optional[float] = None
+    loop: Optional[bool] = None
+
+
+class MusicVolumeRequest(BaseModel):
+    volume: float
+
+
 
 def sse_format(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+def list_music_files() -> List[str]:
+    music_dir = os.path.join('assets', 'audio', 'music')
+    if not os.path.isdir(music_dir):
+        return []
+    allowed = ('.mp3', '.wav', '.ogg', '.m4a', '.flac')
+    files = [f for f in os.listdir(music_dir)
+             if os.path.isfile(os.path.join(music_dir, f)) and f.lower().endswith(allowed)]
+    files.sort()
+    return files
+
+
+def clamp_volume(value: float) -> float:
+    if value is None:
+        return 0.5
+    return max(0.0, min(1.0, value))
+
 
 # --- Потоки данных (Server-Sent Events) ---
 
@@ -415,6 +442,58 @@ async def update_avatar_size(request: AvatarSizeRequest):
     state["avatar_size"] = request.avatar_size
     save_json(PUBLIC_STATE_FILE, state)
     return {"status": "success", "avatar_size": request.avatar_size}
+
+@app.get("/api/music")
+async def get_music_list():
+    files = list_music_files()
+    return [
+        {"id": f, "filename": f, "url": f"assets/audio/music/{f}"}
+        for f in files
+    ]
+
+
+@app.post("/api/music/play")
+async def play_music(request: MusicPlayRequest):
+    files = list_music_files()
+    if request.track_id not in files:
+        raise HTTPException(status_code=404, detail="Music track not found")
+    state = load_json(PUBLIC_STATE_FILE) or {}
+    music_state = state.get("music", {})
+    music_state["track_id"] = request.track_id
+    music_state["url"] = f"assets/audio/music/{request.track_id}"
+    music_state["is_playing"] = True
+    if request.loop is not None:
+        music_state["loop"] = request.loop
+    else:
+        music_state.setdefault("loop", True)
+    if request.volume is not None:
+        music_state["volume"] = clamp_volume(request.volume)
+    else:
+        music_state.setdefault("volume", 0.5)
+    state["music"] = music_state
+    save_json(PUBLIC_STATE_FILE, state)
+    return {"status": "success", "music": music_state}
+
+
+@app.post("/api/music/stop")
+async def stop_music():
+    state = load_json(PUBLIC_STATE_FILE) or {}
+    music_state = state.get("music", {})
+    music_state["is_playing"] = False
+    state["music"] = music_state
+    save_json(PUBLIC_STATE_FILE, state)
+    return {"status": "success"}
+
+
+@app.post("/api/music/volume")
+async def set_music_volume(request: MusicVolumeRequest):
+    state = load_json(PUBLIC_STATE_FILE) or {}
+    music_state = state.get("music", {})
+    music_state["volume"] = clamp_volume(request.volume)
+    state["music"] = music_state
+    save_json(PUBLIC_STATE_FILE, state)
+    return {"status": "success", "volume": music_state["volume"]}
+
 
 
 @app.post("/api/update_active_characters")

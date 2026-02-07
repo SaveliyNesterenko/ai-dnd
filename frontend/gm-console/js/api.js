@@ -122,6 +122,38 @@ export async function fetchEventLog() {
     return await response.json();
 }
 
+export async function fetchMusicList() {
+    const response = await fetch(`${API_BASE_URL}/api/music`);
+    if (!response.ok) throw new Error('Failed to load music list');
+    return await response.json();
+}
+
+export async function playMusic(trackId, volume) {
+    const response = await fetch(`${API_BASE_URL}/api/music/play`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ track_id: trackId, volume: volume }),
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Failed to play music');
+    return await response.json();
+}
+
+export async function stopMusic() {
+    const response = await fetch(`${API_BASE_URL}/api/music/stop`, { method: 'POST' });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Failed to stop music');
+    return await response.json();
+}
+
+export async function setMusicVolume(volume) {
+    const response = await fetch(`${API_BASE_URL}/api/music/volume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ volume: volume }),
+    });
+    if (!response.ok) throw new Error((await response.json()).detail || 'Failed to set music volume');
+    return await response.json();
+}
+
 export async function archiveEvent() {
     const response = await fetch(`${API_BASE_URL}/api/archive_event`, { method: 'POST' });
     if (!response.ok) throw new Error((await response.json()).detail || 'Failed to archive event');

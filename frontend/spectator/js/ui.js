@@ -9,6 +9,12 @@ const modalCharacterDetails = document.getElementById('modal-character-details')
 const closeButton = document.querySelector('.close-button');
 const diceRollContainer = document.getElementById('dice-roll-container');
 
+const musicAudio = new Audio();
+musicAudio.preload = 'none';
+let currentMusicUrl = null;
+let isMusicPlaying = false;
+let musicUnlockButton = null;
+
 let currentAnimationId = null;
 let currentAvatarSize = null; // Variable to store the current avatar size
 
@@ -108,6 +114,66 @@ async function openCharacterModal(charId) {
 
 closeButton.onclick = () => { characterModal.style.display = "none"; };
 window.onclick = (event) => { if (event.target == characterModal) characterModal.style.display = "none"; };
+
+
+function ensureMusicUnlockButton() {
+    if (musicUnlockButton) return musicUnlockButton;
+    const button = document.createElement('button');
+    button.id = 'music-unlock-btn';
+    button.textContent = 'Enable audio';
+    button.className = 'music-unlock-btn';
+    button.addEventListener('click', () => {
+        musicAudio.play().then(() => {
+            button.remove();
+            musicUnlockButton = null;
+        }).catch(() => {
+            // keep button if still blocked
+        });
+    });
+    document.body.appendChild(button);
+    musicUnlockButton = button;
+    return button;
+}
+
+export function updateMusic(gameState) {
+    const music = gameState?.music;
+    if (!music) {
+        if (isMusicPlaying) {
+            musicAudio.pause();
+            musicAudio.currentTime = 0;
+            isMusicPlaying = false;
+        }
+        return;
+    }
+
+    const nextUrl = music.url ? `${API_BASE_URL}/${music.url}` : null;
+    if (nextUrl && nextUrl !== currentMusicUrl) {
+        currentMusicUrl = nextUrl;
+        musicAudio.src = nextUrl;
+    }
+
+    if (typeof music.loop === 'boolean') {
+        musicAudio.loop = music.loop;
+    }
+
+    if (typeof music.volume === 'number' && !Number.isNaN(music.volume)) {
+        musicAudio.volume = Math.min(1, Math.max(0, music.volume));
+    }
+
+    if (music.is_playing) {
+        const playPromise = musicAudio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+                ensureMusicUnlockButton();
+            });
+        }
+        isMusicPlaying = true;
+    } else {
+        musicAudio.pause();
+        musicAudio.currentTime = 0;
+        isMusicPlaying = false;
+    }
+}
 
 export function renderAvatars(characterIds, makeDraggable) {
     const idSet = new Set(characterIds);

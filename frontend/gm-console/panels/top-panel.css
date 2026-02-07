@@ -26,7 +26,7 @@
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
-#event-button, #compress-context-btn, .settings-button {
+#event-button, #compress-context-btn, .settings-button, #music-play-btn, #music-stop-btn {
     color: white;
     border: none;
     padding: 9px 15px;
@@ -64,8 +64,43 @@
     background-color: #5a6268;
 }
 
-#event-button:disabled, #compress-context-btn:disabled {
+#event-button:disabled, #compress-context-btn:disabled, #music-play-btn:disabled, #music-stop-btn:disabled {
     background-color: #555;
     color: #aaa;
     cursor: not-allowed;
+}
+
+
+.music-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#music-play-btn {
+    background-color: #28a745;
+}
+
+#music-stop-btn {
+    background-color: #dc3545;
+}
+
+#music-play-btn:not(:disabled):hover {
+    background-color: #218838;
+}
+
+#music-stop-btn:not(:disabled):hover {
+    background-color: #c82333;
+}
+
+.music-volume-label {
+    color: #f4f4f9;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#music-volume {
+    width: 120px;
 }

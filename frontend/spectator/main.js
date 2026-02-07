@@ -1,5 +1,5 @@
 import { subscribeToSpectatorStream, fetchInitialData } from './js/api.js';
-import { updateBackground, addOrUpdateCharacterCard, renderAvatars, showDiceRoll } from './js/ui.js';
+import { updateBackground, updateMusic, addOrUpdateCharacterCard, renderAvatars, showDiceRoll } from './js/ui.js';
 import { handleSpeechEvent } from './js/state.js';
 import { makeDraggable } from './js/drag.js';
 
@@ -14,7 +14,7 @@ async function main() {
 
     // Подписываемся на события от сервера, передавая новые коллбэки
     subscribeToSpectatorStream({
-        onGameStateUpdate: updateBackground,
+        onGameStateUpdate: (state) => { updateBackground(state); updateMusic(state); },
         onActiveCharactersUpdate: (characterIds) => renderAvatars(characterIds, makeDraggable),
         onCharacterFullUpdate: addOrUpdateCharacterCard,
         onDiceRoll: showDiceRoll,

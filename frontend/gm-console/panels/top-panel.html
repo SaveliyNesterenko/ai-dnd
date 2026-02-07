@@ -5,6 +5,14 @@
         <select id="npc-select"></select>
         <select id="location-select"></select>
     </div>
+    <div class="music-controls">
+        <select id="music-select"></select>
+        <button id="music-play-btn">Play</button>
+        <button id="music-stop-btn" disabled>Stop</button>
+        <label class="music-volume-label">Vol
+            <input type="range" id="music-volume" min="0" max="100" value="50">
+        </label>
+    </div>
     <button id="event-button" disabled>Запустить событие</button>
     <button id="compress-context-btn" disabled>Сжать контекст</button>
 </div>
