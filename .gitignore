@@ -37,6 +37,7 @@ build/
 
 # --- Аудио генерации
 assets/audio/generated
+assets/audio/music
 assets/voices/*
 assets/characters/*
 assets/locations/*
