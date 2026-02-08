@@ -184,7 +184,7 @@ def build_observer_prompt(action, dice_roll, characters, character_name):
 
     event_block = f"Персонаж, совершающий ход: {character_name}\nСобытие для анализа: {action}"
     if dice_roll:
-        event_block += f"\nРезультат броска d20: {dice_roll}"
+        event_block += f"\nРезультат броска d20 (определяет общую успешность действия и результат): {dice_roll}"
 
     # Оставляем только нужные для Наблюдателя поля
     observer_chars = {}
