@@ -591,9 +591,68 @@ async def observer_analysis(request: ObserverRequest):
 @app.post("/api/apply_json_patch")
 async def apply_json_patch(request: JsonPatchRequest):
     chars, npcs = load_json(CHARACTERS_FILE) or {}, load_json(NPC_FILE) or {}
+
+    def apply_inventory_ops(target_char: Dict[str, Any], ops: Any) -> None:
+        if not isinstance(ops, list):
+            return
+        inventory = target_char.get("inventory")
+        if not isinstance(inventory, list):
+            inventory = []
+            target_char["inventory"] = inventory
+
+        def find_index(item_name: str) -> Optional[int]:
+            for idx, item in enumerate(inventory):
+                if item.get("name") == item_name:
+                    return idx
+            return None
+
+        for op in ops:
+            if not isinstance(op, dict):
+                continue
+            op_type = op.get("op")
+            if op_type == "add":
+                item = op.get("item")
+                if isinstance(item, dict) and item.get("name"):
+                    inventory.append(item)
+            elif op_type == "remove":
+                name = op.get("name")
+                if not isinstance(name, str):
+                    continue
+                idx = find_index(name)
+                if idx is not None:
+                    inventory.pop(idx)
+            elif op_type == "update":
+                name = op.get("name")
+                fields = op.get("fields")
+                if not isinstance(name, str) or not isinstance(fields, dict):
+                    continue
+                idx = find_index(name)
+                if idx is not None:
+                    inventory[idx].update(fields)
+            elif op_type == "adjust":
+                name = op.get("name")
+                delta = op.get("quantity_delta")
+                if not isinstance(name, str) or not isinstance(delta, (int, float)):
+                    continue
+                idx = find_index(name)
+                if idx is not None:
+                    current_qty = inventory[idx].get("quantity", 0)
+                    if not isinstance(current_qty, (int, float)):
+                        current_qty = 0
+                    new_qty = current_qty + delta
+                    if new_qty <= 0:
+                        inventory.pop(idx)
+                    else:
+                        inventory[idx]["quantity"] = new_qty
+
     for char_id, updates in request.patch.items():
         target = chars if char_id in chars else npcs
         if char_id in target:
+            if not isinstance(updates, dict):
+                continue
+            inventory_ops = updates.pop("inventory_ops", None)
+            if inventory_ops is not None:
+                apply_inventory_ops(target[char_id], inventory_ops)
             for key, value in updates.items():
                 if isinstance(value, dict) and key in target.get(char_id, {}):
                     target[char_id][key].update(value)
