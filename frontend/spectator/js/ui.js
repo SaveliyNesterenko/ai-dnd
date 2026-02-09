@@ -60,7 +60,9 @@ export function addOrUpdateCharacterCard(charId, charData) {
     const { identity = {}, stats = {}, meta = {} } = charData;
 
     const modelId = meta.model_id || 'N/A';
-    const displayModelName = modelId.includes('/') ? modelId.split('/').pop() : modelId;
+    const displayModelName = modelId.includes('yandex')
+        ? modelId
+        : (modelId.includes('/') ? modelId.split('/').pop() : modelId);
 
     if (!card) {
         card = document.createElement('div');
