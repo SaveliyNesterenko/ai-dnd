@@ -21,6 +21,7 @@ client = OpenAI(
     base_url=BASE_URL
 )
 
+
 @router.post("/archive_event", tags=["Archivist"])
 async def handle_archive_event():
     """
@@ -41,15 +42,16 @@ async def handle_archive_event():
         characters = load_json("data/characters.json") or {}
         active_characters_data = load_json("data/active_characters.json")
         active_character_keys = active_characters_data.get("characters_id", [])
-        
+
         unique_chronicles_set = set()
         for char_key in active_character_keys:
             if char_key in characters:
                 char = characters[char_key]
-                chronicle_list = char.get("memory", {}).get("global_chronicle", [])
+                chronicle_list = char.get("memory", {}).get(
+                    "global_chronicle", [])
                 chronicle_str = "\n".join(chronicle_list)
                 unique_chronicles_set.add(chronicle_str)
-        
+
         unique_chronicles = list(unique_chronicles_set)
 
         # 3. Создание промта с учетом всех версий
@@ -58,7 +60,7 @@ async def handle_archive_event():
 
         # 4. Вызов модели для получения единой хроники
         response = client.chat.completions.create(
-            model="google/gemini-2.5-flash-lite",
+            model="deepseek/deepseek-v3.2",
             messages=[
                 {"role": "system", "content": "Ты — Синтезатор Хроники."},
                 {"role": "user", "content": prompt}
@@ -70,7 +72,7 @@ async def handle_archive_event():
         for char_key in active_character_keys:
             if char_key in characters:
                 char = characters[char_key]
-                if "memory" not in char: 
+                if "memory" not in char:
                     char["memory"] = {}
                 char["memory"]["global_chronicle"] = [unified_chronicle]
 
@@ -113,12 +115,12 @@ async def handle_compress_context():
             name = event.get("name", "Game Master")
             action = event.get("action", "")
             event_summary += f'Ход {step}: [{name}]\n{action}\n\n'
-        
+
         prompt = create_archivist_prompt(event_summary, [])
         save_prompt_to_log("context_compressor", prompt)
 
         response = client.chat.completions.create(
-            model="google/gemini-2.5-flash-lite",
+            model="deepseek/deepseek-v3.2",
             messages=[
                 {"role": "system", "content": "Ты — Синтезатор Хроники. Твоя задача - сделать краткий конспект событий."},
                 {"role": "user", "content": prompt}
@@ -128,7 +130,7 @@ async def handle_compress_context():
 
         first_step = history_to_compress[0].get('step')
         last_step = history_to_compress[-1].get('step')
-        
+
         if isinstance(first_step, str) and '-' in first_step:
             first_step = first_step.split('-')[0]
 
@@ -149,6 +151,7 @@ async def handle_compress_context():
     except Exception as e:
         print(f"Ошибка при сжатии контекста: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/generate_player_notes", tags=["Archivist"])
 async def handle_player_recollection():
@@ -171,12 +174,13 @@ async def handle_player_recollection():
         for char_key in active_character_keys:
             if char_key in characters and characters[char_key].get("meta", {}).get("role") == "Player":
                 char_data = characters[char_key]
-                
+
                 prompt = create_player_recollection_prompt(char_data, history)
                 save_prompt_to_log(f"recollection_{char_key}", prompt)
-                
+
                 response = client.chat.completions.create(
-                    model=char_data.get("meta", {}).get("model_id", "google/gemini-2.5-flash-lite"),
+                    model=char_data.get("meta", {}).get(
+                        "model_id", "deepseek/deepseek-v3.2"),
                     messages=[
                         {"role": "system", "content": "Ты — Актёр, исполняющий роль своего персонажа. Твоя задача — вести личный дневник от его лица."},
                         {"role": "user", "content": prompt}
@@ -186,10 +190,11 @@ async def handle_player_recollection():
 
                 if "memory" not in char_data:
                     char_data["memory"] = {}
-                
+
                 char_data["memory"]["private_notes"] = [new_note]
 
-                updated_character_names.append(char_data.get("identity", {}).get("name", char_key))
+                updated_character_names.append(char_data.get(
+                    "identity", {}).get("name", char_key))
 
         save_json("data/characters.json", characters)
 
