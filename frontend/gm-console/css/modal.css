@@ -140,6 +140,102 @@
     color: #ff6b6b;
 }
 
+/* === Status Effects Table === */
+.status-effects-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.status-effects-table th,
+.status-effects-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #4a4a52;
+    text-align: left;
+}
+
+.status-effects-table th {
+    background-color: #1e242b;
+    color: #fca311;
+    font-family: 'serif';
+    font-weight: 600;
+    font-size: 1.1em;
+    text-transform: uppercase;
+}
+
+.status-effects-table td {
+    color: #d3c4a8;
+    font-family: 'sans-serif';
+}
+
+.status-effects-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* === Status Effects Editor === */
+.status-effects-input {
+    width: 100%;
+    background: #1e242b;
+    border: 1px solid #4a4a52;
+    color: #f0e6d6;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: inherit;
+}
+
+.status-effects-row-actions {
+    text-align: right;
+}
+
+.status-effects-remove-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.status-effects-remove-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.status-effects-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.status-effects-add-btn,
+.status-effects-save-btn {
+    border: 1px solid #776a54;
+    background: #1e242b;
+    color: #f0e6d6;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.status-effects-add-btn:hover,
+.status-effects-save-btn:hover {
+    background: #fca311;
+    color: #151922;
+    border-color: #fca311;
+}
+
+.status-effects-status {
+    margin: 8px 0 0 0;
+    color: #d3c4a8;
+    font-size: 0.9em;
+}
+
+.status-effects-status--error {
+    color: #ff6b6b;
+}
+
 /* === Settings === */
 .setting-item {
     display: flex;

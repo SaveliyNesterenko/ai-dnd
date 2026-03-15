@@ -1,6 +1,7 @@
 import { state, addVisibleCharacter, removeVisibleCharacter, setSelectedCharacterCard } from '../state.js';
 import { applyJsonPatch } from '../api.js';
 import { showInventoryModal } from './inventoryModal.js';
+import { showStatusEffectsModal } from './statusEffectsModal.js';
 
 const getSafeNumber = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
@@ -264,11 +265,8 @@ export function toggleCharacterCard(characterId) {
 
     statusEffectsButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        cardBackTitle.textContent = 'Status Effects';
-        statusEffectsContent.classList.remove('hidden');
-        attributesContent.classList.add('hidden');
-        statsEditBack.classList.add('hidden');
-        card.classList.add('flipped');
+        const effects = charData?.stats?.status_effects || [];
+        showStatusEffectsModal(characterId, effects);
     });
 
     inventoryButton.addEventListener('click', (event) => {
@@ -333,37 +331,6 @@ export function toggleCharacterCard(characterId) {
             return;
         }
 
-        const addEffectBtn = event.target.closest('.status-effect-add-btn');
-        if (addEffectBtn) {
-            event.stopPropagation();
-            const input = card.querySelector('.status-effect-input');
-            const value = input?.value.trim();
-            if (!value) return;
-            const current = state.allCharactersData[characterId]?.stats?.status_effects || [];
-            const updated = [...current, value];
-            try {
-                await applyCharacterPatch(characterId, { stats: { status_effects: updated } });
-                if (input) input.value = '';
-                updateCharacterCard(card, state.allCharactersData[characterId]);
-            } catch (error) {
-                alert(`Failed to add effect: ${error.message}`);
-            }
-            return;
-        }
-
-        const removeEffectBtn = event.target.closest('.status-effect-remove-btn');
-        if (removeEffectBtn) {
-            event.stopPropagation();
-            const index = Number.parseInt(removeEffectBtn.dataset.index, 10);
-            if (!Number.isFinite(index)) return;
-            const current = state.allCharactersData[characterId]?.stats?.status_effects || [];
-            const updated = current.filter((_, idx) => idx !== index);
-            try {
-                await applyCharacterPatch(characterId, { stats: { status_effects: updated } });
-                updateCharacterCard(card, state.allCharactersData[characterId]);
-            } catch (error) {
-                alert(`Failed to remove effect: ${error.message}`);
-            }
-        }
+        // Status effects are now edited via modal (see statusEffectsModal.js).
     });
 }
