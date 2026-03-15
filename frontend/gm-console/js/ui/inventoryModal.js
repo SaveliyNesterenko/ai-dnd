@@ -70,15 +70,25 @@ export function showInventoryModal(characterId, inventoryData) {
         qtyCell.appendChild(qtyInput);
 
         const descCell = document.createElement('td');
+        const descWrap = document.createElement('div');
+        descWrap.className = 'inventory-desc-wrap';
+
         const descInput = document.createElement('input');
         descInput.className = 'inventory-input inventory-desc';
         descInput.type = 'text';
         descInput.value = item.description || '';
-        descInput.title = item.description || '';
+
+        const descTooltip = document.createElement('div');
+        descTooltip.className = 'inventory-desc-tooltip';
+        descTooltip.textContent = item.description || '';
+
         descInput.addEventListener('input', () => {
-            descInput.title = descInput.value;
+            descTooltip.textContent = descInput.value;
         });
-        descCell.appendChild(descInput);
+
+        descWrap.appendChild(descInput);
+        descWrap.appendChild(descTooltip);
+        descCell.appendChild(descWrap);
 
         const actionsCell = document.createElement('td');
         actionsCell.className = 'inventory-row-actions';
