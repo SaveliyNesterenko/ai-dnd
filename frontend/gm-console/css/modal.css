@@ -87,6 +87,15 @@
     font-family: inherit;
 }
 
+.inventory-qty {
+    width: 70px;
+    max-width: 70px;
+}
+
+.inventory-desc {
+    width: 100%;
+}
+
 .inventory-row-actions {
     text-align: right;
 }

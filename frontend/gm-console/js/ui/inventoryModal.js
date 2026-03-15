@@ -74,6 +74,10 @@ export function showInventoryModal(characterId, inventoryData) {
         descInput.className = 'inventory-input inventory-desc';
         descInput.type = 'text';
         descInput.value = item.description || '';
+        descInput.title = item.description || '';
+        descInput.addEventListener('input', () => {
+            descInput.title = descInput.value;
+        });
         descCell.appendChild(descInput);
 
         const actionsCell = document.createElement('td');
