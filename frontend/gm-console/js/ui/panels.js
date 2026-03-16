@@ -135,17 +135,20 @@ export function initializeLeftPanel() {
             voicePreview.value = text;
         },
         () => { 
-            recordButton.innerHTML = "ЗАПИСЬ";
+            recordButton.textContent = "ЗАПИСЬ";
         }
     );
 
     if (speechRecognition) {
-        recordButton.addEventListener('mousedown', () => {
-            speechRecognition.start();
+        recordButton.addEventListener('mousedown', async () => {
+            voicePreview.value = '';
             recordButton.textContent = "Идёт запись...";
+            await speechRecognition.start();
         });
 
         recordButton.addEventListener('mouseup', () => {
+            recordButton.textContent = "Распознавание...";
+            voicePreview.value = "Распознавание...";
             speechRecognition.stop();
         });
     }

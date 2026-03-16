@@ -4,6 +4,8 @@ python-dotenv
 openai
 redis
 async-timeout
+requests
+python-multipart
 TTS
 torch
 torchaudio

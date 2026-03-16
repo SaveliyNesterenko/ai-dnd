@@ -8,9 +8,10 @@ import os
 import json
 import time
 import asyncio
+import requests
 import redis.asyncio as redis
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -69,6 +70,9 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url=os.getenv("OPENAI_BASE_URL", "https://routerai.ru/api/v1")
 )
+
+NEXARA_API_BASE_URL = os.getenv("NEXARA_API_BASE_URL", "https://api.nexara.ru/api/v1")
+NEXARA_API_KEY = os.getenv("NEXARA_API_KEY")
 
 app.add_middleware(
     CORSMiddleware,
@@ -557,6 +561,58 @@ async def add_gm_action(request: GmActionRequest):
              "role": "gm", "action": request.text})
     save_json(EVENT_LOG_FILE, {"history": h})
     return {"status": "success"}
+
+
+@app.post("/api/transcribe_gm_audio")
+async def transcribe_gm_audio(file: UploadFile = File(...)):
+    if not NEXARA_API_KEY:
+        raise HTTPException(status_code=500, detail="NEXARA_API_KEY is not set on the server.")
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio payload.")
+
+    def do_request():
+        headers = {"Authorization": f"Bearer {NEXARA_API_KEY}"}
+        files = {
+            "file": (
+                file.filename or "speech.wav",
+                audio_bytes,
+                file.content_type or "application/octet-stream"
+            )
+        }
+        data = {
+            "response_format": "json",
+            "language": "ru",
+        }
+        return requests.post(
+            f"{NEXARA_API_BASE_URL}/audio/transcriptions",
+            headers=headers,
+            files=files,
+            data=data,
+            timeout=60
+        )
+
+    try:
+        response = await asyncio.to_thread(do_request)
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Nexara request failed: {e}")
+
+    if response.status_code != 200:
+        try:
+            error_payload = response.json()
+            error_detail = error_payload.get("detail", "Unknown error")
+        except Exception:
+            error_detail = response.text or "Unknown error"
+        raise HTTPException(status_code=response.status_code, detail=error_detail)
+
+    try:
+        payload = response.json()
+    except Exception:
+        raise HTTPException(status_code=502, detail="Invalid JSON response from Nexara.")
+
+    text = payload.get("text", "")
+    return {"text": text, "raw": payload}
 
 
 @app.post("/api/observer_analysis")
