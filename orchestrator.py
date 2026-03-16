@@ -572,13 +572,42 @@ async def transcribe_gm_audio(file: UploadFile = File(...)):
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio payload.")
 
+    def normalize_content_type(content_type: Optional[str]) -> str:
+        if not content_type:
+            return "application/octet-stream"
+        ct = content_type.lower().strip()
+        if ct.startswith("audio/webm"):
+            return "audio/webm"
+        if ct.startswith("video/webm"):
+            return "video/webm"
+        if ct.startswith("audio/ogg") or ct.endswith("opus"):
+            return "audio/ogg"
+        if ct in ("audio/wave", "audio/x-wav", "audio/wav"):
+            return "audio/wav"
+        return ct
+
+    def normalize_filename(name: Optional[str], content_type: str) -> str:
+        if name:
+            return name
+        if content_type == "audio/ogg":
+            return "speech.ogg"
+        if content_type == "audio/webm":
+            return "speech.webm"
+        if content_type == "video/webm":
+            return "speech.webm"
+        if content_type == "audio/wav":
+            return "speech.wav"
+        return "speech.bin"
+
     def do_request():
         headers = {"Authorization": f"Bearer {NEXARA_API_KEY}"}
+        normalized_type = normalize_content_type(file.content_type)
+        normalized_name = normalize_filename(file.filename, normalized_type)
         files = {
             "file": (
-                file.filename or "speech.wav",
+                normalized_name,
                 audio_bytes,
-                file.content_type or "application/octet-stream"
+                normalized_type
             )
         }
         data = {
