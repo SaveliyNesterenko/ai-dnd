@@ -101,6 +101,13 @@
     gap: 6px;
 }
 
+#music-volume-value {
+    display: inline-block;
+    min-width: 4ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 #music-volume {
     width: 120px;
 }

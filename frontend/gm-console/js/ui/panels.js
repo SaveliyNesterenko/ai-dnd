@@ -219,6 +219,7 @@ export async function initializeTopPanel() {
     const musicPlayBtn = document.getElementById('music-play-btn');
     const musicStopBtn = document.getElementById('music-stop-btn');
     const musicVolume = document.getElementById('music-volume');
+    const musicVolumeValue = document.getElementById('music-volume-value');
     
     const updateEventButtonState = () => {
         const charactersCount = state.visibleCharacterIds.size;
@@ -299,6 +300,12 @@ export async function initializeTopPanel() {
         return Math.min(1, Math.max(0, value / 100));
     };
 
+    const updateMusicVolumeLabel = () => {
+        if (!musicVolumeValue) return;
+        const value = Number(musicVolume?.value || 0);
+        musicVolumeValue.textContent = `${Math.round(value)}%`;
+    };
+
     musicPlayBtn?.addEventListener('click', async () => {
         if (!musicSelect || !musicSelect.value) return;
         musicPlayBtn.disabled = true;
@@ -321,7 +328,14 @@ export async function initializeTopPanel() {
         }
     });
 
+    updateMusicVolumeLabel();
+
+    musicVolume?.addEventListener('input', () => {
+        updateMusicVolumeLabel();
+    });
+
     musicVolume?.addEventListener('change', () => {
+        updateMusicVolumeLabel();
         api.setMusicVolume(getMusicVolume()).catch(error => {
             console.error('Failed to set music volume:', error);
         });
