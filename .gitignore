@@ -48,3 +48,8 @@ event_log.json
 npc.json
 public_state.json
 active_characters.json
+data/characters.json
+data/event_log.json
+data/npc.json
+data/public_state.json
+data/active_characters.json
