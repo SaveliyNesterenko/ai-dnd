@@ -36,6 +36,7 @@ REDIS_URL = "redis://127.0.0.1:6379"
 SPEECH_LIST_KEY = "speech_list"
 CHARACTER_UPDATE_QUEUE = "character_update_queue"
 DICE_ROLL_QUEUE = "dice_roll_queue"
+SPEECH_PLAYBACK_CONTROL_QUEUE = "speech_playback_control_queue"
 
 app_state = {}
 
@@ -182,7 +183,7 @@ async def spectator_stream_generator(request: Request):
             if await request.is_disconnected():
                 break
 
-            message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE], timeout=1)
+            message_tuple = await redis_conn.blpop([SPEECH_LIST_KEY, DICE_ROLL_QUEUE, SPEECH_PLAYBACK_CONTROL_QUEUE], timeout=1)
             if message_tuple:
                 queue_name, message_data = tuple(message_tuple)
                 data = json.loads(message_data)
@@ -192,6 +193,8 @@ async def spectator_stream_generator(request: Request):
                     event_type = data.pop("event_type", "generic_event")
                 elif queue_name == DICE_ROLL_QUEUE:
                     event_type = "dice_roll"
+                elif queue_name == SPEECH_PLAYBACK_CONTROL_QUEUE:
+                    event_type = data.pop("event_type", "generic_event")
 
                 if event_type:
                     yield sse_format(event_type, data)
@@ -362,7 +365,8 @@ async def generate_action(request: ActionRequest):
     save_prompt_to_log(char_key, prompt)
 
     try:
-        response = client.chat.completions.create(
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
             model=char.get("meta", {}).get(
                 "model_id", "deepseek/deepseek-v3.2"),
             messages=[{"role": "system", "content": "Ты — игрок в текстовой ролевой игре."}, {
@@ -420,6 +424,21 @@ async def broadcast_dice_roll(request: DiceRollRequest):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail="Failed to broadcast dice roll.")
+
+
+@app.post("/api/trigger_speech_playback")
+async def trigger_speech_playback():
+    redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
+    try:
+        event_payload = {
+            "event_type": "speech_playback_trigger",
+            "triggered_at": time.time()
+        }
+        await redis_conn.rpush(SPEECH_PLAYBACK_CONTROL_QUEUE, json.dumps(event_payload))
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail="Failed to trigger speech playback.")
 
 
 @app.post("/api/characters/activate")
@@ -668,7 +687,8 @@ async def observer_analysis(request: ObserverRequest):
     )
     
     save_prompt_to_log("observer", prompt)
-    response = client.chat.completions.create(model="deepseek/deepseek-v3.2", messages=[
+    response = await asyncio.to_thread(
+            client.chat.completions.create,model="deepseek/deepseek-v3.2", messages=[
                                               {"role": "system", "content": "Ты — Процессор Игровой Логики."}, {"role": "user", "content": prompt}])
     return {"response": response.choices[0].message.content}
 
@@ -746,3 +766,5 @@ async def apply_json_patch(request: JsonPatchRequest):
     save_json(CHARACTERS_FILE, chars)
     save_json(NPC_FILE, npcs)
     return {"status": "success"}
+
+

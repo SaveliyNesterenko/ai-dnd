@@ -35,6 +35,7 @@ export function subscribeToSpectatorStream(callbacks) {
 
         // Обработчик событий реплик
         eventSource.addEventListener('speech', (e) => callbacks.onSpeech(JSON.parse(e.data)));
+        eventSource.addEventListener('speech_playback_trigger', () => callbacks.onSpeechPlaybackTrigger());
 
         eventSource.onerror = (err) => {
             console.error("SSE connection failed:", err);

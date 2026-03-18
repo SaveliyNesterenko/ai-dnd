@@ -105,6 +105,10 @@
     background-color: #28a745; /* Green */
 }
 
+#playSpeechBtn {
+    background-color: #fd7e14; /* Orange */
+}
+
 #sendWithDiceRollBtn {
     background-color: #17a2b8; /* Teal */
 }

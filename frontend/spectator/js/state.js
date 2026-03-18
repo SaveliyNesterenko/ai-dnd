@@ -6,6 +6,8 @@ import { API_BASE_URL } from './api.js';
 let speechQueue = [];
 let isProcessing = false;
 let pendingDiceRolls = [];
+let pendingPlaybackStarts = 0;
+let isPlaybackSessionActive = false;
 
 /**
  * Добавляет бросок кубика в очередь, чтобы показать его после завершения реплики.
@@ -29,13 +31,32 @@ export function handleSpeechEvent(data) {
     processQueue();
 }
 
+export function handleSpeechPlaybackTrigger() {
+    pendingPlaybackStarts += 1;
+    processQueue();
+}
+
 /**
  * Обработчик очереди. Гарантирует, что только одно событие обрабатывается в данный момент.
  */
 async function processQueue() {
-    if (isProcessing || speechQueue.length === 0) {
-        return; // Выход, если уже идет обработка или очередь пуста
+    if (isProcessing) {
+        return;
     }
+
+    if (speechQueue.length === 0) {
+        isPlaybackSessionActive = false;
+        return; // Выход, если очередь пуста
+    }
+
+    if (!isPlaybackSessionActive) {
+        if (pendingPlaybackStarts <= 0) {
+            return; // Ждем явный триггер запуска из GM-панели
+        }
+        pendingPlaybackStarts -= 1;
+        isPlaybackSessionActive = true;
+    }
+
     isProcessing = true;
 
     const eventData = speechQueue.shift(); // Берем первое событие из очереди
@@ -44,6 +65,9 @@ async function processQueue() {
     await executeSpeechEvent(eventData);
 
     isProcessing = false;
+    if (speechQueue.length === 0) {
+        isPlaybackSessionActive = false;
+    }
     // Рекурсивно вызываем для обработки следующих событий в очереди
     processQueue();
 }

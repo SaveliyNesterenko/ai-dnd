@@ -68,8 +68,18 @@ export function initializeCenterPanel(triggerObserver) {
     const outputArea = document.getElementById('modelOutput');
     const responseButtons = document.getElementById('response-buttons');
     const retryBtn = document.getElementById('retryBtn');
+    const playSpeechBtn = document.getElementById('playSpeechBtn');
     const sendResponseBtn = document.getElementById('sendResponseBtn');
     const sendWithDiceRollBtn = document.getElementById('sendWithDiceRollBtn');
+    const triggerPlaybackGate = () => {
+        if (typeof api.triggerSpeechPlayback !== 'function') {
+            console.warn('api.triggerSpeechPlayback is unavailable. Skipping playback trigger.');
+            return;
+        }
+        api.triggerSpeechPlayback().catch(error => {
+            console.error('Failed to trigger speech playback:', error);
+        });
+    };
 
     const generateResponse = async () => {
         const charKey = charInput.value.trim();
@@ -105,14 +115,21 @@ export function initializeCenterPanel(triggerObserver) {
     if(sendResponseBtn) sendResponseBtn.addEventListener('click', () => {
         const charKey = charInput.value.trim();
         const actionText = outputArea.value;
+        triggerPlaybackGate();
         triggerObserver(actionText, null, charKey);
         resetToActionGenerator();
+    });
+
+    if(playSpeechBtn) playSpeechBtn.addEventListener('click', () => {
+        triggerPlaybackGate();
     });
 
     if(sendWithDiceRollBtn) sendWithDiceRollBtn.addEventListener('click', () => {
         const charKey = charInput.value.trim();
         const actionText = outputArea.value;
         const diceRoll = Math.floor(Math.random() * 20) + 1;
+
+        triggerPlaybackGate();
 
         api.broadcastDiceRoll(diceRoll).catch(error => {
             console.log("Broadcast request sent. A 404 error is expected at this stage.");

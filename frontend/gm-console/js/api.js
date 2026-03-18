@@ -194,6 +194,24 @@ export async function broadcastDiceRoll(roll) {
     }
 }
 
+export async function triggerSpeechPlayback() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/trigger_speech_playback`, {
+            method: 'POST',
+        });
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => null);
+            const errorMessage = errorData ? errorData.detail : `HTTP error! status: ${response.status}`;
+            console.error('Failed to trigger speech playback:', errorMessage);
+            throw new Error(errorMessage);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error in triggerSpeechPlayback:', error);
+        throw error;
+    }
+}
+
 
 /**
  * Единая подписка на SSE для консоли GM.
