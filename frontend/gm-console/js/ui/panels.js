@@ -1,6 +1,6 @@
 import * as api from '../api.js';
 import { toggleCharacterCard, selectCharacter, updateCharacterCard } from './characterCard.js';
-import { state } from '../state.js';
+import { state, syncVisibleCharactersOrder } from '../state.js';
 
 let orientationSelectElement = null;
 let lastSelectedCharacterId = null;
@@ -452,6 +452,12 @@ export async function initializeTopPanel() {
 export function initializeBottomPanel() {
     const container = document.querySelector('#bottom-panel .characters-container');
     if (container) {
+        let draggedCard = null;
+
+        const isInteractiveElement = (element) => {
+            return Boolean(element?.closest('button, input, select, textarea, label, a'));
+        };
+
         container.addEventListener('click', (event) => {
             const card = event.target.closest('.character-card');
             if (card) {
@@ -459,6 +465,56 @@ export function initializeBottomPanel() {
                 lastSelectedCharacterId = card.dataset.charKey || null;
                 updateOrientationSelectForChar(lastSelectedCharacterId);
             }
+        });
+
+        container.addEventListener('dragstart', (event) => {
+            const card = event.target.closest('.character-card');
+            if (!card || isInteractiveElement(event.target)) {
+                event.preventDefault();
+                return;
+            }
+
+            draggedCard = card;
+            draggedCard.classList.add('dragging');
+
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', card.dataset.charKey || '');
+            }
+        });
+
+        container.addEventListener('dragover', (event) => {
+            if (!draggedCard) return;
+            event.preventDefault();
+
+            const targetCard = event.target.closest('.character-card');
+            if (!targetCard || targetCard === draggedCard) {
+                if (!targetCard) {
+                    container.appendChild(draggedCard);
+                }
+                return;
+            }
+
+            const rect = targetCard.getBoundingClientRect();
+            const shouldInsertBefore = event.clientX < rect.left + (rect.width / 2);
+            if (shouldInsertBefore) {
+                container.insertBefore(draggedCard, targetCard);
+            } else {
+                container.insertBefore(draggedCard, targetCard.nextSibling);
+            }
+        });
+
+        container.addEventListener('drop', (event) => {
+            if (!draggedCard) return;
+            event.preventDefault();
+            syncVisibleCharactersOrder(container);
+        });
+
+        container.addEventListener('dragend', () => {
+            if (!draggedCard) return;
+            draggedCard.classList.remove('dragging');
+            draggedCard = null;
+            syncVisibleCharactersOrder(container);
         });
 
         container.addEventListener('wheel', (event) => {

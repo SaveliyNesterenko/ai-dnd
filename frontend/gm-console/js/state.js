@@ -39,6 +39,18 @@ export function removeVisibleCharacter(id) {
 }
 
 /**
+ * Синхронизирует порядок видимых персонажей с DOM-порядком карточек.
+ * @param {HTMLElement} container - Контейнер карточек персонажей.
+ */
+export function syncVisibleCharactersOrder(container) {
+    if (!container) return;
+    const orderedIds = Array.from(container.querySelectorAll('.character-card'))
+        .map((card) => card.dataset.charKey)
+        .filter(Boolean);
+    state.visibleCharacterIds = new Set(orderedIds);
+}
+
+/**
  * Устанавливает выбранную карточку персонажа.
  * Снимает выделение с предыдущей карточки и выделяет новую.
  * @param {HTMLElement} cardElement - DOM-элемент карточки персонажа.

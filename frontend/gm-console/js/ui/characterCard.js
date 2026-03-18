@@ -202,6 +202,7 @@ export function toggleCharacterCard(characterId) {
     const card = document.createElement('div');
     card.className = 'character-card';
     card.dataset.charKey = characterId;
+    card.draggable = true;
 
     if (charData.meta && charData.meta.sprite_id) {
         card.style.backgroundImage = `url(../../assets/characters/${charData.meta.sprite_id}.png)`;
