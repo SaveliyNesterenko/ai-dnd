@@ -94,7 +94,14 @@ export function initializeCenterPanel(triggerObserver) {
             console.warn('api.triggerSpeechPlayback is unavailable. Skipping playback trigger.');
             return;
         }
-        api.triggerSpeechPlayback().catch(error => {
+        const history = state.eventLog?.history || [];
+        const lastEntry = history[history.length - 1];
+        const step = lastEntry?.step;
+        if (typeof step !== 'number') {
+            console.warn('No event log step is available for speech playback.');
+            return;
+        }
+        api.triggerSpeechPlayback(step).catch(error => {
             console.error('Failed to trigger speech playback:', error);
         });
     };
@@ -124,18 +131,10 @@ export function initializeCenterPanel(triggerObserver) {
     if(sendBtn) sendBtn.addEventListener('click', generateResponse);
     if(retryBtn) retryBtn.addEventListener('click', generateResponse);
 
-    const resetToActionGenerator = () => {
-        responseButtons.style.display = 'none';
-        generateButtonContainer.style.display = 'block';
-        outputArea.value = '';
-    };
-
     if(sendResponseBtn) sendResponseBtn.addEventListener('click', () => {
         const charKey = charInput.value.trim();
         const actionText = outputArea.value;
-        triggerPlaybackGate();
         triggerObserver(actionText, null, charKey);
-        resetToActionGenerator();
     });
 
     if(playSpeechBtn) playSpeechBtn.addEventListener('click', () => {
@@ -147,14 +146,11 @@ export function initializeCenterPanel(triggerObserver) {
         const actionText = outputArea.value;
         const diceRoll = Math.floor(Math.random() * 20) + 1;
 
-        triggerPlaybackGate();
-
         api.broadcastDiceRoll(diceRoll).catch(error => {
             console.log("Broadcast request sent. A 404 error is expected at this stage.");
         });
 
         triggerObserver(actionText, diceRoll, charKey);
-        resetToActionGenerator();
     });
 }
 

@@ -194,10 +194,12 @@ export async function broadcastDiceRoll(roll) {
     }
 }
 
-export async function triggerSpeechPlayback() {
+export async function triggerSpeechPlayback(step) {
     try {
         const response = await fetch(`${API_BASE_URL}/api/trigger_speech_playback`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ step }),
         });
         if (!response.ok) {
             const errorData = await response.json().catch(() => null);

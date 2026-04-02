@@ -140,6 +140,10 @@ class DiceRollRequest(BaseModel):
 class AvatarSizeRequest(BaseModel):
     avatar_size: int
 
+
+class SpeechPlaybackTriggerRequest(BaseModel):
+    step: int
+
 class MusicPlayRequest(BaseModel):
     track_id: str
     volume: Optional[float] = None
@@ -276,10 +280,12 @@ async def dispatch_speech_events(
             f"--- Preparing '{text_type.upper()}' speech event for step {step}...")
 
         # 1. Пытаемся синтезировать аудио в фоновом потоке
-        audio_path = await loop.run_in_executor(
-            None, tts_service.synthesize, text,
-            voice_sample_path, f"{char_key}_{int(time.time())}_{text_type}.wav"
-        )
+        audio_path = None
+        if tts_service and voice_sample_path:
+            audio_path = await loop.run_in_executor(
+                None, tts_service.synthesize, text,
+                voice_sample_path, f"{char_key}_{int(time.time())}_{text_type}.wav"
+            )
 
         # 2. Готовим URL для события (будет None, если синтез не удался)
         final_audio_url = audio_path.replace("\\", "/") if audio_path else None
@@ -427,15 +433,29 @@ async def broadcast_dice_roll(request: DiceRollRequest):
 
 
 @app.post("/api/trigger_speech_playback")
-async def trigger_speech_playback():
+async def trigger_speech_playback(request: SpeechPlaybackTriggerRequest):
     redis_conn = redis.Redis(connection_pool=app_state["redis_pool"])
     try:
+        event_log = load_json(EVENT_LOG_FILE) or {"history": []}
+        history = event_log.get("history", [])
+        target_event = next((event for event in history if event.get("step") == request.step), None)
+        if not target_event:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Step '{request.step}' not found in event log."
+            )
+
         event_payload = {
             "event_type": "speech_playback_trigger",
+            "step": request.step,
+            "expects_thought": bool(target_event.get("thoughts")),
+            "expects_action": bool(target_event.get("action")),
             "triggered_at": time.time()
         }
         await redis_conn.rpush(SPEECH_PLAYBACK_CONTROL_QUEUE, json.dumps(event_payload))
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail="Failed to trigger speech playback.")
