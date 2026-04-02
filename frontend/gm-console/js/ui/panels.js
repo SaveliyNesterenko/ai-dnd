@@ -4,6 +4,8 @@ import { state, syncVisibleCharactersOrder } from '../state.js';
 
 let orientationSelectElement = null;
 let lastSelectedCharacterId = null;
+const PLAY_SPEECH_DEFAULT_COLOR = '#6c757d';
+const PLAY_SPEECH_READY_COLOR = '#fd7e14';
 
 const getCharacterFlipX = (charId) => {
     const meta = state.allCharactersData?.[charId]?.meta || {};
@@ -60,6 +62,21 @@ const handleCharacterUpdate = (update) => {
     }
 };
 
+const hasReadySpeechAudio = (eventLog) => {
+    const history = eventLog?.history || [];
+    if (history.length === 0) return false;
+    const lastEntry = history[history.length - 1];
+    return Boolean(lastEntry?.audio_thoughts_url || lastEntry?.audio_action_url);
+};
+
+const updatePlaySpeechButtonState = () => {
+    const playSpeechBtn = document.getElementById('playSpeechBtn');
+    if (!playSpeechBtn) return;
+    playSpeechBtn.style.backgroundColor = hasReadySpeechAudio(state.eventLog)
+        ? PLAY_SPEECH_READY_COLOR
+        : PLAY_SPEECH_DEFAULT_COLOR;
+};
+
 export function initializeCenterPanel(triggerObserver) {
     // === Character Action Generator Logic ===
     const generateButtonContainer = document.getElementById('generate-button-container');
@@ -71,6 +88,7 @@ export function initializeCenterPanel(triggerObserver) {
     const playSpeechBtn = document.getElementById('playSpeechBtn');
     const sendResponseBtn = document.getElementById('sendResponseBtn');
     const sendWithDiceRollBtn = document.getElementById('sendWithDiceRollBtn');
+    updatePlaySpeechButtonState();
     const triggerPlaybackGate = () => {
         if (typeof api.triggerSpeechPlayback !== 'function') {
             console.warn('api.triggerSpeechPlayback is unavailable. Skipping playback trigger.');
@@ -417,11 +435,13 @@ export async function initializeTopPanel() {
     // Initialization and subscription to data updates
     const initialLog = await api.fetchEventLog();
     state.eventLog = initialLog;
+    updatePlaySpeechButtonState();
     updateCompressButtonState();
 
     api.subscribeToGmStream(
         log => { // onLogUpdate
             state.eventLog = log;
+            updatePlaySpeechButtonState();
             updateCompressButtonState();
         },
         handleCharacterUpdate // onCharUpdate

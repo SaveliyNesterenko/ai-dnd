@@ -106,7 +106,7 @@
 }
 
 #playSpeechBtn {
-    background-color: #fd7e14; /* Orange */
+    background-color: #6c757d; /* Gray by default, turns orange when speech is ready */
 }
 
 #sendWithDiceRollBtn {
