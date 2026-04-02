@@ -59,10 +59,13 @@ export function addOrUpdateCharacterCard(charId, charData) {
     let card = document.getElementById(`card-${charId}`);
     const { identity = {}, stats = {}, meta = {} } = charData;
 
-    const modelId = meta.model_id || 'N/A';
-    const displayModelName = modelId.includes('yandex')
+    const modelId = (meta.model_id || 'N/A').trim();
+    const shortModelName = modelId.includes('yandex')
         ? modelId
         : (modelId.includes('/') ? modelId.split('/').pop() : modelId);
+    const displayModelName = shortModelName === 'gemini-3.1-pro-preview'
+        ? 'gemini-3.1-pro'
+        : shortModelName;
 
     if (!card) {
         card = document.createElement('div');
