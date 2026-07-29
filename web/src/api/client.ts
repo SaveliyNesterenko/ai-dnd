@@ -1,19 +1,29 @@
 import {
   activateCampaignApiV1CampaignsCampaignIdActivatePost,
   applyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPost,
-  archiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePost,
+  confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
   createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost,
+  generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost,
+  generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost,
+  getJobApiV1CampaignsCampaignIdJobsJobIdGet,
   gmSnapshotApiV1CampaignsCampaignIdGmSnapshotGet,
   listCampaignsApiV1CampaignsGet,
   sessionInfoApiV1AuthSessionGet,
   snapshotApiV1CampaignsCampaignIdSnapshotGet,
   startEventApiV1CampaignsCampaignIdEventsPost,
+  updateSceneApiV1CampaignsCampaignIdScenePatch,
+  updateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatch,
+  updateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatch,
 } from "./generated";
 import { client } from "./generated/client.gen";
 import type {
+  ConfirmEventFinalizationRequest,
   CreateObserverProposalRequest,
   CreateTurnRequest,
+  UpdateSceneCharacterRequest,
+  UpdateSceneRequest,
+  UpdateCharacterRequest,
 } from "./generated/types.gen";
 import type { ObserverOperation, ProblemDetails } from "./types";
 
@@ -98,6 +108,65 @@ export const api = {
         body: input,
       }),
     ) as Promise<{ id: string }>,
+  generatePlayerTurn: (campaignId: string, eventId: string, characterId: string) =>
+    execute(
+      generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: { event_id: eventId, character_id: characterId },
+      }),
+    ),
+  getJob: (campaignId: string, jobId: string) =>
+    execute(
+      getJobApiV1CampaignsCampaignIdJobsJobIdGet({
+        ...requestOptions,
+        path: { campaign_id: campaignId, job_id: jobId },
+      }),
+    ),
+  generateEventFinalization: (
+    campaignId: string,
+    eventId: string,
+    baseRevision: number,
+  ) =>
+    execute(
+      generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: { event_id: eventId, base_revision: baseRevision },
+      }),
+    ),
+  updateScene: (campaignId: string, input: UpdateSceneRequest) =>
+    execute(
+      updateSceneApiV1CampaignsCampaignIdScenePatch({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: input,
+      }),
+    ),
+  updateSceneCharacter: (
+    campaignId: string,
+    characterId: string,
+    input: UpdateSceneCharacterRequest,
+  ) =>
+    execute(
+      updateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatch({
+        ...requestOptions,
+        path: { campaign_id: campaignId, character_id: characterId },
+        body: input,
+      }),
+    ),
+  updateCharacter: (
+    campaignId: string,
+    characterId: string,
+    input: UpdateCharacterRequest,
+  ) =>
+    execute(
+      updateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatch({
+        ...requestOptions,
+        path: { campaign_id: campaignId, character_id: characterId },
+        body: input,
+      }),
+    ),
   createProposal: (
     campaignId: string,
     eventId: string,
@@ -123,12 +192,17 @@ export const api = {
         body: { operations },
       }),
     ),
-  archiveEvent: (campaignId: string, eventId: string) =>
+  confirmEventFinalization: (
+    campaignId: string,
+    eventId: string,
+    input: ConfirmEventFinalizationRequest,
+  ) =>
     execute(
-      archiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePost({
+      confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost({
         ...requestOptions,
         path: { campaign_id: campaignId, event_id: eventId },
         headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: input,
       }),
-    ) as Promise<{ id: string; status: string }>,
+    ) as Promise<{ id: string; status: string; revision: number }>,
 };

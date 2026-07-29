@@ -10,9 +10,12 @@ test.beforeAll(async () => {
   await rm(runtimeDirectory, { force: true, recursive: true });
   const executable =
     process.platform === "win32"
-      ? resolve("../.venv/Scripts/ai-dnd.exe")
-      : resolve("../.venv/bin/ai-dnd");
-  backend = spawn(executable, ["serve"], {
+      ? resolve("../.venv/Scripts/python.exe")
+      : resolve("../.venv/bin/python");
+  backend = spawn(
+    executable,
+    ["-c", "from ai_dnd.cli import main; main()", "serve", "--port", "8765"],
+    {
     cwd: resolve(".."),
     env: {
       ...process.env,
@@ -20,11 +23,12 @@ test.beforeAll(async () => {
       AI_DND_ENVIRONMENT: "test",
     },
     stdio: "ignore",
-  });
+    },
+  );
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/health/ready");
+      const response = await fetch("http://127.0.0.1:8765/api/v1/health/ready");
       if (response.ok) return;
     } catch {
       // The server is still starting.
@@ -59,12 +63,23 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
   await page.goto(`/api/v1/auth/gm/bootstrap?token=${security.bootstrap_token}`);
   await expect(page.getByRole("heading", { name: "The Clockwork Crossroads" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Запустить" }).click();
+  await expect(page.locator(".gm-character-card")).toHaveCount(2);
+  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await expect(page.locator(".gm-character-card")).toHaveCount(1);
+  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await expect(page.locator(".gm-character-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "HP / MP" }).first().click();
+  await page.getByLabel("HP, текущее").fill("27");
+  await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+  await expect(page.locator(".gm-character-card").getByText(/27 \//)).toBeVisible();
+
+  await page.getByRole("button", { name: "Запустить событие" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();
   const action = "<img src=x onerror=alert(1)> Aria studies the mechanism.";
   await page.getByLabel("Публичное действие").fill(action);
-  await page.getByLabel("Мысль модели").fill("This remains private.");
-  await page.getByRole("button", { name: "Зафиксировать ход" }).click();
+  const thought = "Aria notices a pattern visible to the audience.";
+  await page.getByLabel("Мысль модели").fill(thought);
+  await page.getByRole("button", { name: "Отправить с dice roll" }).click();
   await expect(page.getByText(action, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Подготовить предложение" }).click();
@@ -77,8 +92,26 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
   await spectator.getByLabel("Код зрителя").fill(security.spectator_code);
   await spectator.getByRole("button", { name: "Войти в сцену" }).click();
   await expect(spectator.getByText(action, { exact: true })).toBeVisible();
-  await expect(spectator.getByText("This remains private.")).toHaveCount(0);
+  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Завершить событие" }).click();
-  await expect(page.getByRole("button", { name: "Запустить" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Событие завершается" })
+      .getByRole("heading", { name: "Событие завершается" }),
+  ).toBeVisible();
+  await expect(page.getByText("Лог сохранён")).toBeVisible();
+  await expect(page.getByText("Архивариус сейчас недоступен.")).toBeVisible();
+  await expect(page.getByText(action, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Ввести результат вручную" }).click();
+  await page
+    .getByLabel("Общая хроника участников")
+    .fill("Aria and Bram documented the clockwork mechanism.");
+  const recollections = page.locator(".finalization__player-note textarea");
+  await expect(recollections).toHaveCount(2);
+  await recollections.nth(0).fill("I remember the clockwork mechanism.");
+  await recollections.nth(1).fill("I remember guarding the mechanism.");
+  await page.getByRole("button", { name: "Сохранить и завершить" }).click();
+  await expect(page.getByRole("button", { name: "Запустить событие" })).toBeVisible();
 });

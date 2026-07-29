@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import webbrowser
+from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
@@ -35,6 +37,14 @@ def _parser() -> argparse.ArgumentParser:
     legacy_import.add_argument("source", type=Path)
     legacy_import.add_argument("--apply", action="store_true")
     legacy_import.add_argument("--name", default=None)
+
+    legacy_sync = subparsers.add_parser(
+        "sync-legacy",
+        help="Synchronize assets and character memory into an already imported campaign.",
+    )
+    legacy_sync.add_argument("campaign_id")
+    legacy_sync.add_argument("source", type=Path)
+    legacy_sync.add_argument("--apply", action="store_true")
     return parser
 
 
@@ -55,6 +65,35 @@ async def _import_legacy(
             source,
             dry_run=not apply,
             campaign_name=name,
+        )
+    await engine.dispose()
+    print(report.model_dump_json(indent=2))
+
+
+async def _sync_legacy(
+    settings: Settings,
+    campaign_id: str,
+    source: Path,
+    *,
+    apply: bool,
+) -> None:
+    settings.ensure_directories()
+    if apply and settings.database_url is None:
+        database_path = settings.data_dir / "ai-dnd.db"
+        if database_path.is_file():
+            backup = (
+                settings.data_dir
+                / "backups"
+                / f"pre-legacy-sync-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.db"
+            )
+            shutil.copy2(database_path, backup)
+    engine = create_engine(settings)
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        report = await LegacyDataService(session, settings).sync_campaign(
+            campaign_id,
+            source,
+            dry_run=not apply,
         )
     await engine.dispose()
     print(report.model_dump_json(indent=2))
@@ -102,6 +141,17 @@ def main() -> None:
             )
         )
         return
+    if args.command == "sync-legacy":
+        run_migrations(settings)
+        asyncio.run(
+            _sync_legacy(
+                settings,
+                args.campaign_id,
+                args.source,
+                apply=args.apply,
+            )
+        )
+        return
     if args.command == "serve":
         run_migrations(settings)
         security = SecurityManager(settings.data_dir)
@@ -119,4 +169,5 @@ def main() -> None:
             port=settings.port,
             reload=args.reload,
             env_file=None,
+            access_log=False,
         )

@@ -1,28 +1,27 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { api, ApiError } from "../api/client";
 import type {
+  CharacterGM,
   CharacterPublic,
   GameStateSnapshot,
   ObserverProposal,
 } from "../api/types";
-import { CharacterCard } from "../components/CharacterCard";
 import { ConnectionBadge } from "../components/ConnectionBadge";
 import { ErrorNotice } from "../components/ErrorNotice";
+import { GmCharacterCard } from "../components/GmCharacterCard";
+import { GmTopControls } from "../components/GmTopControls";
 import { useRealtime } from "../hooks/useRealtime";
 import { useUiStore } from "../store/ui";
 
-const eventSchema = z.object({ title: z.string().trim().min(2).max(200) });
 const turnSchema = z.object({
   action: z.string().trim().min(1).max(30_000),
   thought: z.string().max(30_000).optional(),
-  diceRoll: z.number().int().min(1).max(20).optional(),
 });
-type EventForm = z.infer<typeof eventSchema>;
 type TurnForm = z.infer<typeof turnSchema>;
 
 export default function GmPage() {
@@ -50,12 +49,31 @@ export default function GmPage() {
     queryFn: () => api.gmSnapshot(campaignId!),
     enabled: Boolean(campaignId) && session.isSuccess,
   });
-
-  useEffect(() => {
-    if (!selectedCharacterId && snapshot.data?.characters[0]) {
-      selectCharacter(snapshot.data.characters[0].id);
-    }
-  }, [selectCharacter, selectedCharacterId, snapshot.data?.characters]);
+  const toggleCharacterVisibility = useMutation({
+    mutationFn: async (characterId: string) => {
+      if (!campaignId || !snapshot.data) {
+        throw new Error("Кампания ещё не загружена.");
+      }
+      const states = snapshot.data.scene.characters;
+      const state = states.find((item) => item.character_id === characterId);
+      const visibleStates = states.filter((item) => item.is_visible);
+      const isVisible = !(state?.is_visible ?? false);
+      await api.updateSceneCharacter(campaignId, characterId, {
+        is_visible: isVisible,
+        order: isVisible ? visibleStates.length : state?.order,
+        base_revision: state?.revision ?? 1,
+      });
+      return { characterId, isVisible };
+    },
+    onSuccess: ({ characterId, isVisible }) => {
+      if (isVisible) {
+        selectCharacter(characterId);
+      } else if (selectedCharacterId === characterId) {
+        selectCharacter(null);
+      }
+      void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
+    },
+  });
 
   const handleRealtime = useCallback(
     () => {
@@ -93,9 +111,14 @@ export default function GmPage() {
     );
   }
 
-  const selectedCharacter =
-    snapshot.data.characters.find((character) => character.id === selectedCharacterId) ??
-    snapshot.data.characters[0];
+  const characters = snapshot.data.characters as CharacterGM[];
+  const displayedCharacterIds = snapshot.data.scene.characters
+    .filter((state) => state.is_visible)
+    .sort((left, right) => left.order - right.order)
+    .map((state) => state.character_id);
+  const selectedCharacter = characters.find(
+    (character) => character.id === selectedCharacterId,
+  );
   const refreshSnapshot = () => {
     void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
   };
@@ -103,7 +126,7 @@ export default function GmPage() {
   return (
     <main className="gm-shell">
       <header className="topbar">
-        <div>
+        <div className="topbar__identity">
           <span className="eyebrow">GM Console</span>
           <label className="campaign-picker">
             <span>Кампания</span>
@@ -123,7 +146,19 @@ export default function GmPage() {
           <h1>{snapshot.data.campaign.name}</h1>
           {activateCampaign.error && <ErrorNotice error={activateCampaign.error} />}
         </div>
-        <div className="topbar__meta">
+        <GmTopControls
+          key={campaignId}
+          campaignId={campaignId}
+          snapshot={snapshot.data}
+          characters={characters}
+          onToggleCharacter={(characterId) =>
+            toggleCharacterVisibility.mutate(characterId)
+          }
+          characterSelectionPending={toggleCharacterVisibility.isPending}
+          characterSelectionError={toggleCharacterVisibility.error}
+          onChanged={refreshSnapshot}
+        />
+        <div className="topbar__session">
           <ConnectionBadge state={connection} />
           <span className="join-code">
             Код зрителя <strong>{session.data?.spectator_code}</strong>
@@ -132,42 +167,32 @@ export default function GmPage() {
       </header>
 
       <section className="gm-grid">
-        <aside className="panel panel--roster" aria-label="Персонажи">
-          <div className="panel__header">
-            <span className="eyebrow">Участники</span>
-            <strong>{snapshot.data.characters.length}</strong>
-          </div>
-          <div className="roster">
-            {snapshot.data.characters.map((character) => (
-              <CharacterCard
-                key={character.id}
-                character={character}
-                compact
-                selected={character.id === selectedCharacter?.id}
-                onSelect={(item) => selectCharacter(item.id)}
-              />
-            ))}
-          </div>
+        <aside className="panel panel--voice-log" aria-label="Голос и лог события">
+          <VoiceWorkspace />
+          <EventTimeline snapshot={snapshot.data} />
         </aside>
 
         <section className="panel panel--stage">
-          <EventControls
-            campaignId={campaignId}
-            snapshot={snapshot.data}
-            onChanged={refreshSnapshot}
-          />
-          {snapshot.data.active_event ? (
+          {snapshot.data.active_event?.status === "active" ? (
             <TurnComposer
+              key={`${snapshot.data.active_event.id}:${selectedCharacter?.id ?? "none"}`}
               campaignId={campaignId}
               eventId={snapshot.data.active_event.id}
               character={selectedCharacter}
               onChanged={refreshSnapshot}
             />
           ) : (
-            <div className="empty-state">
-              <span>01</span>
-              <h2>Начните игровое событие</h2>
-              <p>После запуска здесь появятся управление ходом и ответы моделей.</p>
+            <div className="model-response-empty">
+              <span className="eyebrow">Ответ модели-игрока</span>
+              <h2>
+                {snapshot.data.active_event?.status === "finalizing"
+                  ? "Событие завершается"
+                  : "Запустите игровое событие"}
+              </h2>
+              <p>
+                Выбор персонажей и управление игровым событием находятся на верхней
+                панели.
+              </p>
             </div>
           )}
         </section>
@@ -184,26 +209,35 @@ export default function GmPage() {
           />
         </aside>
 
-        <section className="panel panel--timeline">
+        <section className="panel panel--character-strip">
           <div className="panel__header">
             <div>
-              <span className="eyebrow">Event log</span>
-              <h2>{snapshot.data.active_event?.title ?? "Нет активного события"}</h2>
+              <span className="eyebrow">Карточки персонажей</span>
+              <h2>Выбранные персонажи</h2>
             </div>
-            <span>{snapshot.data.active_event?.turns.length ?? 0} ходов</span>
+            <span>{displayedCharacterIds.length} показано</span>
           </div>
-          <div className="timeline" aria-live="polite">
-            {snapshot.data.active_event?.turns.map((turn) => (
-              <article className="turn" key={turn.id}>
-                <span className="turn__sequence">{String(turn.sequence).padStart(2, "0")}</span>
-                <div>
-                  <strong>{turn.actor_name}</strong>
-                  {turn.thought && <p className="turn__thought">{turn.thought}</p>}
-                  <p>{turn.action}</p>
-                </div>
-                {turn.dice_roll && <span className="die">d20 · {turn.dice_roll}</span>}
-              </article>
-            ))}
+          <div className="gm-character-strip">
+            {displayedCharacterIds.length === 0 && (
+              <div className="gm-character-strip__empty">
+                Выберите персонажей в выпадающем списке сверху. Здесь появятся их карточки.
+              </div>
+            )}
+            {displayedCharacterIds.map((characterId) => {
+              const character = characters.find((item) => item.id === characterId);
+              if (!character) return null;
+              return (
+                <GmCharacterCard
+                  key={character.id}
+                  campaignId={campaignId}
+                  character={character}
+                  selected={character.id === selectedCharacterId}
+                  onSelect={() => selectCharacter(character.id)}
+                  onRemove={() => toggleCharacterVisibility.mutate(character.id)}
+                  onChanged={refreshSnapshot}
+                />
+              );
+            })}
           </div>
         </section>
       </section>
@@ -211,56 +245,57 @@ export default function GmPage() {
   );
 }
 
-function EventControls({
-  campaignId,
-  snapshot,
-  onChanged,
-}: {
-  campaignId: string;
-  snapshot: GameStateSnapshot;
-  onChanged: () => void;
-}) {
-  const form = useForm<EventForm>({
-    resolver: zodResolver(eventSchema),
-    defaultValues: { title: "Новое игровое событие" },
-  });
-  const start = useMutation({
-    mutationFn: ({ title }: EventForm) => api.startEvent(campaignId, title),
-    onSuccess: onChanged,
-  });
-  const archive = useMutation({
-    mutationFn: () => api.archiveEvent(campaignId, snapshot.active_event!.id),
-    onSuccess: onChanged,
-  });
-
+function VoiceWorkspace() {
   return (
-    <div className="stage-header">
-      <div>
-        <span className="eyebrow">Игровое событие</span>
-        <h2>{snapshot.active_event?.title ?? "Ожидание"}</h2>
+    <section className="voice-workspace">
+      <div className="panel__header">
+        <div>
+          <span className="eyebrow">Голос GM</span>
+          <h2>TTS / STT</h2>
+        </div>
+        <span>следующий этап</span>
       </div>
-      {snapshot.active_event ? (
-        <button className="button button--quiet" type="button" onClick={() => archive.mutate()}>
-          Завершить событие
+      <div className="voice-workspace__body">
+        <textarea
+          aria-label="Текст голоса GM"
+          placeholder="Здесь появятся запись речи, распознанный текст и управление TTS."
+          disabled
+        />
+        <button className="button button--quiet" type="button" disabled>
+          Запись голоса
         </button>
-      ) : (
-        <form
-          className="inline-form"
-          onSubmit={(event) => {
-            void form.handleSubmit((value) => start.mutate(value))(event);
-          }}
-        >
-          <label className="sr-only" htmlFor="event-title">
-            Название события
-          </label>
-          <input id="event-title" {...form.register("title")} />
-          <button className="button" type="submit" disabled={start.isPending}>
-            Запустить
-          </button>
-        </form>
-      )}
-      {(start.error || archive.error) && <ErrorNotice error={start.error ?? archive.error} />}
-    </div>
+      </div>
+    </section>
+  );
+}
+
+function EventTimeline({ snapshot }: { snapshot: GameStateSnapshot }) {
+  return (
+    <section className="event-log-workspace">
+      <div className="panel__header">
+        <div>
+          <span className="eyebrow">Event log</span>
+          <h2>{snapshot.active_event?.title ?? "Нет активного события"}</h2>
+        </div>
+        <span>{snapshot.active_event?.turns.length ?? 0}</span>
+      </div>
+      <div className="timeline" aria-live="polite">
+        {snapshot.active_event?.turns.map((turn) => (
+          <article className="turn" key={turn.id}>
+            <span className="turn__sequence">{String(turn.sequence).padStart(2, "0")}</span>
+            <div>
+              <strong>{turn.actor_name}</strong>
+              {turn.thought && <p className="turn__thought">{turn.thought}</p>}
+              <p>{turn.action}</p>
+            </div>
+            {turn.dice_roll && <span className="die">d20 · {turn.dice_roll}</span>}
+          </article>
+        ))}
+        {!snapshot.active_event && (
+          <div className="event-log-workspace__empty">Лог появится после запуска события.</div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -275,60 +310,124 @@ function TurnComposer({
   character: CharacterPublic | undefined;
   onChanged: () => void;
 }) {
+  const [draftReady, setDraftReady] = useState(false);
   const form = useForm<TurnForm>({
     resolver: zodResolver(turnSchema),
     defaultValues: { action: "", thought: "" },
   });
   const createTurn = useMutation({
-    mutationFn: (value: TurnForm) =>
+    mutationFn: ({
+      value,
+      rollDice,
+    }: {
+      value: TurnForm;
+      rollDice: boolean;
+    }) =>
       api.createTurn(campaignId, eventId, {
         character_id: character?.id ?? null,
         actor_name: character?.name ?? "Game Master",
         actor_role: character?.role ?? "gm",
         thought: value.thought || undefined,
         action: value.action,
-        dice_roll: value.diceRoll,
+        roll_dice: rollDice,
       }),
     onSuccess: () => {
       form.reset();
+      setDraftReady(false);
       void onChanged();
     },
   });
+  const generateTurn = useMutation({
+    mutationFn: async () => {
+      if (!character) throw new Error("Сначала выберите персонажа.");
+      const job = await api.generatePlayerTurn(campaignId, eventId, character.id);
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const current = await api.getJob(campaignId, job.id);
+        if (current.status === "succeeded") {
+          const output = current.output_data;
+          if (
+            !output ||
+            typeof output.thought !== "string" ||
+            typeof output.action !== "string"
+          ) {
+            throw new Error("Модель вернула неполный черновик.");
+          }
+          return { thought: output.thought, action: output.action };
+        }
+        if (["failed", "degraded", "cancelled"].includes(current.status)) {
+          throw new Error(
+            `Не удалось создать черновик: ${current.error_code ?? current.status}`,
+          );
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+      throw new Error("Модель не ответила вовремя.");
+    },
+    onSuccess: (draft) => {
+      form.setValue("thought", draft.thought, { shouldDirty: true });
+      form.setValue("action", draft.action, { shouldDirty: true });
+      setDraftReady(true);
+    },
+  });
+  const publish = (rollDice: boolean) => {
+    void form.handleSubmit((value) => createTurn.mutate({ value, rollDice }))();
+  };
   return (
     <form
       className="composer"
-      onSubmit={(event) => {
-        void form.handleSubmit((value) => createTurn.mutate(value))(event);
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
+      <div className="composer__heading">
+        <div>
+          <span className="eyebrow">Игровое событие</span>
+          <h2>Ответ модели-игрока</h2>
+        </div>
+      </div>
       <div className="composer__actor">
         <span>Активный персонаж</span>
-        <strong>{character?.name ?? "Game Master"}</strong>
+        <strong>{character?.name ?? "Не выбран"}</strong>
+      </div>
+      <div className="composer__draft-actions">
+        <button
+          className="button button--secondary"
+          type="button"
+          disabled={!character || generateTurn.isPending}
+          onClick={() => generateTurn.mutate()}
+        >
+          {generateTurn.isPending ? "Модель отвечает…" : "Сгенерировать ответ"}
+        </button>
+        {draftReady && (
+          <span>Проверьте и при необходимости отредактируйте мысль и действие.</span>
+        )}
       </div>
       <label htmlFor="thought">Мысль модели</label>
       <textarea id="thought" rows={3} {...form.register("thought")} />
       <label htmlFor="action">Публичное действие</label>
       <textarea id="action" rows={7} {...form.register("action")} />
       <div className="composer__actions">
-        <label className="dice-input">
-          d20
-          <input
-            type="number"
-            min={1}
-            max={20}
-            {...form.register("diceRoll", {
-              setValueAs: (value: string) => (value === "" ? undefined : Number(value)),
-            })}
-          />
-        </label>
-        <button className="button" type="submit" disabled={createTurn.isPending}>
-          Зафиксировать ход
+        <button
+          className="button button--quiet"
+          type="button"
+          disabled={!character || createTurn.isPending}
+          onClick={() => publish(false)}
+        >
+          Отправить
+        </button>
+        <button
+          className="button"
+          type="button"
+          disabled={!character || createTurn.isPending}
+          onClick={() => publish(true)}
+        >
+          Отправить с dice roll
         </button>
       </div>
       {form.formState.errors.action && (
         <span className="field-error">{form.formState.errors.action.message}</span>
       )}
-      {createTurn.error && <ErrorNotice error={createTurn.error} />}
+      {(createTurn.error || generateTurn.error) && (
+        <ErrorNotice error={createTurn.error ?? generateTurn.error} />
+      )}
     </form>
   );
 }
@@ -351,6 +450,7 @@ function ObserverPanel({
   const [brief, setBrief] = useState("Механическое последствие подтверждено мастером.");
   const [hp, setHp] = useState(selectedCharacter?.hp_current ?? 0);
   const lastTurn = snapshot.active_event?.turns.at(-1);
+  const eventAcceptsChanges = snapshot.active_event?.status === "active";
 
   const operation = useMemo(
     () =>
@@ -393,9 +493,13 @@ function ObserverPanel({
         </div>
         <span className="revision">rev {snapshot.campaign.revision}</span>
       </div>
-      {!lastTurn || !selectedCharacter ? (
+      {!eventAcceptsChanges || !lastTurn || !selectedCharacter ? (
         <div className="empty-state empty-state--small">
-          <p>Сначала выберите персонажа и зафиксируйте ход.</p>
+          <p>
+            {snapshot.active_event?.status === "finalizing"
+              ? "Изменения механики отключены, пока Архивариус завершает событие."
+              : "Сначала выберите персонажа и зафиксируйте ход."}
+          </p>
         </div>
       ) : (
         <div className="observer-form">

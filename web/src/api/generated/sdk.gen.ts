@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateCampaignApiV1CampaignsCampaignIdActivatePostData, ActivateCampaignApiV1CampaignsCampaignIdActivatePostErrors, ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponses, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostData, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostErrors, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostResponses, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostData, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostErrors, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponses, CapabilitiesApiV1CapabilitiesGetData, CapabilitiesApiV1CapabilitiesGetResponses, CreateCampaignApiV1CampaignsPostData, CreateCampaignApiV1CampaignsPostErrors, CreateCampaignApiV1CampaignsPostResponses, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostData, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostErrors, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostResponses, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostData, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostErrors, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetData, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetErrors, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponses, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostData, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostErrors, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResponses, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostData, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostErrors, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostResponses, GetAssetApiV1AssetsAssetIdGetData, GetAssetApiV1AssetsAssetIdGetErrors, GetAssetApiV1AssetsAssetIdGetResponses, GetJobApiV1CampaignsCampaignIdJobsJobIdGetData, GetJobApiV1CampaignsCampaignIdJobsJobIdGetErrors, GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponses, GetVoiceJobApiV1VoiceJobsJobIdGetData, GetVoiceJobApiV1VoiceJobsJobIdGetErrors, GetVoiceJobApiV1VoiceJobsJobIdGetResponses, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetData, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetErrors, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetResponses, ImportLegacyApiV1LegacyImportPostData, ImportLegacyApiV1LegacyImportPostErrors, ImportLegacyApiV1LegacyImportPostResponses, ListCampaignsApiV1CampaignsGetData, ListCampaignsApiV1CampaignsGetResponses, LiveApiV1HealthLiveGetData, LiveApiV1HealthLiveGetResponses, LogoutApiV1AuthLogoutPostData, LogoutApiV1AuthLogoutPostResponses, ReadyApiV1HealthReadyGetData, ReadyApiV1HealthReadyGetResponses, SessionInfoApiV1AuthSessionGetData, SessionInfoApiV1AuthSessionGetResponses, SnapshotApiV1CampaignsCampaignIdSnapshotGetData, SnapshotApiV1CampaignsCampaignIdSnapshotGetErrors, SnapshotApiV1CampaignsCampaignIdSnapshotGetResponses, StartEventApiV1CampaignsCampaignIdEventsPostData, StartEventApiV1CampaignsCampaignIdEventsPostErrors, StartEventApiV1CampaignsCampaignIdEventsPostResponses, TranscribeAudioApiV1VoiceJobsTranscriptionPostData, TranscribeAudioApiV1VoiceJobsTranscriptionPostErrors, TranscribeAudioApiV1VoiceJobsTranscriptionPostResponses, VersionApiV1VersionGetData, VersionApiV1VersionGetResponses } from './types.gen';
+import type { ActivateCampaignApiV1CampaignsCampaignIdActivatePostData, ActivateCampaignApiV1CampaignsCampaignIdActivatePostErrors, ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponses, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostData, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostErrors, ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostResponses, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostData, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostErrors, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponses, CapabilitiesApiV1CapabilitiesGetData, CapabilitiesApiV1CapabilitiesGetResponses, ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostData, ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostErrors, ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponses, CreateCampaignApiV1CampaignsPostData, CreateCampaignApiV1CampaignsPostErrors, CreateCampaignApiV1CampaignsPostResponses, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostData, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostErrors, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostResponses, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostData, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostErrors, CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetData, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetErrors, ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponses, GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostData, GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostErrors, GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostData, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostErrors, GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResponses, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostData, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostErrors, GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostResponses, GetAssetApiV1AssetsAssetIdGetData, GetAssetApiV1AssetsAssetIdGetErrors, GetAssetApiV1AssetsAssetIdGetResponses, GetJobApiV1CampaignsCampaignIdJobsJobIdGetData, GetJobApiV1CampaignsCampaignIdJobsJobIdGetErrors, GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponses, GetVoiceJobApiV1VoiceJobsJobIdGetData, GetVoiceJobApiV1VoiceJobsJobIdGetErrors, GetVoiceJobApiV1VoiceJobsJobIdGetResponses, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetData, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetErrors, GmSnapshotApiV1CampaignsCampaignIdGmSnapshotGetResponses, ImportLegacyApiV1LegacyImportPostData, ImportLegacyApiV1LegacyImportPostErrors, ImportLegacyApiV1LegacyImportPostResponses, ListCampaignsApiV1CampaignsGetData, ListCampaignsApiV1CampaignsGetResponses, LiveApiV1HealthLiveGetData, LiveApiV1HealthLiveGetResponses, LogoutApiV1AuthLogoutPostData, LogoutApiV1AuthLogoutPostResponses, ReadyApiV1HealthReadyGetData, ReadyApiV1HealthReadyGetResponses, SessionInfoApiV1AuthSessionGetData, SessionInfoApiV1AuthSessionGetResponses, SnapshotApiV1CampaignsCampaignIdSnapshotGetData, SnapshotApiV1CampaignsCampaignIdSnapshotGetErrors, SnapshotApiV1CampaignsCampaignIdSnapshotGetResponses, StartEventApiV1CampaignsCampaignIdEventsPostData, StartEventApiV1CampaignsCampaignIdEventsPostErrors, StartEventApiV1CampaignsCampaignIdEventsPostResponses, TranscribeAudioApiV1VoiceJobsTranscriptionPostData, TranscribeAudioApiV1VoiceJobsTranscriptionPostErrors, TranscribeAudioApiV1VoiceJobsTranscriptionPostResponses, UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchData, UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchErrors, UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponses, UpdateSceneApiV1CampaignsCampaignIdScenePatchData, UpdateSceneApiV1CampaignsCampaignIdScenePatchErrors, UpdateSceneApiV1CampaignsCampaignIdScenePatchResponses, UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchData, UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchErrors, UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponses, VersionApiV1VersionGetData, VersionApiV1VersionGetResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -105,6 +105,42 @@ export const createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost = <ThrowOn
 });
 
 /**
+ * Update Scene
+ */
+export const updateSceneApiV1CampaignsCampaignIdScenePatch = <ThrowOnError extends boolean = false>(options: Options<UpdateSceneApiV1CampaignsCampaignIdScenePatchData, ThrowOnError>) => (options.client ?? client).patch<UpdateSceneApiV1CampaignsCampaignIdScenePatchResponses, UpdateSceneApiV1CampaignsCampaignIdScenePatchErrors, ThrowOnError>({
+    url: '/api/v1/campaigns/{campaign_id}/scene',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Scene Character
+ */
+export const updateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchData, ThrowOnError>) => (options.client ?? client).patch<UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponses, UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/campaigns/{campaign_id}/scene/characters/{character_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Update Character
+ */
+export const updateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchData, ThrowOnError>) => (options.client ?? client).patch<UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponses, UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchErrors, ThrowOnError>({
+    url: '/api/v1/campaigns/{campaign_id}/characters/{character_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Create Proposal
  */
 export const createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost = <ThrowOnError extends boolean = false>(options: Options<CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostData, ThrowOnError>) => (options.client ?? client).post<CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostResponses, CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostErrors, ThrowOnError>({
@@ -132,6 +168,30 @@ export const applyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApp
  * Archive Event
  */
 export const archiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePost = <ThrowOnError extends boolean = false>(options: Options<ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostData, ThrowOnError>) => (options.client ?? client).post<ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponses, ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostErrors, ThrowOnError>({ url: '/api/v1/campaigns/{campaign_id}/events/{event_id}/archive', ...options });
+
+/**
+ * Confirm Event Finalization
+ */
+export const confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost = <ThrowOnError extends boolean = false>(options: Options<ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostData, ThrowOnError>) => (options.client ?? client).post<ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponses, ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostErrors, ThrowOnError>({
+    url: '/api/v1/campaigns/{campaign_id}/events/{event_id}/finalization/confirm',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Generate Event Finalization
+ */
+export const generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost = <ThrowOnError extends boolean = false>(options: Options<GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostData, ThrowOnError>) => (options.client ?? client).post<GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses, GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostErrors, ThrowOnError>({
+    url: '/api/v1/campaigns/{campaign_id}/jobs/event-finalization',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Generate Player Turn

@@ -15,7 +15,7 @@ from openai.types.chat import (
 from openai.types.shared_params import ResponseFormatJSONObject, ResponseFormatJSONSchema
 from pydantic import BaseModel, ValidationError
 
-from ai_dnd.api.schemas import ObserverOutput, PlayerTurnOutput
+from ai_dnd.api.schemas import ArchivistOutput, ObserverOutput, PlayerTurnOutput
 from ai_dnd.core.settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -45,6 +45,10 @@ class LLMProvider(Protocol):
         self, *, profile: ModelProfile, system_prompt: str, prompt: str
     ) -> ObserverOutput: ...
 
+    async def generate_archivist_result(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ArchivistOutput: ...
+
 
 class DisabledLLMProvider:
     async def generate_player_turn(
@@ -55,6 +59,11 @@ class DisabledLLMProvider:
     async def generate_observer_proposal(
         self, *, profile: ModelProfile, system_prompt: str, prompt: str
     ) -> ObserverOutput:
+        raise LLMUnavailableError("LLM integration is disabled: no API key is configured.")
+
+    async def generate_archivist_result(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ArchivistOutput:
         raise LLMUnavailableError("LLM integration is disabled: no API key is configured.")
 
 
@@ -84,6 +93,16 @@ class OpenAICompatibleLLMProvider:
     ) -> ObserverOutput:
         return await self._generate(
             output_type=ObserverOutput,
+            profile=profile,
+            system_prompt=system_prompt,
+            prompt=prompt,
+        )
+
+    async def generate_archivist_result(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ArchivistOutput:
+        return await self._generate(
+            output_type=ArchivistOutput,
             profile=profile,
             system_prompt=system_prompt,
             prompt=prompt,

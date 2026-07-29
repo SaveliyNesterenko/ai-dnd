@@ -2,6 +2,7 @@ import type {
   AddInventoryItemOperation,
   AddStatusEffectOperation,
   CampaignSummary,
+  CharacterGm as GeneratedCharacterGm,
   CharacterPublic as GeneratedCharacterPublic,
   GameStateSnapshot as GeneratedGameStateSnapshot,
   InventoryItem as GeneratedInventoryItem,
@@ -15,6 +16,7 @@ import type {
 
 export type Campaign = CampaignSummary;
 export type CharacterPublic = GeneratedCharacterPublic;
+export type CharacterGM = GeneratedCharacterGm;
 export type GameStateSnapshot = GeneratedGameStateSnapshot;
 export type InventoryItem = GeneratedInventoryItem;
 export type ObserverProposal = ObserverProposalView;

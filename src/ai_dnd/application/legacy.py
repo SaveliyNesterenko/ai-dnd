@@ -13,7 +13,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ai_dnd.api.schemas import LegacyExportV1, LegacyImportReport
+from ai_dnd.api.schemas import LegacyExportV1, LegacyImportReport, LegacySyncReport
 from ai_dnd.core.settings import Settings
 from ai_dnd.domain.errors import ConflictError, ValidationError
 from ai_dnd.infrastructure.models import (
@@ -21,7 +21,12 @@ from ai_dnd.infrastructure.models import (
     CampaignModel,
     CharacterModel,
     GameEventModel,
+    GameEventParticipantModel,
     InventoryItemModel,
+    LocationModel,
+    MusicTrackModel,
+    SceneCharacterModel,
+    SceneModel,
     StatusEffectModel,
     TurnModel,
 )
@@ -64,6 +69,31 @@ def _resolve_legacy_asset(source: Path, raw_path: str) -> Path:
     return candidates[0].resolve()
 
 
+def _character_kind(role: object) -> str:
+    normalized = str(role or "").strip().lower()
+    if normalized == "player":
+        return "player"
+    if normalized == "enemy":
+        return "enemy"
+    return "npc"
+
+
+def _legacy_avatar_path(source: Path, character_id: str, meta: dict[str, Any]) -> str:
+    primary = f"assets/characters/{character_id}.png"
+    if _resolve_legacy_asset(source, primary).is_file():
+        return primary
+    base_character_id = re.sub(r"_\d+$", "", character_id)
+    duplicate_fallback = f"assets/characters/{base_character_id}.png"
+    if _resolve_legacy_asset(source, duplicate_fallback).is_file():
+        return duplicate_fallback
+    sprite_name = Path(str(meta.get("sprite_id") or "")).stem
+    if sprite_name.endswith("_portrait"):
+        fallback = f"assets/characters/{sprite_name.removesuffix('_portrait')}.png"
+        if _resolve_legacy_asset(source, fallback).is_file():
+            return fallback
+    return primary
+
+
 def inspect_legacy_source(source_dir: Path) -> tuple[dict[str, dict[str, Any]], LegacyImportReport]:
     source = source_dir.resolve()
     documents = {filename: _load_document(source, filename) for filename in EXPECTED_FILES}
@@ -98,6 +128,9 @@ def inspect_legacy_source(source_dir: Path) -> tuple[dict[str, dict[str, Any]], 
         voice = meta.get("voice_sample")
         if voice and not _resolve_legacy_asset(source, str(voice)).is_file():
             missing_assets.add(str(voice))
+        avatar_path = _legacy_avatar_path(source, str(character_id), meta)
+        if not _resolve_legacy_asset(source, avatar_path).is_file():
+            missing_assets.add(avatar_path)
     for location_path in locations.values():
         normalized = str(location_path).replace("../", "")
         if not _resolve_legacy_asset(source, normalized).is_file():
@@ -154,7 +187,8 @@ class LegacyDataService:
             slug = f"{base_slug}-{suffix}"
             suffix += 1
 
-        active_ids = set(map(str, documents["active_characters.json"].get("characters_id", [])))
+        active_list = list(map(str, documents["active_characters.json"].get("characters_id", [])))
+        active_ids = set(active_list)
         world_state = dict(documents["public_state.json"])
         await self.session.execute(
             update(CampaignModel).where(CampaignModel.is_active.is_(True)).values(is_active=False)
@@ -169,8 +203,9 @@ class LegacyDataService:
         await self.session.flush()
 
         imported_locations: dict[str, dict[str, str]] = {}
+        location_models: dict[str, LocationModel] = {}
         location_paths = documents["locations.json"].get("locations", {})
-        for location_id, raw_path in location_paths.items():
+        for sort_order, (location_id, raw_path) in enumerate(location_paths.items()):
             asset_id = await self._import_asset(
                 campaign.id,
                 source,
@@ -182,6 +217,17 @@ class LegacyDataService:
                 "name": str(location_id),
                 "image_url": f"/api/v1/assets/{asset_id}" if asset_id else "",
             }
+            if asset_id:
+                location = LocationModel(
+                    campaign_id=campaign.id,
+                    slug=str(location_id),
+                    name=str(location_id),
+                    asset_id=asset_id,
+                    sort_order=sort_order,
+                )
+                self.session.add(location)
+                await self.session.flush()
+                location_models[str(location_id)] = location
         legacy_location = world_state.pop("current_location", {})
         current_location_id = (
             str(legacy_location.get("id", "")) if isinstance(legacy_location, dict) else ""
@@ -191,6 +237,7 @@ class LegacyDataService:
             world_state["location"] = current_location
         world_state["locations"] = imported_locations
 
+        music_track: MusicTrackModel | None = None
         music = world_state.get("music")
         if isinstance(music, dict) and music.get("url"):
             music_asset_id = await self._import_asset(
@@ -200,14 +247,44 @@ class LegacyDataService:
                 "music",
             )
             music["url"] = f"/api/v1/assets/{music_asset_id}" if music_asset_id else ""
+            if music_asset_id:
+                music_slug = str(music.get("track_id") or Path(str(music["url"])).name)
+                music_track = MusicTrackModel(
+                    campaign_id=campaign.id,
+                    slug=music_slug,
+                    name=Path(music_slug).stem.replace("_", " ").strip() or music_slug,
+                    asset_id=music_asset_id,
+                )
+                self.session.add(music_track)
+                await self.session.flush()
         campaign.world_state = world_state
+        scene = SceneModel(
+            campaign_id=campaign.id,
+            location_id=(
+                location_models[current_location_id].id
+                if current_location_id in location_models
+                else None
+            ),
+            music_track_id=music_track.id if music_track else None,
+            music_is_playing=bool(music.get("is_playing", False))
+            if isinstance(music, dict)
+            else False,
+            music_volume=round(float(music.get("volume", 0.5)) * 100)
+            if isinstance(music, dict)
+            else 50,
+            avatar_size=int(world_state.get("avatar_size", 270)),
+        )
+        self.session.add(scene)
+        await self.session.flush()
 
         legacy_characters = {
             **documents["characters.json"],
             **documents["npc.json"],
         }
         id_map: dict[str, str] = {}
-        for legacy_id, data in legacy_characters.items():
+        active_order = {character_id: index for index, character_id in enumerate(active_list)}
+        visible_count = max(1, len(active_ids))
+        for fallback_order, (legacy_id, data) in enumerate(legacy_characters.items()):
             meta = data.get("meta", {})
             identity = data.get("identity", {})
             stats = data.get("stats", {})
@@ -218,7 +295,7 @@ class LegacyDataService:
                 campaign_id=campaign.id,
                 slug=str(legacy_id),
                 name=str(identity.get("name") or legacy_id),
-                kind="player" if meta.get("role") == "Player" else "npc",
+                kind=_character_kind(meta.get("role")),
                 role=str(meta.get("role") or "npc"),
                 biography=str(identity.get("bio") or ""),
                 model_id=str(meta["model_id"]) if meta.get("model_id") else None,
@@ -231,6 +308,11 @@ class LegacyDataService:
                 attributes={
                     str(key): int(value) for key, value in stats.get("attributes", {}).items()
                 },
+                global_chronicle=[
+                    str(entry)
+                    for entry in memory.get("global_chronicle", [])
+                    if isinstance(entry, str)
+                ],
                 private_notes=[
                     str(note) for note in memory.get("private_notes", []) if isinstance(note, str)
                 ],
@@ -259,17 +341,41 @@ class LegacyDataService:
                 sprite_name = str(sprite)
                 if not Path(sprite_name).suffix:
                     sprite_name += ".png"
-                character.sprite_asset_id = await self._import_asset(
+                character.portrait_asset_id = await self._import_asset(
                     campaign.id,
                     source,
                     f"assets/characters/{sprite_name}",
                     "character",
                 )
+                character.sprite_asset_id = character.portrait_asset_id
+            character.avatar_asset_id = await self._import_asset(
+                campaign.id,
+                source,
+                _legacy_avatar_path(source, str(legacy_id), meta),
+                "character_avatar",
+            )
             voice = meta.get("voice_sample")
             if voice:
                 character.voice_asset_id = await self._import_asset(
                     campaign.id, source, str(voice), "voice"
                 )
+            is_visible = str(legacy_id) in active_ids
+            visible_order = active_order.get(str(legacy_id), fallback_order)
+            self.session.add(
+                SceneCharacterModel(
+                    campaign_id=campaign.id,
+                    character_id=character.id,
+                    is_visible=is_visible,
+                    x=(
+                        round(((visible_order + 1) / (visible_count + 1)) * 100)
+                        if is_visible
+                        else 50
+                    ),
+                    y=75,
+                    order=visible_order,
+                    flip_x=bool(meta.get("flip_x", False)),
+                )
+            )
 
         history = documents["event_log.json"].get("history", [])
         if history:
@@ -281,6 +387,16 @@ class LegacyDataService:
             )
             self.session.add(event)
             await self.session.flush()
+            self.session.add_all(
+                [
+                    GameEventParticipantModel(
+                        event_id=event.id,
+                        character_id=id_map[legacy_id],
+                    )
+                    for legacy_id in active_list
+                    if legacy_id in id_map
+                ]
+            )
             for index, item in enumerate(history, start=1):
                 if not isinstance(item, dict):
                     continue
@@ -332,6 +448,89 @@ class LegacyDataService:
         self.session.add(asset)
         await self.session.flush()
         return asset.id
+
+    async def sync_campaign(
+        self,
+        campaign_id: str,
+        source_dir: Path,
+        *,
+        dry_run: bool,
+    ) -> LegacySyncReport:
+        documents, inspection = inspect_legacy_source(source_dir)
+        campaign = await self.session.get(CampaignModel, campaign_id)
+        if not campaign:
+            raise ConflictError("Campaign not found.")
+        source_characters = {
+            **documents["characters.json"],
+            **documents["npc.json"],
+        }
+        campaign_characters = list(
+            await self.session.scalars(
+                select(CharacterModel).where(CharacterModel.campaign_id == campaign_id)
+            )
+        )
+        by_slug = {character.slug: character for character in campaign_characters}
+        matched = sorted(set(source_characters) & set(by_slug))
+        report = LegacySyncReport(
+            source_dir=inspection.source_dir,
+            campaign_id=campaign_id,
+            dry_run=dry_run,
+            matched_characters=len(matched),
+            updated_characters=0,
+            missing_campaign_characters=sorted(set(source_characters) - set(by_slug)),
+            missing_source_characters=sorted(set(by_slug) - set(source_characters)),
+            missing_assets=inspection.missing_assets,
+        )
+        if dry_run:
+            return report
+
+        for slug in matched:
+            source_data = source_characters[slug]
+            character = by_slug[slug]
+            meta = source_data.get("meta", {})
+            memory = source_data.get("memory", {})
+            character.kind = _character_kind(meta.get("role"))
+            character.role = str(meta.get("role") or character.role)
+            character.global_chronicle = [
+                str(entry)
+                for entry in memory.get("global_chronicle", [])
+                if isinstance(entry, str)
+            ]
+            character.private_notes = [
+                str(entry)
+                for entry in memory.get("private_notes", [])
+                if isinstance(entry, str)
+            ]
+            sprite = meta.get("sprite_id")
+            if sprite:
+                sprite_name = str(sprite)
+                if not Path(sprite_name).suffix:
+                    sprite_name += ".png"
+                character.portrait_asset_id = await self._import_asset(
+                    campaign_id,
+                    source_dir,
+                    f"assets/characters/{sprite_name}",
+                    "character_portrait",
+                )
+                character.sprite_asset_id = character.portrait_asset_id
+            character.avatar_asset_id = await self._import_asset(
+                campaign_id,
+                source_dir,
+                _legacy_avatar_path(source_dir, slug, meta),
+                "character_avatar",
+            )
+            voice = meta.get("voice_sample")
+            if voice:
+                character.voice_asset_id = await self._import_asset(
+                    campaign_id,
+                    source_dir,
+                    str(voice),
+                    "voice",
+                )
+            character.revision += 1
+            report.updated_characters += 1
+        await self.session.commit()
+        return report
 
     async def export_campaign(self, campaign_id: str) -> LegacyExportV1:
         campaign = await self.session.get(CampaignModel, campaign_id)
@@ -389,6 +588,9 @@ class LegacyDataService:
                         for item in character.inventory
                     ],
                     "private_notes": character.private_notes,
+                    "global_chronicle": character.global_chronicle,
+                    "portrait_asset_id": character.portrait_asset_id,
+                    "avatar_asset_id": character.avatar_asset_id,
                 }
                 for character in characters
             ],

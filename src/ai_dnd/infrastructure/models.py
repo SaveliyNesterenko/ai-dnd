@@ -50,6 +50,15 @@ class CampaignModel(Base):
     events: Mapped[list[GameEventModel]] = relationship(
         back_populates="campaign", cascade="all, delete-orphan"
     )
+    scene: Mapped[SceneModel | None] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan", uselist=False
+    )
+    locations: Mapped[list[LocationModel]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan"
+    )
+    music_tracks: Mapped[list[MusicTrackModel]] = relationship(
+        back_populates="campaign", cascade="all, delete-orphan"
+    )
 
 
 class CharacterModel(Base):
@@ -66,6 +75,8 @@ class CharacterModel(Base):
     role: Mapped[str] = mapped_column(String(64), default="npc")
     biography: Mapped[str] = mapped_column(Text, default="")
     model_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    portrait_asset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    avatar_asset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     sprite_asset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     voice_asset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     flip_x: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -75,6 +86,7 @@ class CharacterModel(Base):
     mp_current: Mapped[int] = mapped_column(Integer, default=0)
     mp_max: Mapped[int] = mapped_column(Integer, default=0)
     attributes: Mapped[dict[str, int]] = mapped_column(JSON, default=dict)
+    global_chronicle: Mapped[list[str]] = mapped_column(JSON, default=list)
     private_notes: Mapped[list[str]] = mapped_column(JSON, default=list)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
@@ -87,6 +99,88 @@ class CharacterModel(Base):
     status_effects: Mapped[list[StatusEffectModel]] = relationship(
         back_populates="character", cascade="all, delete-orphan", order_by="StatusEffectModel.id"
     )
+    scene_state: Mapped[SceneCharacterModel | None] = relationship(
+        back_populates="character", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class LocationModel(Base):
+    __tablename__ = "locations"
+    __table_args__ = (UniqueConstraint("campaign_id", "slug", name="uq_location_campaign_slug"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    campaign_id: Mapped[str] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), index=True
+    )
+    slug: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(160))
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id", ondelete="RESTRICT"))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    campaign: Mapped[CampaignModel] = relationship(back_populates="locations")
+
+
+class MusicTrackModel(Base):
+    __tablename__ = "music_tracks"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "slug", name="uq_music_track_campaign_slug"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    campaign_id: Mapped[str] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), index=True
+    )
+    slug: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(160))
+    asset_id: Mapped[str] = mapped_column(ForeignKey("assets.id", ondelete="RESTRICT"))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    campaign: Mapped[CampaignModel] = relationship(back_populates="music_tracks")
+
+
+class SceneModel(Base):
+    __tablename__ = "scenes"
+
+    campaign_id: Mapped[str] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), primary_key=True
+    )
+    location_id: Mapped[str | None] = mapped_column(
+        ForeignKey("locations.id", ondelete="SET NULL"), nullable=True
+    )
+    music_track_id: Mapped[str | None] = mapped_column(
+        ForeignKey("music_tracks.id", ondelete="SET NULL"), nullable=True
+    )
+    music_is_playing: Mapped[bool] = mapped_column(Boolean, default=False)
+    music_volume: Mapped[int] = mapped_column(Integer, default=50)
+    avatar_size: Mapped[int] = mapped_column(Integer, default=270)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+    campaign: Mapped[CampaignModel] = relationship(back_populates="scene")
+    characters: Mapped[list[SceneCharacterModel]] = relationship(
+        back_populates="scene", cascade="all, delete-orphan", order_by="SceneCharacterModel.order"
+    )
+
+
+class SceneCharacterModel(Base):
+    __tablename__ = "scene_characters"
+
+    campaign_id: Mapped[str] = mapped_column(
+        ForeignKey("scenes.campaign_id", ondelete="CASCADE"), primary_key=True
+    )
+    character_id: Mapped[str] = mapped_column(
+        ForeignKey("characters.id", ondelete="CASCADE"), primary_key=True
+    )
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    x: Mapped[int] = mapped_column(Integer, default=50)
+    y: Mapped[int] = mapped_column(Integer, default=75)
+    order: Mapped[int] = mapped_column(Integer, default=0)
+    flip_x: Mapped[bool] = mapped_column(Boolean, default=False)
+    scale: Mapped[int] = mapped_column(Integer, default=100)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+    scene: Mapped[SceneModel] = relationship(back_populates="characters")
+    character: Mapped[CharacterModel] = relationship(back_populates="scene_state")
 
 
 class InventoryItemModel(Base):
@@ -135,6 +229,11 @@ class GameEventModel(Base):
     status: Mapped[str] = mapped_column(String(24), default="draft", index=True)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    finalization_started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    finalization_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    archive_chronicle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    archive_player_notes: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
+    finalization_source: Mapped[str | None] = mapped_column(String(24), nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
@@ -142,6 +241,23 @@ class GameEventModel(Base):
     turns: Mapped[list[TurnModel]] = relationship(
         back_populates="event", cascade="all, delete-orphan", order_by="TurnModel.sequence"
     )
+    participants: Mapped[list[GameEventParticipantModel]] = relationship(
+        back_populates="event", cascade="all, delete-orphan"
+    )
+
+
+class GameEventParticipantModel(Base):
+    __tablename__ = "game_event_participants"
+
+    event_id: Mapped[str] = mapped_column(
+        ForeignKey("game_events.id", ondelete="CASCADE"), primary_key=True
+    )
+    character_id: Mapped[str] = mapped_column(
+        ForeignKey("characters.id", ondelete="RESTRICT"), primary_key=True
+    )
+    joined_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+    event: Mapped[GameEventModel] = relationship(back_populates="participants")
 
 
 class TurnModel(Base):

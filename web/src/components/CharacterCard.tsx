@@ -26,7 +26,7 @@ export function CharacterCard({
         </div>
         <div>
           <strong>{character.name}</strong>
-          <small>{character.role}</small>
+          <small>{categoryLabel(character.kind)}</small>
         </div>
       </div>
       <ResourceBar
@@ -66,4 +66,12 @@ export function CharacterCard({
     );
   }
   return <article className="character-card">{body}</article>;
+}
+
+function categoryLabel(category: CharacterPublic["kind"]) {
+  return {
+    player: "Игрок",
+    npc: "NPC",
+    enemy: "Враг",
+  }[category];
 }

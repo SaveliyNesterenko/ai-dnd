@@ -6,7 +6,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://127.0.0.1:8000/",
+    baseURL: "http://127.0.0.1:8765/",
     trace: "on-first-retry",
   },
   projects: [

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_dnd.application.legacy import LegacyDataService, inspect_legacy_source
 from ai_dnd.core.settings import Settings
-from ai_dnd.infrastructure.models import AssetModel, CampaignModel
+from ai_dnd.infrastructure.models import AssetModel, CampaignModel, CharacterModel
 
 
 def _write_json(path: Path, value: object) -> None:
@@ -42,7 +42,10 @@ def _legacy_source(tmp_path: Path) -> Path:
                     "attributes": {"STR": 8},
                     "status_effects": [],
                 },
-                "memory": {"private_notes": ["A private note."]},
+                "memory": {
+                    "global_chronicle": ["The hero reached the ruins."],
+                    "private_notes": ["A private note."],
+                },
                 "inventory": [],
             }
         },
@@ -117,3 +120,35 @@ async def test_legacy_import_and_versioned_export(
     assert exported.schema_version == 1
     assert exported.campaign["name"] == "Imported test campaign"
     assert len(exported.characters) == 1
+
+    character = await repository_session.scalar(
+        select(CharacterModel).where(
+            CharacterModel.campaign_id == report.campaign_id,
+            CharacterModel.slug == "hero",
+        )
+    )
+    assert character is not None
+    character.global_chronicle = []
+    character.private_notes = []
+    character.avatar_asset_id = None
+    await repository_session.commit()
+
+    dry_sync = await service.sync_campaign(
+        report.campaign_id,
+        tmp_path / "data",
+        dry_run=True,
+    )
+    assert dry_sync.matched_characters == 1
+    assert dry_sync.updated_characters == 0
+    assert dry_sync.missing_assets == []
+
+    applied_sync = await service.sync_campaign(
+        report.campaign_id,
+        tmp_path / "data",
+        dry_run=False,
+    )
+    assert applied_sync.updated_characters == 1
+    await repository_session.refresh(character)
+    assert character.global_chronicle == ["The hero reached the ruins."]
+    assert character.private_notes == ["A private note."]
+    assert character.avatar_asset_id is not None

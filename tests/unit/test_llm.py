@@ -90,3 +90,46 @@ async def test_llm_provider_and_disabled_mode_report_outage(
             system_prompt="Act.",
             prompt="Wait.",
         )
+    with pytest.raises(LLMUnavailableError):
+        await disabled.generate_observer_proposal(
+            profile=ModelProfile(model_id="none"),
+            system_prompt="Observe.",
+            prompt="Wait.",
+        )
+
+
+@pytest.mark.asyncio
+async def test_llm_generates_observer_and_archivist_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completions = FakeCompletions(
+        [
+            '{"gm_brief": "No change.", "operations": []}',
+            '{"chronicle": "The door opened.", "player_notes": {"aria": "I opened it."}}',
+        ]
+    )
+    monkeypatch.setattr(
+        llm_module,
+        "OpenAI",
+        lambda **_kwargs: FakeOpenAI(completions),
+    )
+    provider = OpenAICompatibleLLMProvider(
+        Settings(openai_api_key="test-key", data_dir="test-data")
+    )
+    observer = await provider.generate_observer_proposal(
+        profile=ModelProfile(model_id="test"),
+        system_prompt="Observe.",
+        prompt="The door opens.",
+    )
+    archivist = await provider.generate_archivist_result(
+        profile=ModelProfile(model_id="test"),
+        system_prompt="Archive.",
+        prompt="Remember the door.",
+    )
+    assert observer.gm_brief == "No change."
+    assert archivist.player_notes == {"aria": "I opened it."}
+
+
+def test_llm_client_requires_api_key() -> None:
+    with pytest.raises(ValueError):
+        OpenAICompatibleLLMProvider(Settings(openai_api_key=None, data_dir="test-data"))

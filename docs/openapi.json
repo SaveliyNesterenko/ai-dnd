@@ -506,6 +506,180 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/scene": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Update Scene",
+        "operationId": "update_scene_api_v1_campaigns__campaign_id__scene_patch",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSceneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/scene/characters/{character_id}": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Update Scene Character",
+        "operationId": "update_scene_character_api_v1_campaigns__campaign_id__scene_characters__character_id__patch",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSceneCharacterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/characters/{character_id}": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Update Character",
+        "operationId": "update_character_api_v1_campaigns__campaign_id__characters__character_id__patch",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "character_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCharacterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CharacterGM"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/events/{event_id}/observer-proposals": {
       "post": {
         "tags": [
@@ -698,6 +872,137 @@
                     "type": "string"
                   },
                   "title": "Response Archive Event Api V1 Campaigns  Campaign Id  Events  Event Id  Archive Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/events/{event_id}/finalization/confirm": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Confirm Event Finalization",
+        "operationId": "confirm_event_finalization_api_v1_campaigns__campaign_id__events__event_id__finalization_confirm_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEventFinalizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Confirm Event Finalization Api V1 Campaigns  Campaign Id  Events  Event Id  Finalization Confirm Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/jobs/event-finalization": {
+      "post": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "Generate Event Finalization",
+        "operationId": "generate_event_finalization_api_v1_campaigns__campaign_id__jobs_event_finalization_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateEventFinalizationJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
                 }
               }
             }
@@ -1357,6 +1662,11 @@
           },
           "kind": {
             "type": "string",
+            "enum": [
+              "player",
+              "npc",
+              "enemy"
+            ],
             "title": "Kind"
           },
           "role": {
@@ -1366,6 +1676,28 @@
           "biography": {
             "type": "string",
             "title": "Biography"
+          },
+          "portrait_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portrait Url"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           },
           "sprite_url": {
             "anyOf": [
@@ -1449,6 +1781,13 @@
             ],
             "title": "Voice Asset Id"
           },
+          "global_chronicle": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Global Chronicle"
+          },
           "private_notes": {
             "items": {
               "type": "string"
@@ -1475,6 +1814,7 @@
           "inventory",
           "status_effects",
           "revision",
+          "global_chronicle",
           "private_notes"
         ],
         "title": "CharacterGM"
@@ -1495,6 +1835,11 @@
           },
           "kind": {
             "type": "string",
+            "enum": [
+              "player",
+              "npc",
+              "enemy"
+            ],
             "title": "Kind"
           },
           "role": {
@@ -1504,6 +1849,28 @@
           "biography": {
             "type": "string",
             "title": "Biography"
+          },
+          "portrait_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portrait Url"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           },
           "sprite_url": {
             "anyOf": [
@@ -1586,6 +1953,44 @@
           "revision"
         ],
         "title": "CharacterPublic"
+      },
+      "ConfirmEventFinalizationRequest": {
+        "properties": {
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          },
+          "chronicle": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Chronicle"
+          },
+          "player_notes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Player Notes"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "manual"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_revision",
+          "chronicle",
+          "player_notes",
+          "source"
+        ],
+        "title": "ConfirmEventFinalizationRequest"
       },
       "CreateCampaignRequest": {
         "properties": {
@@ -1720,6 +2125,11 @@
             "minLength": 1,
             "title": "Action"
           },
+          "roll_dice": {
+            "type": "boolean",
+            "title": "Roll Dice",
+            "default": false
+          },
           "dice_roll": {
             "anyOf": [
               {
@@ -1760,6 +2170,24 @@
             "type": "integer",
             "title": "Revision"
           },
+          "participant_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Participant Ids"
+          },
+          "finalization_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalization Job Id"
+          },
           "turns": {
             "items": {
               "$ref": "#/components/schemas/TurnView"
@@ -1774,6 +2202,7 @@
           "title",
           "status",
           "revision",
+          "participant_ids",
           "turns"
         ],
         "title": "GameEventView"
@@ -1801,6 +2230,9 @@
               }
             ],
             "title": "Global Chronicle"
+          },
+          "scene": {
+            "$ref": "#/components/schemas/SceneView"
           },
           "active_event": {
             "anyOf": [
@@ -1835,11 +2267,42 @@
         "required": [
           "campaign",
           "world_state",
+          "scene",
           "active_event",
           "characters",
           "last_sequence"
         ],
         "title": "GameStateSnapshot"
+      },
+      "GenerateEventFinalizationJobRequest": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "base_revision"
+        ],
+        "title": "GenerateEventFinalizationJobRequest"
       },
       "GenerateObserverJobRequest": {
         "properties": {
@@ -2078,6 +2541,62 @@
         ],
         "title": "LegacyImportRequest"
       },
+      "LocationView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "image_url": {
+            "type": "string",
+            "title": "Image Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "image_url"
+        ],
+        "title": "LocationView"
+      },
+      "MusicTrackView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "audio_url": {
+            "type": "string",
+            "title": "Audio Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "audio_url"
+        ],
+        "title": "MusicTrackView"
+      },
       "ObserverProposalView": {
         "properties": {
           "id": {
@@ -2196,6 +2715,140 @@
           "status_effect_id"
         ],
         "title": "RemoveStatusEffectOperation"
+      },
+      "SceneCharacterView": {
+        "properties": {
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible"
+          },
+          "x": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "flip_x": {
+            "type": "boolean",
+            "title": "Flip X"
+          },
+          "scale": {
+            "type": "integer",
+            "maximum": 250.0,
+            "minimum": 25.0,
+            "title": "Scale"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id",
+          "is_visible",
+          "x",
+          "y",
+          "order",
+          "flip_x",
+          "scale",
+          "revision"
+        ],
+        "title": "SceneCharacterView"
+      },
+      "SceneView": {
+        "properties": {
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          },
+          "music_track_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Track Id"
+          },
+          "music_is_playing": {
+            "type": "boolean",
+            "title": "Music Is Playing"
+          },
+          "music_volume": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Music Volume"
+          },
+          "avatar_size": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 80.0,
+            "title": "Avatar Size"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/LocationView"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "music_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/MusicTrackView"
+            },
+            "type": "array",
+            "title": "Music Tracks"
+          },
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/SceneCharacterView"
+            },
+            "type": "array",
+            "title": "Characters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "location_id",
+          "music_track_id",
+          "music_is_playing",
+          "music_volume",
+          "avatar_size",
+          "revision",
+          "locations",
+          "music_tracks",
+          "characters"
+        ],
+        "title": "SceneView"
       },
       "SetAttributeOperation": {
         "properties": {
@@ -2377,6 +3030,128 @@
         ],
         "title": "TurnView"
       },
+      "UpdateCharacterRequest": {
+        "properties": {
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          },
+          "biography": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Biography"
+          },
+          "hp_current": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hp Current"
+          },
+          "hp_max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hp Max"
+          },
+          "mp_current": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mp Current"
+          },
+          "mp_max": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mp Max"
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes"
+          },
+          "inventory": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InventoryItem"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inventory"
+          },
+          "status_effects": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Effects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_revision"
+        ],
+        "title": "UpdateCharacterRequest"
+      },
       "UpdateInventoryItemOperation": {
         "properties": {
           "op": {
@@ -2438,6 +3213,118 @@
           "item_id"
         ],
         "title": "UpdateInventoryItemOperation"
+      },
+      "UpdateSceneCharacterRequest": {
+        "properties": {
+          "is_visible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Visible"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_revision"
+        ],
+        "title": "UpdateSceneCharacterRequest"
+      },
+      "UpdateSceneRequest": {
+        "properties": {
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          },
+          "music_track_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Track Id"
+          },
+          "music_is_playing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Is Playing"
+          },
+          "music_volume": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Music Volume"
+          },
+          "avatar_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 600.0,
+                "minimum": 80.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Size"
+          },
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_revision"
+        ],
+        "title": "UpdateSceneRequest"
       },
       "ValidationError": {
         "properties": {

@@ -127,7 +127,8 @@ flowchart LR
 ## Безопасность и приватность
 
 - `CharacterGM` и `CharacterPublic` — разные API-проекции.
-- Thoughts, private notes, model IDs, prompts и ключи не передаются spectator.
+- Мысли опубликованных ходов передаются spectator и отображаются зрителям.
+- Private notes, персональные хроники, model IDs, prompts и ключи spectator не получает.
 - Observer может выполнять только разрешённые типизированные операции.
 - Контент кампании выводится React как текст; `dangerouslySetInnerHTML` не
   используется.

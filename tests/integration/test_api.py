@@ -128,7 +128,7 @@ def test_event_turn_and_idempotency(
     assert turn["action"] == "<script>alert('xss')</script>"
 
 
-def test_public_turn_projection_hides_private_thought(
+def test_public_turn_projection_includes_spectator_thought(
     authenticated_client: TestClient,
     demo_campaign_id: str,
 ) -> None:
@@ -146,14 +146,125 @@ def test_public_turn_projection_hides_private_thought(
         f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
         params={"spectator_code": code},
     ).json()
-    assert public["active_event"]["turns"][0]["thought"] is None
+    assert (
+        public["active_event"]["turns"][0]["thought"]
+        == "This remains a turn thought, not a private memory."
+    )
 
     with authenticated_client.websocket_connect(
         f"/api/v1/realtime?campaign_id={demo_campaign_id}&last_sequence=1&join_code={code}"
     ) as websocket:
         realtime_turn = websocket.receive_json()
         assert realtime_turn["type"] == "turn.created"
-        assert "thought" not in realtime_turn["payload"]
+        assert (
+            realtime_turn["payload"]["thought"]
+            == "This remains a turn thought, not a private memory."
+        )
+
+
+def test_scene_character_updates_are_public_and_revision_guarded(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character = snapshot["characters"][0]
+    scene = snapshot["scene"]
+    scene_character = next(
+        item for item in scene["characters"] if item["character_id"] == character["id"]
+    )
+    response = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={
+            "is_visible": False,
+            "order": scene_character["order"],
+            "base_revision": scene_character["revision"],
+        },
+    )
+    assert response.status_code == 200
+    updated = next(
+        item
+        for item in response.json()["characters"]
+        if item["character_id"] == character["id"]
+    )
+    assert updated["is_visible"] is False
+    assert (updated["x"], updated["y"], updated["scale"]) == (
+        scene_character["x"],
+        scene_character["y"],
+        scene_character["scale"],
+    )
+
+    stale = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"is_visible": True, "base_revision": scene_character["revision"]},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "stale_revision"
+
+    movement = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"x": 40, "base_revision": updated["revision"]},
+    )
+    assert movement.status_code == 422
+
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    public = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": code},
+    ).json()
+    public_character = next(item for item in public["characters"] if item["id"] == character["id"])
+    assert public_character["is_active"] is False
+    assert public_character["flip_x"] is scene_character["flip_x"]
+
+
+def test_gm_can_edit_character_card_with_optimistic_revision(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character = snapshot["characters"][0]
+    response = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/characters/{character['id']}",
+        json={
+            "base_revision": character["revision"],
+            "hp_current": 7,
+            "hp_max": 12,
+            "mp_current": 3,
+            "mp_max": 9,
+            "inventory": [
+                {
+                    "name": "Edited item",
+                    "quantity": 2,
+                    "description": "Saved from the GM card.",
+                }
+            ],
+            "status_effects": ["Inspired"],
+        },
+    )
+    assert response.status_code == 200
+    updated = response.json()
+    assert (updated["hp_current"], updated["hp_max"]) == (7, 12)
+    assert updated["inventory"][0]["name"] == "Edited item"
+    assert updated["status_effects"] == ["Inspired"]
+
+    stale = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/characters/{character['id']}",
+        json={
+            "base_revision": character["revision"],
+            "hp_current": 6,
+        },
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "stale_revision"
+
+    invalid = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/characters/{character['id']}",
+        json={
+            "base_revision": updated["revision"],
+            "hp_current": 20,
+            "hp_max": 10,
+        },
+    )
+    assert invalid.status_code == 422
 
 
 def test_typed_observer_proposal_and_stale_revision(
@@ -227,6 +338,71 @@ def test_realtime_replays_to_multiple_spectators(
         assert second_event["type"] == "event.started"
         assert first_event["payload"]["id"] == event["id"]
         assert second_event["sequence"] == first_event["sequence"]
+
+
+def test_archivist_outage_keeps_event_log_until_manual_confirmation(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    before = _gm_snapshot(authenticated_client, demo_campaign_id)
+    players = [
+        character for character in before["characters"] if character["kind"] == "player"
+    ]
+    _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        str(event["id"]),
+        str(players[0]["id"]),
+    )
+    current = _gm_snapshot(authenticated_client, demo_campaign_id)
+    active_event = current["active_event"]
+    response = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs/event-finalization",
+        json={
+            "event_id": event["id"],
+            "base_revision": active_event["revision"],
+        },
+    )
+    assert response.status_code == 202
+    job = response.json()
+    for _ in range(30):
+        job = authenticated_client.get(
+            f"/api/v1/campaigns/{demo_campaign_id}/jobs/{job['id']}"
+        ).json()
+        if job["status"] not in {"queued", "running"}:
+            break
+        time.sleep(0.01)
+    assert job["status"] == "degraded"
+
+    waiting = _gm_snapshot(authenticated_client, demo_campaign_id)
+    assert waiting["active_event"]["status"] == "finalizing"
+    assert len(waiting["active_event"]["turns"]) == 1
+    assert {
+        character["id"]: character["private_notes"] for character in waiting["characters"]
+    } == {
+        character["id"]: character["private_notes"] for character in before["characters"]
+    }
+
+    confirm = authenticated_client.post(
+        (
+            f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}"
+            "/finalization/confirm"
+        ),
+        json={
+            "base_revision": waiting["active_event"]["revision"],
+            "chronicle": "The party documented the first gear.",
+            "player_notes": {
+                character["id"]: f"{character['name']} remembers the first gear."
+                for character in players
+            },
+            "source": "manual",
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["status"] == "archived"
+    assert _gm_snapshot(authenticated_client, demo_campaign_id)["active_event"] is None
 
 
 def test_openapi_contains_versioned_contract(client: TestClient) -> None:

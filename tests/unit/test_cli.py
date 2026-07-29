@@ -63,6 +63,7 @@ def test_cli_serve_is_local_and_opens_bootstrap(
     assert opened and opened[0].startswith("http://127.0.0.1:8000/")
     assert uvicorn_calls[0]["host"] == "127.0.0.1"
     assert uvicorn_calls[0]["reload"] is False
+    assert uvicorn_calls[0]["access_log"] is False
 
 
 def test_cli_import_defaults_to_dry_run(
@@ -84,4 +85,29 @@ def test_cli_import_defaults_to_dry_run(
         ["ai-dnd", "import-legacy", str(tmp_path)],
     )
     cli.main()
+    assert len(captured) == 1
+
+
+def test_cli_sync_legacy_runs_migrations_and_defaults_to_dry_run(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _settings(tmp_path)
+    captured: list[Coroutine[Any, Any, None]] = []
+    migrated: list[Settings] = []
+    monkeypatch.setattr(cli, "Settings", lambda: settings)
+    monkeypatch.setattr(cli, "run_migrations", migrated.append)
+
+    def capture(coroutine: Coroutine[Any, Any, None]) -> None:
+        captured.append(coroutine)
+        coroutine.close()
+
+    monkeypatch.setattr(cli.asyncio, "run", capture)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["ai-dnd", "sync-legacy", "campaign-id", str(tmp_path)],
+    )
+    cli.main()
+    assert migrated == [settings]
     assert len(captured) == 1

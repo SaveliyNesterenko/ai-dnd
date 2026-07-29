@@ -84,10 +84,28 @@ def test_player_and_observer_jobs(
         f"/api/v1/campaigns/{demo_campaign_id}/jobs/{accepted.json()['id']}",
     )
     assert player_job["status"] == "succeeded"
+    draft = player_job["output_data"]
+    assert isinstance(draft, dict)
+    assert draft["thought"] == "The gears follow a repeating interval."
 
+    updated = authenticated_client.get(f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot").json()
+    assert updated["active_event"]["turns"] == []
+    published = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}/turns",
+        json={
+            "character_id": character_id,
+            "actor_name": draft["actor_name"],
+            "actor_role": draft["actor_role"],
+            "thought": draft["thought"],
+            "action": draft["action"],
+            "roll_dice": True,
+        },
+    )
+    assert published.status_code == 201
     updated = authenticated_client.get(f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot").json()
     generated_turn = updated["active_event"]["turns"][-1]
     assert generated_turn["thought"] == "The gears follow a repeating interval."
+    assert 1 <= generated_turn["dice_roll"] <= 20
 
     observer = authenticated_client.post(
         f"/api/v1/campaigns/{demo_campaign_id}/jobs/observer",

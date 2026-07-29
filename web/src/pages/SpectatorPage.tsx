@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "../api/client";
 import { CharacterCard } from "../components/CharacterCard";
@@ -90,11 +90,18 @@ export default function SpectatorPage() {
     );
   }
 
-  const rawLocation = snapshot.data.world_state.location;
-  const location =
-    typeof rawLocation === "object" && rawLocation !== null
-      ? (rawLocation as { image_url?: string; name?: string })
+  const normalizedLocation = snapshot.data.scene.locations.find(
+    (item) => item.id === snapshot.data.scene.location_id,
+  );
+  const legacyLocation =
+    typeof snapshot.data.world_state.location === "object" &&
+    snapshot.data.world_state.location !== null
+      ? (snapshot.data.world_state.location as { image_url?: string; name?: string })
       : undefined;
+  const location = normalizedLocation ?? legacyLocation;
+  const music = snapshot.data.scene.music_tracks.find(
+    (item) => item.id === snapshot.data.scene.music_track_id,
+  );
   const activeCharacters = snapshot.data.characters.filter((character) => character.is_active);
   const turns = snapshot.data.active_event?.turns ?? [];
   const lastTurn = turns.at(-1);
@@ -105,6 +112,11 @@ export default function SpectatorPage() {
       style={location?.image_url ? { backgroundImage: `url("${location.image_url}")` } : undefined}
     >
       <div className="spectator__veil" />
+      <SceneMusic
+        url={music?.audio_url}
+        isPlaying={snapshot.data.scene.music_is_playing}
+        volume={snapshot.data.scene.music_volume}
+      />
       <header className="spectator__header">
         <div>
           <span className="eyebrow">Сейчас в игре</span>
@@ -112,6 +124,38 @@ export default function SpectatorPage() {
         </div>
         <ConnectionBadge state={connection} />
       </header>
+
+      <section className="spectator__avatars" aria-label="Персонажи на сцене">
+        {snapshot.data.scene.characters
+          .filter((state) => state.is_visible)
+          .map((state) => {
+            const character = snapshot.data.characters.find(
+              (item) => item.id === state.character_id,
+            );
+            if (!character) return null;
+            const imageUrl =
+              character.avatar_url ?? character.portrait_url ?? character.sprite_url;
+            return (
+              <figure
+                className="spectator-avatar"
+                key={character.id}
+                style={{
+                  left: `${state.x}%`,
+                  top: `${state.y}%`,
+                  zIndex: state.order + 1,
+                  width: `${
+                    snapshot.data.scene.avatar_size * (state.scale / 100)
+                  }px`,
+                  transform: `translate(-50%, -100%) scaleX(${
+                    state.flip_x ? -1 : 1
+                  })`,
+                }}
+              >
+                {imageUrl ? <img src={imageUrl} alt={character.name} /> : null}
+              </figure>
+            );
+          })}
+      </section>
 
       <section className="spectator__story" aria-live="polite">
         {lastTurn ? (
@@ -134,5 +178,50 @@ export default function SpectatorPage() {
         ))}
       </section>
     </main>
+  );
+}
+
+function SceneMusic({
+  url,
+  isPlaying,
+  volume,
+}: {
+  url: string | undefined;
+  isPlaying: boolean;
+  volume: number;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [locked, setLocked] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume / 100;
+    if (!url || !isPlaying) {
+      audio.pause();
+      return;
+    }
+    void audio.play().then(
+      () => setLocked(false),
+      () => setLocked(true),
+    );
+  }, [isPlaying, url, volume]);
+
+  if (!url) return null;
+  return (
+    <div className="scene-music">
+      <audio ref={audioRef} src={url} loop preload="auto" />
+      {locked && isPlaying && (
+        <button
+          className="button"
+          type="button"
+          onClick={() => {
+            void audioRef.current?.play().then(() => setLocked(false));
+          }}
+        >
+          Включить звук
+        </button>
+      )}
+    </div>
   );
 }

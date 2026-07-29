@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_dnd.api.schemas import (
     AddInventoryItemOperation,
     AddStatusEffectOperation,
+    ConfirmEventFinalizationRequest,
     CreateObserverProposalRequest,
     CreateTurnRequest,
     InventoryItem,
@@ -15,14 +16,19 @@ from ai_dnd.api.schemas import (
     RemoveStatusEffectOperation,
     SetAttributeOperation,
     SetResourceOperation,
+    UpdateCharacterRequest,
     UpdateInventoryItemOperation,
+    UpdateSceneCharacterRequest,
+    UpdateSceneRequest,
 )
 from ai_dnd.application.game_service import GameService
-from ai_dnd.domain.errors import ConflictError, ValidationError
+from ai_dnd.domain.errors import ConflictError, StaleRevisionError, ValidationError
 from ai_dnd.infrastructure.models import (
     CampaignModel,
     CharacterModel,
+    GameEventParticipantModel,
     InventoryItemModel,
+    SceneCharacterModel,
     StatusEffectModel,
 )
 
@@ -188,6 +194,369 @@ async def test_typed_operations_are_atomic_and_revision_guarded(
     await session.refresh(campaign)
     assert campaign.revision == revision_before
 
-    archived = await service.archive_event(campaign.id, event_id)
+    await session.refresh(event)
+    finalizing = await service.begin_event_finalization(
+        campaign.id,
+        event_id,
+        base_revision=event.revision,
+    )
+    assert finalizing.status == "finalizing"
+    player_ids = set(
+        await session.scalars(
+            select(CharacterModel.id).where(
+                CharacterModel.campaign_id == campaign.id,
+                CharacterModel.kind == "player",
+            )
+        )
+    )
+    archived = await service.confirm_event_finalization(
+        campaign.id,
+        event_id,
+        ConfirmEventFinalizationRequest(
+            base_revision=finalizing.revision,
+            chronicle="The party survived the mechanism chamber.",
+            player_notes={character_id: "I remember the mechanism." for character_id in player_ids},
+            source="manual",
+        ),
+    )
     assert archived.status == "archived"
-    assert (await service.archive_event(campaign.id, event_id)).status == "archived"
+    await session.refresh(campaign)
+    assert campaign.is_active is True
+
+
+@pytest.mark.asyncio
+async def test_finalization_preserves_log_until_atomic_memory_commit(
+    repository_session: AsyncSession,
+) -> None:
+    session = repository_session
+    service = GameService(session)
+    campaign = await session.scalar(select(CampaignModel))
+    players = list(
+        await session.scalars(
+            select(CharacterModel)
+            .where(CharacterModel.kind == "player")
+            .order_by(CharacterModel.name)
+        )
+    )
+    assert campaign is not None
+    event = await service.start_event(campaign.id, "Memory contract")
+    await service.add_turn(
+        campaign.id,
+        event.id,
+        CreateTurnRequest(
+            character_id=players[0].id,
+            actor_name=players[0].name,
+            actor_role=players[0].role,
+            thought="Only my recollection may use this.",
+            action="The party opens the sealed door.",
+        ),
+    )
+    await session.commit()
+    previous_memory = {player.id: list(player.private_notes) for player in players}
+
+    finalizing = await service.begin_event_finalization(
+        campaign.id,
+        event.id,
+        base_revision=event.revision,
+    )
+    await session.commit()
+    snapshot = await service.get_snapshot(campaign.id, gm_view=True)
+    assert snapshot.active_event is not None
+    assert snapshot.active_event.status == "finalizing"
+    assert len(snapshot.active_event.turns) == 1
+    for player in players:
+        await session.refresh(player)
+        assert player.private_notes == previous_memory[player.id]
+
+    request = ConfirmEventFinalizationRequest(
+        base_revision=finalizing.revision,
+        chronicle="The shared chronicle now includes the sealed door.",
+        player_notes={
+            players[0].id: "I opened the sealed door.",
+            players[1].id: "I watched the door open.",
+        },
+        source="manual",
+    )
+    archived = await service.confirm_event_finalization(campaign.id, event.id, request)
+    await session.commit()
+    archived_revision = archived.revision
+    assert (await service.get_snapshot(campaign.id, gm_view=True)).active_event is None
+    for player in players:
+        await session.refresh(player)
+        assert player.global_chronicle == [request.chronicle]
+        assert player.private_notes == [request.player_notes[player.id]]
+
+    repeated = await service.confirm_event_finalization(campaign.id, event.id, request)
+    assert repeated.revision == archived_revision
+
+
+@pytest.mark.asyncio
+async def test_scene_membership_tracks_event_participants_and_optional_d20(
+    repository_session: AsyncSession,
+) -> None:
+    session = repository_session
+    service = GameService(session)
+    campaign = await session.scalar(select(CampaignModel))
+    characters = list(
+        await session.scalars(
+            select(CharacterModel).order_by(CharacterModel.name)
+        )
+    )
+    assert campaign is not None
+    assert len(characters) == 2
+    first, second = characters
+
+    second_state = await session.get(
+        SceneCharacterModel,
+        {"campaign_id": campaign.id, "character_id": second.id},
+    )
+    assert second_state is not None
+    await service.update_scene_character(
+        campaign.id,
+        second.id,
+        UpdateSceneCharacterRequest(
+            is_visible=False,
+            base_revision=second_state.revision,
+        ),
+    )
+    await session.commit()
+
+    event = await service.start_event(campaign.id, "Tracked participants")
+    await session.flush()
+    initial_participants = set(
+        await session.scalars(
+            select(GameEventParticipantModel.character_id).where(
+                GameEventParticipantModel.event_id == event.id
+            )
+        )
+    )
+    assert first.id in initial_participants
+    assert second.id not in initial_participants
+
+    await session.refresh(second_state)
+    await service.update_scene_character(
+        campaign.id,
+        second.id,
+        UpdateSceneCharacterRequest(
+            is_visible=True,
+            base_revision=second_state.revision,
+        ),
+    )
+    await session.flush()
+    assert (
+        await session.get(
+            GameEventParticipantModel,
+            {"event_id": event.id, "character_id": second.id},
+        )
+        is not None
+    )
+
+    await session.refresh(second_state)
+    await service.update_scene_character(
+        campaign.id,
+        second.id,
+        UpdateSceneCharacterRequest(
+            is_visible=False,
+            base_revision=second_state.revision,
+        ),
+    )
+    await session.flush()
+    assert (
+        await session.get(
+            GameEventParticipantModel,
+            {"event_id": event.id, "character_id": second.id},
+        )
+        is None
+    )
+
+    await session.refresh(second_state)
+    await service.update_scene_character(
+        campaign.id,
+        second.id,
+        UpdateSceneCharacterRequest(
+            is_visible=True,
+            base_revision=second_state.revision,
+        ),
+    )
+    turn = await service.add_turn(
+        campaign.id,
+        event.id,
+        CreateTurnRequest(
+            character_id=second.id,
+            actor_name=second.name,
+            actor_role=second.role,
+            thought="A thought visible to spectators.",
+            action="Acts after entering the scene.",
+        ),
+    )
+    assert turn.dice_roll is None
+
+    rolled_turn = await service.add_turn(
+        campaign.id,
+        event.id,
+        CreateTurnRequest(
+            character_id=second.id,
+            actor_name=second.name,
+            actor_role=second.role,
+            action="Attempts a risky action.",
+            roll_dice=True,
+        ),
+    )
+    assert 1 <= (rolled_turn.dice_roll or 0) <= 20
+
+    await session.refresh(second_state)
+    await service.update_scene_character(
+        campaign.id,
+        second.id,
+        UpdateSceneCharacterRequest(
+            is_visible=False,
+            base_revision=second_state.revision,
+        ),
+    )
+    await session.commit()
+    assert (
+        await session.get(
+            GameEventParticipantModel,
+            {"event_id": event.id, "character_id": second.id},
+        )
+        is not None
+    )
+
+
+@pytest.mark.asyncio
+async def test_scene_settings_use_optimistic_revision(
+    repository_session: AsyncSession,
+) -> None:
+    service = GameService(repository_session)
+    campaign = await repository_session.scalar(select(CampaignModel))
+    assert campaign is not None
+    snapshot = await service.get_snapshot(campaign.id, gm_view=True)
+    updated = await service.update_scene(
+        campaign.id,
+        UpdateSceneRequest(
+            music_is_playing=True,
+            music_volume=35,
+            avatar_size=320,
+            base_revision=snapshot.scene.revision,
+        ),
+    )
+    assert updated.music_is_playing is True
+    assert updated.music_volume == 35
+    assert updated.avatar_size == 320
+    with pytest.raises(StaleRevisionError):
+        await service.update_scene(
+            campaign.id,
+            UpdateSceneRequest(
+                music_is_playing=False,
+                base_revision=snapshot.scene.revision,
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_character_card_editors_update_resources_inventory_and_effects(
+    repository_session: AsyncSession,
+) -> None:
+    session = repository_session
+    service = GameService(session)
+    campaign = await session.scalar(select(CampaignModel))
+    character = await session.scalar(
+        select(CharacterModel).where(CharacterModel.slug == "aria-vale")
+    )
+    assert campaign is not None
+    assert character is not None
+    await session.refresh(character, attribute_names=["inventory", "status_effects"])
+    existing_item = character.inventory[0]
+
+    updated = await service.update_character(
+        campaign.id,
+        character.id,
+        UpdateCharacterRequest(
+            base_revision=character.revision,
+            biography="Updated safely from the GM card.",
+            hp_current=20,
+            hp_max=25,
+            mp_current=8,
+            mp_max=12,
+            attributes={"STR": 9, "INT": 18},
+            inventory=[
+                InventoryItem(
+                    id=existing_item.id,
+                    name="Calibrated compass",
+                    quantity=1,
+                    description="The needle now tracks the tower.",
+                ),
+                InventoryItem(
+                    name="Clockwork key",
+                    quantity=2,
+                    description="Recovered during play.",
+                ),
+            ],
+            status_effects=["Inspired", "Alert"],
+        ),
+    )
+    await session.commit()
+    assert updated.biography == "Updated safely from the GM card."
+    assert (updated.hp_current, updated.hp_max) == (20, 25)
+    assert (updated.mp_current, updated.mp_max) == (8, 12)
+    assert updated.attributes == {"STR": 9, "INT": 18}
+    assert {item.name for item in updated.inventory} == {
+        "Calibrated compass",
+        "Clockwork key",
+    }
+    assert {effect.name for effect in updated.status_effects} == {"Inspired", "Alert"}
+
+    retained = next(item for item in updated.inventory if item.name == "Clockwork key")
+    reduced = await service.update_character(
+        campaign.id,
+        character.id,
+        UpdateCharacterRequest(
+            base_revision=updated.revision,
+            inventory=[
+                InventoryItem(
+                    id=retained.id,
+                    name=retained.name,
+                    quantity=3,
+                    description=retained.description,
+                )
+            ],
+        ),
+    )
+    await session.commit()
+    assert [(item.name, item.quantity) for item in reduced.inventory] == [
+        ("Clockwork key", 3)
+    ]
+
+    with pytest.raises(StaleRevisionError):
+        await service.update_character(
+            campaign.id,
+            character.id,
+            UpdateCharacterRequest(
+                base_revision=1,
+                hp_current=1,
+            ),
+        )
+    with pytest.raises(ValidationError):
+        await service.update_character(
+            campaign.id,
+            character.id,
+            UpdateCharacterRequest(
+                base_revision=reduced.revision,
+                mp_current=99,
+            ),
+        )
+    with pytest.raises(ValidationError):
+        await service.update_character(
+            campaign.id,
+            character.id,
+            UpdateCharacterRequest(
+                base_revision=reduced.revision,
+                inventory=[
+                    InventoryItem(
+                        id="not-owned",
+                        name="Foreign item",
+                        quantity=1,
+                    )
+                ],
+            ),
+        )

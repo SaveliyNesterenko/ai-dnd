@@ -27,9 +27,11 @@ class CharacterPublic(BaseModel):
     id: str
     slug: str
     name: str
-    kind: str
+    kind: Literal["player", "npc", "enemy"]
     role: str
     biography: str
+    portrait_url: str | None = None
+    avatar_url: str | None = None
     sprite_url: str | None = None
     flip_x: bool
     is_active: bool
@@ -46,6 +48,7 @@ class CharacterPublic(BaseModel):
 class CharacterGM(CharacterPublic):
     model_id: str | None = None
     voice_asset_id: str | None = None
+    global_chronicle: list[str]
     private_notes: list[str]
 
 
@@ -75,13 +78,53 @@ class GameEventView(BaseModel):
     title: str
     status: str
     revision: int
+    participant_ids: list[str]
+    finalization_job_id: str | None = None
     turns: list[TurnView]
+
+
+class LocationView(BaseModel):
+    id: str
+    slug: str
+    name: str
+    image_url: str
+
+
+class MusicTrackView(BaseModel):
+    id: str
+    slug: str
+    name: str
+    audio_url: str
+
+
+class SceneCharacterView(BaseModel):
+    character_id: str
+    is_visible: bool
+    x: int = Field(ge=0, le=100)
+    y: int = Field(ge=0, le=100)
+    order: int
+    flip_x: bool
+    scale: int = Field(ge=25, le=250)
+    revision: int
+
+
+class SceneView(BaseModel):
+    location_id: str | None
+    music_track_id: str | None
+    music_is_playing: bool
+    music_volume: int = Field(ge=0, le=100)
+    avatar_size: int = Field(ge=80, le=600)
+    revision: int
+    locations: list[LocationView]
+    music_tracks: list[MusicTrackView]
+    characters: list[SceneCharacterView]
 
 
 class GameStateSnapshot(BaseModel):
     campaign: CampaignSummary
     world_state: dict[str, Any]
     global_chronicle: list[str] | None = None
+    scene: SceneView
     active_event: GameEventView | None
     characters: list[CharacterPublic | CharacterGM]
     last_sequence: int
@@ -102,7 +145,89 @@ class CreateTurnRequest(BaseModel):
     actor_role: str = Field(min_length=1, max_length=64)
     thought: str | None = Field(default=None, max_length=30_000)
     action: str = Field(min_length=1, max_length=30_000)
+    roll_dice: bool = False
     dice_roll: int | None = Field(default=None, ge=1, le=20)
+
+
+class UpdateSceneRequest(BaseModel):
+    location_id: str | None = None
+    music_track_id: str | None = None
+    music_is_playing: bool | None = None
+    music_volume: int | None = Field(default=None, ge=0, le=100)
+    avatar_size: int | None = Field(default=None, ge=80, le=600)
+    base_revision: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def contains_change(self) -> UpdateSceneRequest:
+        fields = (
+            self.location_id,
+            self.music_track_id,
+            self.music_is_playing,
+            self.music_volume,
+            self.avatar_size,
+        )
+        if all(value is None for value in fields):
+            raise ValueError("at least one scene field must be provided")
+        return self
+
+
+class UpdateSceneCharacterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_visible: bool | None = None
+    order: int | None = Field(default=None, ge=0, le=10_000)
+    base_revision: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def contains_change(self) -> UpdateSceneCharacterRequest:
+        fields = (self.is_visible, self.order)
+        if all(value is None for value in fields):
+            raise ValueError("at least one scene character field must be provided")
+        return self
+
+
+class UpdateCharacterRequest(BaseModel):
+    base_revision: int = Field(ge=1)
+    biography: str | None = Field(default=None, max_length=50_000)
+    hp_current: int | None = Field(default=None, ge=0, le=1_000_000)
+    hp_max: int | None = Field(default=None, ge=0, le=1_000_000)
+    mp_current: int | None = Field(default=None, ge=0, le=1_000_000)
+    mp_max: int | None = Field(default=None, ge=0, le=1_000_000)
+    attributes: dict[str, int] | None = None
+    inventory: list[InventoryItem] | None = Field(default=None, max_length=500)
+    status_effects: list[str] | None = Field(default=None, max_length=100)
+
+    @field_validator("attributes")
+    @classmethod
+    def validate_attributes(
+        cls, value: dict[str, int] | None
+    ) -> dict[str, int] | None:
+        if value is None:
+            return None
+        for name, score in value.items():
+            if not name or len(name) > 32 or not name.replace("_", "").isalnum():
+                raise ValueError("invalid attribute name")
+            if not -1_000_000 <= score <= 1_000_000:
+                raise ValueError("attribute value is out of range")
+        return value
+
+    @field_validator("status_effects")
+    @classmethod
+    def validate_status_effects(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned = [effect.strip() for effect in value if effect.strip()]
+        if any(len(effect) > 160 for effect in cleaned):
+            raise ValueError("status effect is too long")
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("duplicate status effects are not allowed")
+        return cleaned
+
+    @model_validator(mode="after")
+    def contains_character_change(self) -> UpdateCharacterRequest:
+        if self.model_fields_set == {"base_revision"}:
+            raise ValueError("at least one character field must be provided")
+        return self
 
 
 class SetResourceOperation(BaseModel):
@@ -213,6 +338,28 @@ class ObserverOutput(BaseModel):
     operations: list[ObserverOperation] = Field(max_length=100)
 
 
+class ArchivistOutput(BaseModel):
+    chronicle: str = Field(min_length=1, max_length=100_000)
+    player_notes: dict[str, str]
+
+    @field_validator("player_notes")
+    @classmethod
+    def validate_player_notes(cls, value: dict[str, str]) -> dict[str, str]:
+        if len(value) > 100:
+            raise ValueError("too many player notes")
+        cleaned: dict[str, str] = {}
+        for character_id, note in value.items():
+            if not character_id.strip():
+                raise ValueError("player note character id cannot be empty")
+            note = note.strip()
+            if not note:
+                raise ValueError("player note cannot be empty")
+            if len(note) > 100_000:
+                raise ValueError("player note is too long")
+            cleaned[character_id] = note
+        return cleaned
+
+
 class RealtimeEvent(BaseModel):
     event_id: str
     campaign_id: str
@@ -247,6 +394,32 @@ class GenerateObserverJobRequest(BaseModel):
     model_id: str | None = None
 
 
+class GenerateEventFinalizationJobRequest(BaseModel):
+    event_id: str
+    base_revision: int = Field(ge=1)
+    model_id: str | None = None
+
+
+class ConfirmEventFinalizationRequest(BaseModel):
+    base_revision: int = Field(ge=1)
+    chronicle: str = Field(min_length=1, max_length=100_000)
+    player_notes: dict[str, str]
+    source: Literal["llm", "manual"]
+
+    @field_validator("chronicle")
+    @classmethod
+    def strip_chronicle(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("player_notes")
+    @classmethod
+    def validate_notes(cls, value: dict[str, str]) -> dict[str, str]:
+        return ArchivistOutput(
+            chronicle="validation-placeholder",
+            player_notes=value,
+        ).player_notes
+
+
 class CapabilityView(BaseModel):
     llm_enabled: bool
     stt_enabled: bool
@@ -276,6 +449,17 @@ class LegacyImportReport(BaseModel):
     warnings: list[str]
     campaign_id: str | None = None
     backup_dir: str | None = None
+
+
+class LegacySyncReport(BaseModel):
+    source_dir: str
+    campaign_id: str
+    dry_run: bool
+    matched_characters: int
+    updated_characters: int
+    missing_campaign_characters: list[str]
+    missing_source_characters: list[str]
+    missing_assets: list[str]
 
 
 class LegacyExportV1(BaseModel):

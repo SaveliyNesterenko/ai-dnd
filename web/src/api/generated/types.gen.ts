@@ -178,7 +178,7 @@ export type CharacterGm = {
     /**
      * Kind
      */
-    kind: string;
+    kind: 'player' | 'npc' | 'enemy';
     /**
      * Role
      */
@@ -187,6 +187,14 @@ export type CharacterGm = {
      * Biography
      */
     biography: string;
+    /**
+     * Portrait Url
+     */
+    portrait_url?: string | null;
+    /**
+     * Avatar Url
+     */
+    avatar_url?: string | null;
     /**
      * Sprite Url
      */
@@ -242,6 +250,10 @@ export type CharacterGm = {
      */
     voice_asset_id?: string | null;
     /**
+     * Global Chronicle
+     */
+    global_chronicle: Array<string>;
+    /**
      * Private Notes
      */
     private_notes: Array<string>;
@@ -266,7 +278,7 @@ export type CharacterPublic = {
     /**
      * Kind
      */
-    kind: string;
+    kind: 'player' | 'npc' | 'enemy';
     /**
      * Role
      */
@@ -275,6 +287,14 @@ export type CharacterPublic = {
      * Biography
      */
     biography: string;
+    /**
+     * Portrait Url
+     */
+    portrait_url?: string | null;
+    /**
+     * Avatar Url
+     */
+    avatar_url?: string | null;
     /**
      * Sprite Url
      */
@@ -321,6 +341,30 @@ export type CharacterPublic = {
      * Revision
      */
     revision: number;
+};
+
+/**
+ * ConfirmEventFinalizationRequest
+ */
+export type ConfirmEventFinalizationRequest = {
+    /**
+     * Base Revision
+     */
+    base_revision: number;
+    /**
+     * Chronicle
+     */
+    chronicle: string;
+    /**
+     * Player Notes
+     */
+    player_notes: {
+        [key: string]: string;
+    };
+    /**
+     * Source
+     */
+    source: 'llm' | 'manual';
 };
 
 /**
@@ -398,6 +442,10 @@ export type CreateTurnRequest = {
      */
     action: string;
     /**
+     * Roll Dice
+     */
+    roll_dice?: boolean;
+    /**
      * Dice Roll
      */
     dice_roll?: number | null;
@@ -424,6 +472,14 @@ export type GameEventView = {
      */
     revision: number;
     /**
+     * Participant Ids
+     */
+    participant_ids: Array<string>;
+    /**
+     * Finalization Job Id
+     */
+    finalization_job_id?: string | null;
+    /**
      * Turns
      */
     turns: Array<TurnView>;
@@ -444,6 +500,7 @@ export type GameStateSnapshot = {
      * Global Chronicle
      */
     global_chronicle?: Array<string> | null;
+    scene: SceneView;
     active_event: GameEventView | null;
     /**
      * Characters
@@ -453,6 +510,24 @@ export type GameStateSnapshot = {
      * Last Sequence
      */
     last_sequence: number;
+};
+
+/**
+ * GenerateEventFinalizationJobRequest
+ */
+export type GenerateEventFinalizationJobRequest = {
+    /**
+     * Event Id
+     */
+    event_id: string;
+    /**
+     * Base Revision
+     */
+    base_revision: number;
+    /**
+     * Model Id
+     */
+    model_id?: string | null;
 };
 
 /**
@@ -612,6 +687,50 @@ export type LegacyImportRequest = {
 };
 
 /**
+ * LocationView
+ */
+export type LocationView = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Image Url
+     */
+    image_url: string;
+};
+
+/**
+ * MusicTrackView
+ */
+export type MusicTrackView = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Audio Url
+     */
+    audio_url: string;
+};
+
+/**
  * ObserverProposalView
  */
 export type ObserverProposalView = {
@@ -693,6 +812,86 @@ export type RemoveStatusEffectOperation = {
      * Status Effect Id
      */
     status_effect_id: string;
+};
+
+/**
+ * SceneCharacterView
+ */
+export type SceneCharacterView = {
+    /**
+     * Character Id
+     */
+    character_id: string;
+    /**
+     * Is Visible
+     */
+    is_visible: boolean;
+    /**
+     * X
+     */
+    x: number;
+    /**
+     * Y
+     */
+    y: number;
+    /**
+     * Order
+     */
+    order: number;
+    /**
+     * Flip X
+     */
+    flip_x: boolean;
+    /**
+     * Scale
+     */
+    scale: number;
+    /**
+     * Revision
+     */
+    revision: number;
+};
+
+/**
+ * SceneView
+ */
+export type SceneView = {
+    /**
+     * Location Id
+     */
+    location_id: string | null;
+    /**
+     * Music Track Id
+     */
+    music_track_id: string | null;
+    /**
+     * Music Is Playing
+     */
+    music_is_playing: boolean;
+    /**
+     * Music Volume
+     */
+    music_volume: number;
+    /**
+     * Avatar Size
+     */
+    avatar_size: number;
+    /**
+     * Revision
+     */
+    revision: number;
+    /**
+     * Locations
+     */
+    locations: Array<LocationView>;
+    /**
+     * Music Tracks
+     */
+    music_tracks: Array<MusicTrackView>;
+    /**
+     * Characters
+     */
+    characters: Array<SceneCharacterView>;
 };
 
 /**
@@ -800,6 +999,50 @@ export type TurnView = {
 };
 
 /**
+ * UpdateCharacterRequest
+ */
+export type UpdateCharacterRequest = {
+    /**
+     * Base Revision
+     */
+    base_revision: number;
+    /**
+     * Biography
+     */
+    biography?: string | null;
+    /**
+     * Hp Current
+     */
+    hp_current?: number | null;
+    /**
+     * Hp Max
+     */
+    hp_max?: number | null;
+    /**
+     * Mp Current
+     */
+    mp_current?: number | null;
+    /**
+     * Mp Max
+     */
+    mp_max?: number | null;
+    /**
+     * Attributes
+     */
+    attributes?: {
+        [key: string]: number;
+    } | null;
+    /**
+     * Inventory
+     */
+    inventory?: Array<InventoryItem> | null;
+    /**
+     * Status Effects
+     */
+    status_effects?: Array<string> | null;
+};
+
+/**
  * UpdateInventoryItemOperation
  */
 export type UpdateInventoryItemOperation = {
@@ -827,6 +1070,54 @@ export type UpdateInventoryItemOperation = {
      * Description
      */
     description?: string | null;
+};
+
+/**
+ * UpdateSceneCharacterRequest
+ */
+export type UpdateSceneCharacterRequest = {
+    /**
+     * Is Visible
+     */
+    is_visible?: boolean | null;
+    /**
+     * Order
+     */
+    order?: number | null;
+    /**
+     * Base Revision
+     */
+    base_revision: number;
+};
+
+/**
+ * UpdateSceneRequest
+ */
+export type UpdateSceneRequest = {
+    /**
+     * Location Id
+     */
+    location_id?: string | null;
+    /**
+     * Music Track Id
+     */
+    music_track_id?: string | null;
+    /**
+     * Music Is Playing
+     */
+    music_is_playing?: boolean | null;
+    /**
+     * Music Volume
+     */
+    music_volume?: number | null;
+    /**
+     * Avatar Size
+     */
+    avatar_size?: number | null;
+    /**
+     * Base Revision
+     */
+    base_revision: number;
 };
 
 /**
@@ -1195,6 +1486,104 @@ export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses = 
 
 export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponse = CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses[keyof CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses];
 
+export type UpdateSceneApiV1CampaignsCampaignIdScenePatchData = {
+    body: UpdateSceneRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/scene';
+};
+
+export type UpdateSceneApiV1CampaignsCampaignIdScenePatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSceneApiV1CampaignsCampaignIdScenePatchError = UpdateSceneApiV1CampaignsCampaignIdScenePatchErrors[keyof UpdateSceneApiV1CampaignsCampaignIdScenePatchErrors];
+
+export type UpdateSceneApiV1CampaignsCampaignIdScenePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: SceneView;
+};
+
+export type UpdateSceneApiV1CampaignsCampaignIdScenePatchResponse = UpdateSceneApiV1CampaignsCampaignIdScenePatchResponses[keyof UpdateSceneApiV1CampaignsCampaignIdScenePatchResponses];
+
+export type UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchData = {
+    body: UpdateSceneCharacterRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Character Id
+         */
+        character_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/scene/characters/{character_id}';
+};
+
+export type UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchError = UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchErrors[keyof UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchErrors];
+
+export type UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: SceneView;
+};
+
+export type UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponse = UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponses[keyof UpdateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatchResponses];
+
+export type UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchData = {
+    body: UpdateCharacterRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Character Id
+         */
+        character_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/characters/{character_id}';
+};
+
+export type UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchError = UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchErrors[keyof UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchErrors];
+
+export type UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: CharacterGm;
+};
+
+export type UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponse = UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponses[keyof UpdateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatchResponses];
+
 export type CreateProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPostData = {
     body: CreateObserverProposalRequest;
     path: {
@@ -1312,6 +1701,80 @@ export type ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponse
 };
 
 export type ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponse = ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponses[keyof ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostResponses];
+
+export type ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostData = {
+    body: ConfirmEventFinalizationRequest;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Event Id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/events/{event_id}/finalization/confirm';
+};
+
+export type ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostError = ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostErrors[keyof ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostErrors];
+
+export type ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponses = {
+    /**
+     * Response Confirm Event Finalization Api V1 Campaigns  Campaign Id  Events  Event Id  Finalization Confirm Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponse = ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponses[keyof ConfirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPostResponses];
+
+export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostData = {
+    body: GenerateEventFinalizationJobRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/jobs/event-finalization';
+};
+
+export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostError = GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostErrors[keyof GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostErrors];
+
+export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: BackgroundJobView;
+};
+
+export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponse = GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses[keyof GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses];
 
 export type GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostData = {
     body: GenerateTurnJobRequest;

@@ -5,6 +5,8 @@ from ai_dnd.infrastructure.models import (
     CampaignModel,
     CharacterModel,
     InventoryItemModel,
+    SceneCharacterModel,
+    SceneModel,
     StatusEffectModel,
 )
 
@@ -45,6 +47,7 @@ async def seed_demo_if_empty(session: AsyncSession) -> None:
         mp_current=14,
         mp_max=18,
         attributes={"STR": 8, "DEX": 14, "END": 12, "INT": 17, "WIS": 13},
+        global_chronicle=list(campaign.global_chronicle),
         private_notes=["The tower reacts to the brass compass."],
     )
     bram = CharacterModel(
@@ -61,12 +64,31 @@ async def seed_demo_if_empty(session: AsyncSession) -> None:
         mp_current=4,
         mp_max=8,
         attributes={"STR": 17, "DEX": 10, "END": 16, "INT": 9, "WIS": 12},
+        global_chronicle=list(campaign.global_chronicle),
         private_notes=["Keep Aria away from exposed gears."],
     )
     session.add_all([aria, bram])
     await session.flush()
+    session.add(SceneModel(campaign_id=campaign.id))
+    await session.flush()
     session.add_all(
         [
+            SceneCharacterModel(
+                campaign_id=campaign.id,
+                character_id=aria.id,
+                is_visible=True,
+                x=35,
+                y=75,
+                order=0,
+            ),
+            SceneCharacterModel(
+                campaign_id=campaign.id,
+                character_id=bram.id,
+                is_visible=True,
+                x=65,
+                y=75,
+                order=1,
+            ),
             InventoryItemModel(
                 character_id=aria.id,
                 name="Brass compass",
