@@ -208,14 +208,18 @@ h2 {
 }
 
 .gm-shell {
-  min-height: 100vh;
-  padding: 1rem;
+  display: grid;
+  height: 100vh;
+  height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(0.5rem, 1.2vh, 0.75rem);
+  overflow: hidden;
+  padding: clamp(0.5rem, 1.5vh, 1rem);
 }
 
 .topbar {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  margin-bottom: 0.75rem;
   padding: 0.8rem 1rem;
   background: rgba(17, 16, 23, 0.88);
   box-shadow: var(--shadow);
@@ -333,8 +337,9 @@ h2 {
 
 .gm-grid {
   display: grid;
+  min-height: 0;
   grid-template-columns: minmax(250px, 0.8fr) minmax(420px, 1.5fr) minmax(290px, 0.9fr);
-  grid-template-rows: minmax(520px, 64vh) minmax(320px, 36vh);
+  grid-template-rows: minmax(0, 1fr) clamp(245px, 29vh, 310px);
   grid-template-areas:
     "voice-log stage observer"
     "character-strip character-strip character-strip";
@@ -365,6 +370,7 @@ h2 {
 
 .panel--observer {
   grid-area: observer;
+  overflow-y: auto;
   padding: 1rem;
 }
 
@@ -374,11 +380,11 @@ h2 {
 
 .panel__header {
   display: flex;
-  min-height: 70px;
+  min-height: 56px;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
-  padding: 0.9rem 1rem;
+  padding: 0.65rem 1rem;
 }
 
 .panel__header > span,
@@ -406,7 +412,7 @@ h2 {
 
 .voice-workspace__body {
   display: grid;
-  height: calc(100% - 70px);
+  height: calc(100% - 56px);
   gap: 0.55rem;
   padding: 0 0.7rem 0.7rem;
 }
@@ -477,18 +483,19 @@ h2 {
 
 .gm-character-strip {
   display: flex;
-  height: calc(100% - 70px);
-  align-items: center;
-  gap: 1rem;
+  height: calc(100% - 56px);
+  align-items: stretch;
+  gap: 0.75rem;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 0.65rem 1rem 1rem;
+  padding: 0.55rem 1rem 0.7rem;
 }
 
 .gm-character-card {
   position: relative;
-  width: 205px;
-  height: 275px;
+  width: clamp(165px, 19vh, 205px);
+  height: 100%;
+  max-height: 250px;
   flex: 0 0 auto;
   border: 1px solid #776a54;
   border-radius: 12px;
@@ -535,6 +542,7 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  overflow-y: auto;
   padding: 0.75rem;
   transform: rotateY(180deg);
   pointer-events: none;
@@ -1296,7 +1304,27 @@ button.character-card:hover {
   }
 
   .gm-shell {
+    display: block;
+    height: auto;
     min-width: 900px;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .topbar {
+    margin-bottom: 0.75rem;
+  }
+
+  .panel--character-strip {
+    height: 310px;
+  }
+
+  .gm-character-strip {
+    align-items: center;
+  }
+
+  .gm-character-card {
+    height: 230px;
   }
 
   .roster {
