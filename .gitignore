@@ -69,3 +69,6 @@ web/.playwright-runtime/
 /active_characters.json
 
 # Demo assets and fixtures are explicitly tracked under demo/.
+
+# --- Local Codex instructions ---
+/AGENTS.md
