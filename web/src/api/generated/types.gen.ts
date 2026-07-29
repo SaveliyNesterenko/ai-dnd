@@ -1012,6 +1012,36 @@ export type CreateCampaignApiV1CampaignsPostResponses = {
 
 export type CreateCampaignApiV1CampaignsPostResponse = CreateCampaignApiV1CampaignsPostResponses[keyof CreateCampaignApiV1CampaignsPostResponses];
 
+export type ActivateCampaignApiV1CampaignsCampaignIdActivatePostData = {
+    body?: never;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/activate';
+};
+
+export type ActivateCampaignApiV1CampaignsCampaignIdActivatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ActivateCampaignApiV1CampaignsCampaignIdActivatePostError = ActivateCampaignApiV1CampaignsCampaignIdActivatePostErrors[keyof ActivateCampaignApiV1CampaignsCampaignIdActivatePostErrors];
+
+export type ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CampaignSummary;
+};
+
+export type ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponse = ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponses[keyof ActivateCampaignApiV1CampaignsCampaignIdActivatePostResponses];
+
 export type SnapshotApiV1CampaignsCampaignIdSnapshotGetData = {
     body?: never;
     path: {

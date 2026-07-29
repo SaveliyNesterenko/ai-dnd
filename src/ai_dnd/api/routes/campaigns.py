@@ -87,6 +87,18 @@ async def create_campaign(
     return campaign
 
 
+@router.post("/{campaign_id}/activate", response_model=CampaignSummary)
+async def activate_campaign(
+    campaign_id: str,
+    session: SessionDep,
+    gm: GMDep,
+) -> CampaignSummary:
+    del gm
+    campaign = await GameService(session).activate_campaign(campaign_id)
+    await session.commit()
+    return campaign
+
+
 @router.get("/{campaign_id}/snapshot", response_model=GameStateSnapshot)
 async def snapshot(
     campaign_id: str,

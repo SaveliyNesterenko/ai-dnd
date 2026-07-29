@@ -12,7 +12,8 @@ export default function SpectatorPage() {
   const [draftCode, setDraftCode] = useState("");
   const [joinCode, setJoinCode] = useState(() => sessionStorage.getItem("ai-dnd-join-code") ?? "");
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
-  const campaignId = campaigns.data?.[0]?.id;
+  const campaignId =
+    campaigns.data?.find((campaign) => campaign.is_active)?.id ?? campaigns.data?.[0]?.id;
   const snapshot = useQuery({
     queryKey: ["public-snapshot", campaignId, joinCode],
     queryFn: () => api.publicSnapshot(campaignId!, joinCode),

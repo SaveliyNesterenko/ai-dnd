@@ -232,6 +232,24 @@ h2 {
   gap: 1rem;
 }
 
+.campaign-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.35rem 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.campaign-picker select {
+  max-width: min(34rem, 60vw);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0.4rem 2rem 0.4rem 0.65rem;
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
 .join-code {
   display: flex;
   align-items: center;

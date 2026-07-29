@@ -59,7 +59,9 @@ class GameService:
         self.session = session
 
     async def list_campaigns(self) -> list[CampaignSummary]:
-        rows = await self.session.scalars(select(CampaignModel).order_by(CampaignModel.name))
+        rows = await self.session.scalars(
+            select(CampaignModel).order_by(CampaignModel.is_active.desc(), CampaignModel.name)
+        )
         return [
             CampaignSummary(
                 id=row.id,
@@ -70,6 +72,27 @@ class GameService:
             )
             for row in rows
         ]
+
+    async def activate_campaign(self, campaign_id: str) -> CampaignSummary:
+        campaign = await self.session.get(CampaignModel, campaign_id)
+        if not campaign:
+            raise NotFoundError("Campaign not found.")
+        await self.session.execute(
+            update(CampaignModel)
+            .where(CampaignModel.id != campaign_id, CampaignModel.is_active.is_(True))
+            .values(is_active=False)
+        )
+        if not campaign.is_active:
+            campaign.is_active = True
+            campaign.revision += 1
+        await self.session.flush()
+        return CampaignSummary(
+            id=campaign.id,
+            slug=campaign.slug,
+            name=campaign.name,
+            revision=campaign.revision,
+            is_active=campaign.is_active,
+        )
 
     async def create_campaign(self, slug: str, name: str) -> CampaignSummary:
         existing = await self.session.scalar(

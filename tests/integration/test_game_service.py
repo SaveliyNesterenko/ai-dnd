@@ -28,6 +28,21 @@ from ai_dnd.infrastructure.models import (
 
 
 @pytest.mark.asyncio
+async def test_campaign_activation_controls_default_order(
+    repository_session: AsyncSession,
+) -> None:
+    service = GameService(repository_session)
+    created = await service.create_campaign("main-story", "Main Story")
+    activated = await service.activate_campaign(created.id)
+    await repository_session.commit()
+
+    campaigns = await service.list_campaigns()
+    assert activated.is_active is True
+    assert campaigns[0].id == created.id
+    assert sum(campaign.is_active for campaign in campaigns) == 1
+
+
+@pytest.mark.asyncio
 async def test_typed_operations_are_atomic_and_revision_guarded(
     repository_session: AsyncSession,
 ) -> None:

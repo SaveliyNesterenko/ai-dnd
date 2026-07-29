@@ -204,6 +204,48 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/activate": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Activate Campaign",
+        "operationId": "activate_campaign_api_v1_campaigns__campaign_id__activate_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/snapshot": {
       "get": {
         "tags": [

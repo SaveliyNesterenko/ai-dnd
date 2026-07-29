@@ -1,4 +1,5 @@
 import {
+  activateCampaignApiV1CampaignsCampaignIdActivatePost,
   applyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPost,
   archiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
@@ -48,6 +49,13 @@ const requestOptions = {
 
 export const api = {
   campaigns: () => execute(listCampaignsApiV1CampaignsGet(requestOptions)),
+  activateCampaign: (campaignId: string) =>
+    execute(
+      activateCampaignApiV1CampaignsCampaignIdActivatePost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+      }),
+    ),
   gmSession: () =>
     execute(sessionInfoApiV1AuthSessionGet(requestOptions)) as Promise<{
       role: "gm";

@@ -28,11 +28,23 @@ type TurnForm = z.infer<typeof turnSchema>;
 export default function GmPage() {
   const queryClient = useQueryClient();
   const [proposal, setProposal] = useState<ObserverProposal | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>();
   const selectedCharacterId = useUiStore((state) => state.selectedCharacterId);
   const selectCharacter = useUiStore((state) => state.selectCharacter);
   const session = useQuery({ queryKey: ["gm-session"], queryFn: api.gmSession, retry: false });
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
-  const campaignId = campaigns.data?.[0]?.id;
+  const defaultCampaignId =
+    campaigns.data?.find((campaign) => campaign.is_active)?.id ?? campaigns.data?.[0]?.id;
+  const campaignId = selectedCampaignId ?? defaultCampaignId;
+  const activateCampaign = useMutation({
+    mutationFn: (nextCampaignId: string) => api.activateCampaign(nextCampaignId),
+    onSuccess: (campaign) => {
+      setProposal(null);
+      selectCharacter(null);
+      setSelectedCampaignId(campaign.id);
+      void queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    },
+  });
   const snapshot = useQuery({
     queryKey: ["gm-snapshot", campaignId],
     queryFn: () => api.gmSnapshot(campaignId!),
@@ -93,7 +105,23 @@ export default function GmPage() {
       <header className="topbar">
         <div>
           <span className="eyebrow">GM Console</span>
+          <label className="campaign-picker">
+            <span>Кампания</span>
+            <select
+              aria-label="Активная кампания"
+              value={campaignId}
+              disabled={activateCampaign.isPending}
+              onChange={(event) => activateCampaign.mutate(event.target.value)}
+            >
+              {campaigns.data?.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <h1>{snapshot.data.campaign.name}</h1>
+          {activateCampaign.error && <ErrorNotice error={activateCampaign.error} />}
         </div>
         <div className="topbar__meta">
           <ConnectionBadge state={connection} />

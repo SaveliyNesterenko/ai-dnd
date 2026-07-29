@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -155,16 +155,52 @@ class LegacyDataService:
             suffix += 1
 
         active_ids = set(map(str, documents["active_characters.json"].get("characters_id", [])))
-        world_state = documents["public_state.json"]
-        world_state["locations"] = documents["locations.json"].get("locations", {})
+        world_state = dict(documents["public_state.json"])
+        await self.session.execute(
+            update(CampaignModel).where(CampaignModel.is_active.is_(True)).values(is_active=False)
+        )
         campaign = CampaignModel(
             slug=slug,
             name=name,
-            world_state=world_state,
-            is_active=bool(active_ids),
+            world_state={},
+            is_active=True,
         )
         self.session.add(campaign)
         await self.session.flush()
+
+        imported_locations: dict[str, dict[str, str]] = {}
+        location_paths = documents["locations.json"].get("locations", {})
+        for location_id, raw_path in location_paths.items():
+            asset_id = await self._import_asset(
+                campaign.id,
+                source,
+                str(raw_path).replace("../", ""),
+                "location",
+            )
+            imported_locations[str(location_id)] = {
+                "id": str(location_id),
+                "name": str(location_id),
+                "image_url": f"/api/v1/assets/{asset_id}" if asset_id else "",
+            }
+        legacy_location = world_state.pop("current_location", {})
+        current_location_id = (
+            str(legacy_location.get("id", "")) if isinstance(legacy_location, dict) else ""
+        )
+        current_location = imported_locations.get(current_location_id)
+        if current_location:
+            world_state["location"] = current_location
+        world_state["locations"] = imported_locations
+
+        music = world_state.get("music")
+        if isinstance(music, dict) and music.get("url"):
+            music_asset_id = await self._import_asset(
+                campaign.id,
+                source,
+                str(music["url"]),
+                "music",
+            )
+            music["url"] = f"/api/v1/assets/{music_asset_id}" if music_asset_id else ""
+        campaign.world_state = world_state
 
         legacy_characters = {
             **documents["characters.json"],
