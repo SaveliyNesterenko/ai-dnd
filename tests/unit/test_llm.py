@@ -96,6 +96,12 @@ async def test_llm_provider_and_disabled_mode_report_outage(
             system_prompt="Observe.",
             prompt="Wait.",
         )
+    with pytest.raises(LLMUnavailableError):
+        await disabled.generate_player_recollection(
+            profile=ModelProfile(model_id="none"),
+            system_prompt="Remember.",
+            prompt="Wait.",
+        )
 
 
 @pytest.mark.asyncio
@@ -105,7 +111,9 @@ async def test_llm_generates_observer_and_archivist_outputs(
     completions = FakeCompletions(
         [
             '{"gm_brief": "No change.", "operations": []}',
-            '{"chronicle": "The door opened.", "player_notes": {"aria": "I opened it."}}',
+            '{"chronicle": "The door opened."}',
+            '{"note": "I opened it."}',
+            '{"summary": "The party reached the door."}',
         ]
     )
     monkeypatch.setattr(
@@ -126,8 +134,20 @@ async def test_llm_generates_observer_and_archivist_outputs(
         system_prompt="Archive.",
         prompt="Remember the door.",
     )
+    recollection = await provider.generate_player_recollection(
+        profile=ModelProfile(model_id="aria-model"),
+        system_prompt="Remember.",
+        prompt="Write your diary.",
+    )
+    summary = await provider.generate_context_summary(
+        profile=ModelProfile(model_id="test"),
+        system_prompt="Compress.",
+        prompt="Summarize.",
+    )
     assert observer.gm_brief == "No change."
-    assert archivist.player_notes == {"aria": "I opened it."}
+    assert archivist.chronicle == "The door opened."
+    assert recollection.note == "I opened it."
+    assert summary.summary == "The party reached the door."
 
 
 def test_llm_client_requires_api_key() -> None:

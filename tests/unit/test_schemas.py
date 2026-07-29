@@ -2,6 +2,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from ai_dnd.api.schemas import (
+    AdjustInventoryItemOperation,
     ArchivistOutput,
     ConfirmEventFinalizationRequest,
     ObserverOperation,
@@ -56,7 +57,32 @@ def test_forbidden_arbitrary_patch_is_rejected() -> None:
 )
 def test_archivist_rejects_invalid_player_notes(player_notes: dict[str, str]) -> None:
     with pytest.raises(ValidationError):
-        ArchivistOutput(chronicle="A chronicle.", player_notes=player_notes)
+        ConfirmEventFinalizationRequest(
+            base_revision=2,
+            chronicle="A chronicle.",
+            player_notes=player_notes,
+            source="llm",
+        )
+
+
+def test_adjust_inventory_supports_legacy_name_and_delta() -> None:
+    operation = AdjustInventoryItemOperation(
+        op="adjust_inventory_item",
+        character_id="character-id",
+        name="Healing kit",
+        quantity_delta=-1,
+    )
+    assert operation.name == "Healing kit"
+
+
+def test_archivist_output_cannot_contain_player_notes() -> None:
+    with pytest.raises(ValidationError):
+        ArchivistOutput.model_validate(
+            {
+                "chronicle": "A factual chronicle.",
+                "player_notes": {"player-id": "This belongs to a player model."},
+            }
+        )
 
 
 def test_confirmation_strips_durable_memory() -> None:

@@ -818,6 +818,57 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/observer-proposals/{proposal_id}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Proposal",
+        "operationId": "get_proposal_api_v1_campaigns__campaign_id__observer_proposals__proposal_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObserverProposalView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/events/{event_id}/archive": {
       "post": {
         "tags": [
@@ -992,6 +1043,58 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/GenerateEventFinalizationJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/jobs/context-compression": {
+      "post": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "Generate Context Compression",
+        "operationId": "generate_context_compression_api_v1_campaigns__campaign_id__jobs_context_compression_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateContextCompressionJobRequest"
               }
             }
           }
@@ -1433,8 +1536,71 @@
         ],
         "title": "AddStatusEffectOperation"
       },
+      "AdjustInventoryItemOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "adjust_inventory_item",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "quantity_delta": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": -1000000.0,
+            "title": "Quantity Delta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "quantity_delta"
+        ],
+        "title": "AdjustInventoryItemOperation"
+      },
       "ApplyObserverProposalRequest": {
         "properties": {
+          "gm_brief": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gm Brief"
+          },
           "operations": {
             "items": {
               "oneOf": [
@@ -1454,6 +1620,9 @@
                   "$ref": "#/components/schemas/RemoveInventoryItemOperation"
                 },
                 {
+                  "$ref": "#/components/schemas/AdjustInventoryItemOperation"
+                },
+                {
                   "$ref": "#/components/schemas/AddStatusEffectOperation"
                 },
                 {
@@ -1465,6 +1634,7 @@
                 "mapping": {
                   "add_inventory_item": "#/components/schemas/AddInventoryItemOperation",
                   "add_status_effect": "#/components/schemas/AddStatusEffectOperation",
+                  "adjust_inventory_item": "#/components/schemas/AdjustInventoryItemOperation",
                   "remove_inventory_item": "#/components/schemas/RemoveInventoryItemOperation",
                   "remove_status_effect": "#/components/schemas/RemoveStatusEffectOperation",
                   "set_attribute": "#/components/schemas/SetAttributeOperation",
@@ -2049,6 +2219,9 @@
                   "$ref": "#/components/schemas/RemoveInventoryItemOperation"
                 },
                 {
+                  "$ref": "#/components/schemas/AdjustInventoryItemOperation"
+                },
+                {
                   "$ref": "#/components/schemas/AddStatusEffectOperation"
                 },
                 {
@@ -2060,6 +2233,7 @@
                 "mapping": {
                   "add_inventory_item": "#/components/schemas/AddInventoryItemOperation",
                   "add_status_effect": "#/components/schemas/AddStatusEffectOperation",
+                  "adjust_inventory_item": "#/components/schemas/AdjustInventoryItemOperation",
                   "remove_inventory_item": "#/components/schemas/RemoveInventoryItemOperation",
                   "remove_status_effect": "#/components/schemas/RemoveStatusEffectOperation",
                   "set_attribute": "#/components/schemas/SetAttributeOperation",
@@ -2188,6 +2362,28 @@
             ],
             "title": "Finalization Job Id"
           },
+          "context_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Summary"
+          },
+          "context_summary_through_sequence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Summary Through Sequence"
+          },
           "turns": {
             "items": {
               "$ref": "#/components/schemas/TurnView"
@@ -2273,6 +2469,36 @@
           "last_sequence"
         ],
         "title": "GameStateSnapshot"
+      },
+      "GenerateContextCompressionJobRequest": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "base_revision"
+        ],
+        "title": "GenerateContextCompressionJobRequest"
       },
       "GenerateEventFinalizationJobRequest": {
         "properties": {
@@ -2680,15 +2906,34 @@
             "title": "Character Id"
           },
           "item_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Item Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           }
         },
         "type": "object",
         "required": [
           "op",
-          "character_id",
-          "item_id"
+          "character_id"
         ],
         "title": "RemoveInventoryItemOperation"
       },
@@ -2704,15 +2949,34 @@
             "title": "Character Id"
           },
           "status_effect_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Status Effect Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           }
         },
         "type": "object",
         "required": [
           "op",
-          "character_id",
-          "status_effect_id"
+          "character_id"
         ],
         "title": "RemoveStatusEffectOperation"
       },
@@ -3164,8 +3428,28 @@
             "title": "Character Id"
           },
           "item_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Item Id"
+          },
+          "item_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Name"
           },
           "name": {
             "anyOf": [
@@ -3209,8 +3493,7 @@
         "type": "object",
         "required": [
           "op",
-          "character_id",
-          "item_id"
+          "character_id"
         ],
         "title": "UpdateInventoryItemOperation"
       },

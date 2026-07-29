@@ -4,13 +4,21 @@ import time
 
 from fastapi.testclient import TestClient
 
-from ai_dnd.api.schemas import ObserverOutput, PlayerTurnOutput, SetResourceOperation
+from ai_dnd.api.schemas import (
+    ArchivistOutput,
+    ContextSummaryOutput,
+    ObserverOutput,
+    PlayerRecollectionOutput,
+    PlayerTurnOutput,
+    SetResourceOperation,
+)
 from ai_dnd.integrations.llm import ModelProfile
 
 
 class StubLLMProvider:
     def __init__(self, character_id: str) -> None:
         self.character_id = character_id
+        self.recollection_models: list[str] = []
 
     async def generate_player_turn(
         self,
@@ -48,6 +56,41 @@ class StubLLMProvider:
                 )
             ],
         )
+
+    async def generate_archivist_result(
+        self,
+        *,
+        profile: ModelProfile,
+        system_prompt: str,
+        prompt: str,
+    ) -> ArchivistOutput:
+        assert profile.model_id
+        assert "chronicle_versions" in prompt
+        assert "prior_private_notes" not in prompt
+        return ArchivistOutput(chronicle="The party documented the mechanism.")
+
+    async def generate_player_recollection(
+        self,
+        *,
+        profile: ModelProfile,
+        system_prompt: str,
+        prompt: str,
+    ) -> PlayerRecollectionOutput:
+        assert system_prompt
+        assert "prior_private_notes" in prompt
+        self.recollection_models.append(profile.model_id)
+        return PlayerRecollectionOutput(note=f"Memory written by {profile.model_id}.")
+
+    async def generate_context_summary(
+        self,
+        *,
+        profile: ModelProfile,
+        system_prompt: str,
+        prompt: str,
+    ) -> ContextSummaryOutput:
+        assert profile.model_id
+        assert "event_history" in prompt
+        return ContextSummaryOutput(summary="The party completed the early steps.")
 
 
 def _wait_for_job(client: TestClient, url: str) -> dict[str, object]:
@@ -118,3 +161,79 @@ def test_player_and_observer_jobs(
     )
     assert observer_job["status"] == "succeeded"
     assert "proposal_id" in observer_job["output_data"]
+    assert observer_job["output_data"]["proposal"]["gm_brief"].startswith("Aria spends")
+
+
+def test_archivist_uses_each_player_model_and_context_can_be_compressed(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    snapshot = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
+    ).json()
+    players = [character for character in snapshot["characters"] if character["kind"] == "player"]
+    provider = StubLLMProvider(players[0]["id"])
+    authenticated_client.app.state.llm = provider
+    event = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events",
+        json={"title": "Long event"},
+    ).json()
+    for index in range(11):
+        character = players[index % len(players)]
+        response = authenticated_client.post(
+            f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}/turns",
+            json={
+                "character_id": character["id"],
+                "actor_name": character["name"],
+                "actor_role": character["role"],
+                "action": f"Action {index + 1}",
+            },
+        )
+        assert response.status_code == 201
+
+    current = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
+    ).json()
+    compression = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs/context-compression",
+        json={
+            "event_id": event["id"],
+            "base_revision": current["active_event"]["revision"],
+        },
+    )
+    assert compression.status_code == 202
+    compression_job = _wait_for_job(
+        authenticated_client,
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs/{compression.json()['id']}",
+    )
+    assert compression_job["status"] == "succeeded"
+    assert compression_job["output_data"]["through_sequence"] == 1
+
+    compressed = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
+    ).json()
+    assert compressed["active_event"]["context_summary"] == (
+        "The party completed the early steps."
+    )
+    finalization = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs/event-finalization",
+        json={
+            "event_id": event["id"],
+            "base_revision": compressed["active_event"]["revision"],
+        },
+    )
+    assert finalization.status_code == 202
+    finalization_job = _wait_for_job(
+        authenticated_client,
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs/{finalization.json()['id']}",
+    )
+    assert finalization_job["status"] == "succeeded"
+    assert set(finalization_job["output_data"]["player_notes"]) == {
+        player["id"] for player in players
+    }
+    assert len(provider.recollection_models) == len(players)
+    expected_models = {
+        player["model_id"] or authenticated_client.app.state.settings.default_model
+        for player in players
+    }
+    assert set(provider.recollection_models) == expected_models

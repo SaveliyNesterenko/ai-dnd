@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from ai_dnd.api.schemas import (
     AddInventoryItemOperation,
     AddStatusEffectOperation,
+    AdjustInventoryItemOperation,
     CampaignSummary,
     CharacterGM,
     CharacterPublic,
@@ -272,6 +273,10 @@ class GameService:
                     participant.character_id for participant in active_event.participants
                 ],
                 finalization_job_id=active_event.finalization_job_id if gm_view else None,
+                context_summary=active_event.context_summary,
+                context_summary_through_sequence=(
+                    active_event.context_summary_through_sequence
+                ),
                 turns=[
                     TurnView(
                         id=turn.id,
@@ -679,6 +684,8 @@ class GameService:
         event = await self.session.get(GameEventModel, event_id)
         if not event or event.campaign_id != campaign_id:
             raise NotFoundError("Game event not found.")
+        if event.status != EventStatus.ACTIVE.value:
+            raise ConflictError("Observer proposals require an active game event.")
         turn = await self.session.get(TurnModel, request.turn_id)
         if not turn or turn.event_id != event_id:
             raise NotFoundError("Turn not found in game event.")
@@ -699,11 +706,21 @@ class GameService:
         await self.session.flush()
         return proposal
 
+    async def get_proposal(
+        self, campaign_id: str, proposal_id: str
+    ) -> ObserverProposalModel:
+        proposal = await self.session.get(ObserverProposalModel, proposal_id)
+        if not proposal or proposal.campaign_id != campaign_id:
+            raise NotFoundError("Observer proposal not found.")
+        return proposal
+
     async def apply_proposal(
         self,
         campaign_id: str,
         proposal_id: str,
         operations: list[ObserverOperation],
+        *,
+        gm_brief: str | None = None,
     ) -> ObserverProposalModel:
         proposal = await self.session.get(ObserverProposalModel, proposal_id)
         if not proposal or proposal.campaign_id != campaign_id:
@@ -712,6 +729,9 @@ class GameService:
             return proposal
         if proposal.status != ProposalStatus.PENDING.value:
             raise ConflictError("Observer proposal is not pending.")
+        event = await self.session.get(GameEventModel, proposal.event_id)
+        if not event or event.status != EventStatus.ACTIVE.value:
+            raise ConflictError("Observer proposals require an active game event.")
 
         revision_update = cast(
             CursorResult[Any],
@@ -733,6 +753,8 @@ class GameService:
             await self._apply_operation(campaign_id, operation)
 
         proposal.operations = [operation.model_dump(mode="json") for operation in operations]
+        if gm_brief is not None:
+            proposal.gm_brief = gm_brief
         proposal.status = ProposalStatus.APPLIED.value
         proposal.resolved_at = utc_now()
         await self.session.flush()
@@ -743,6 +765,27 @@ class GameService:
         if not character or character.campaign_id != campaign_id:
             raise NotFoundError("Character not found in campaign.")
         return character
+
+    async def _get_inventory_item(
+        self,
+        character_id: str,
+        *,
+        item_id: str | None,
+        item_name: str | None,
+    ) -> InventoryItemModel:
+        item = None
+        if item_id is not None:
+            item = await self.session.get(InventoryItemModel, item_id)
+        elif item_name is not None:
+            item = await self.session.scalar(
+                select(InventoryItemModel).where(
+                    InventoryItemModel.character_id == character_id,
+                    InventoryItemModel.name == item_name,
+                )
+            )
+        if not item or item.character_id != character_id:
+            raise NotFoundError("Inventory item not found.")
+        return item
 
     async def _apply_operation(self, campaign_id: str, operation: ObserverOperation) -> None:
         character = await self._get_character(campaign_id, operation.character_id)
@@ -772,26 +815,76 @@ class GameService:
                 )
             )
         elif isinstance(operation, UpdateInventoryItemOperation):
-            item = await self.session.get(InventoryItemModel, operation.item_id)
-            if not item or item.character_id != character.id:
-                raise NotFoundError("Inventory item not found.")
+            item = await self._get_inventory_item(
+                character.id,
+                item_id=operation.item_id,
+                item_name=operation.item_name,
+            )
             for field_name in ("name", "quantity", "description"):
                 value = getattr(operation, field_name)
                 if value is not None:
                     setattr(item, field_name, value)
         elif isinstance(operation, RemoveInventoryItemOperation):
-            item = await self.session.get(InventoryItemModel, operation.item_id)
-            if not item or item.character_id != character.id:
-                raise NotFoundError("Inventory item not found.")
+            item = await self._get_inventory_item(
+                character.id,
+                item_id=operation.item_id,
+                item_name=operation.name,
+            )
             await self.session.delete(item)
+        elif isinstance(operation, AdjustInventoryItemOperation):
+            item = await self._get_inventory_item(
+                character.id,
+                item_id=operation.item_id,
+                item_name=operation.name,
+            )
+            new_quantity = item.quantity + operation.quantity_delta
+            if new_quantity <= 0:
+                await self.session.delete(item)
+            else:
+                item.quantity = new_quantity
         elif isinstance(operation, AddStatusEffectOperation):
             self.session.add(StatusEffectModel(character_id=character.id, name=operation.name))
         elif isinstance(operation, RemoveStatusEffectOperation):
-            effect = await self.session.get(StatusEffectModel, operation.status_effect_id)
+            effect = None
+            if operation.status_effect_id is not None:
+                effect = await self.session.get(
+                    StatusEffectModel, operation.status_effect_id
+                )
+            elif operation.name is not None:
+                effect = await self.session.scalar(
+                    select(StatusEffectModel).where(
+                        StatusEffectModel.character_id == character.id,
+                        StatusEffectModel.name == operation.name,
+                    )
+                )
             if not effect or effect.character_id != character.id:
                 raise NotFoundError("Status effect not found.")
             await self.session.delete(effect)
         character.revision += 1
+
+    async def apply_context_summary(
+        self,
+        campaign_id: str,
+        event_id: str,
+        *,
+        base_revision: int,
+        summary: str,
+        through_sequence: int,
+    ) -> GameEventModel:
+        campaign = await self.get_campaign(campaign_id)
+        event = await self.session.get(GameEventModel, event_id)
+        if not event or event.campaign_id != campaign_id:
+            raise NotFoundError("Game event not found.")
+        if event.status != EventStatus.ACTIVE.value:
+            raise ConflictError("Only an active game event can be compressed.")
+        if event.revision != base_revision:
+            raise StaleRevisionError("Game event changed while context was compressed.")
+        event.context_summary = summary
+        event.context_summary_through_sequence = through_sequence
+        event.revision += 1
+        campaign.revision += 1
+        await self.session.flush()
+        return event
 
     async def begin_event_finalization(
         self,

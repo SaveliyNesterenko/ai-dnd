@@ -80,6 +80,8 @@ class GameEventView(BaseModel):
     revision: int
     participant_ids: list[str]
     finalization_job_id: str | None = None
+    context_summary: str | None = None
+    context_summary_through_sequence: int | None = None
     turns: list[TurnView]
 
 
@@ -260,13 +262,16 @@ class AddInventoryItemOperation(BaseModel):
 class UpdateInventoryItemOperation(BaseModel):
     op: Literal["update_inventory_item"]
     character_id: str
-    item_id: str
+    item_id: str | None = None
+    item_name: str | None = Field(default=None, min_length=1, max_length=160)
     name: str | None = Field(default=None, min_length=1, max_length=160)
     quantity: int | None = Field(default=None, ge=0, le=1_000_000)
     description: str | None = Field(default=None, max_length=4_000)
 
     @model_validator(mode="after")
-    def at_least_one_change(self) -> UpdateInventoryItemOperation:
+    def locator_and_change_are_required(self) -> UpdateInventoryItemOperation:
+        if self.item_id is None and self.item_name is None:
+            raise ValueError("item_id or item_name must be provided")
         if self.name is None and self.quantity is None and self.description is None:
             raise ValueError("at least one inventory field must be provided")
         return self
@@ -275,7 +280,28 @@ class UpdateInventoryItemOperation(BaseModel):
 class RemoveInventoryItemOperation(BaseModel):
     op: Literal["remove_inventory_item"]
     character_id: str
-    item_id: str
+    item_id: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def locator_is_required(self) -> RemoveInventoryItemOperation:
+        if self.item_id is None and self.name is None:
+            raise ValueError("item_id or name must be provided")
+        return self
+
+
+class AdjustInventoryItemOperation(BaseModel):
+    op: Literal["adjust_inventory_item"]
+    character_id: str
+    item_id: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    quantity_delta: int = Field(ge=-1_000_000, le=1_000_000)
+
+    @model_validator(mode="after")
+    def locator_is_required(self) -> AdjustInventoryItemOperation:
+        if self.item_id is None and self.name is None:
+            raise ValueError("item_id or name must be provided")
+        return self
 
 
 class AddStatusEffectOperation(BaseModel):
@@ -287,7 +313,14 @@ class AddStatusEffectOperation(BaseModel):
 class RemoveStatusEffectOperation(BaseModel):
     op: Literal["remove_status_effect"]
     character_id: str
-    status_effect_id: str
+    status_effect_id: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+
+    @model_validator(mode="after")
+    def locator_is_required(self) -> RemoveStatusEffectOperation:
+        if self.status_effect_id is None and self.name is None:
+            raise ValueError("status_effect_id or name must be provided")
+        return self
 
 
 ObserverOperation = Annotated[
@@ -296,6 +329,7 @@ ObserverOperation = Annotated[
     | AddInventoryItemOperation
     | UpdateInventoryItemOperation
     | RemoveInventoryItemOperation
+    | AdjustInventoryItemOperation
     | AddStatusEffectOperation
     | RemoveStatusEffectOperation,
     Field(discriminator="op"),
@@ -310,6 +344,7 @@ class CreateObserverProposalRequest(BaseModel):
 
 
 class ApplyObserverProposalRequest(BaseModel):
+    gm_brief: str | None = Field(default=None, min_length=1, max_length=30_000)
     operations: list[ObserverOperation] = Field(max_length=100)
 
 
@@ -339,25 +374,31 @@ class ObserverOutput(BaseModel):
 
 
 class ArchivistOutput(BaseModel):
-    chronicle: str = Field(min_length=1, max_length=100_000)
-    player_notes: dict[str, str]
+    model_config = ConfigDict(extra="forbid")
 
-    @field_validator("player_notes")
+    chronicle: str = Field(min_length=1, max_length=100_000)
+
+
+class PlayerRecollectionOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str = Field(min_length=1, max_length=100_000)
+
+    @field_validator("note")
     @classmethod
-    def validate_player_notes(cls, value: dict[str, str]) -> dict[str, str]:
-        if len(value) > 100:
-            raise ValueError("too many player notes")
-        cleaned: dict[str, str] = {}
-        for character_id, note in value.items():
-            if not character_id.strip():
-                raise ValueError("player note character id cannot be empty")
-            note = note.strip()
-            if not note:
-                raise ValueError("player note cannot be empty")
-            if len(note) > 100_000:
-                raise ValueError("player note is too long")
-            cleaned[character_id] = note
-        return cleaned
+    def strip_note(cls, value: str) -> str:
+        return value.strip()
+
+
+class ContextSummaryOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str = Field(min_length=1, max_length=100_000)
+
+    @field_validator("summary")
+    @classmethod
+    def strip_summary(cls, value: str) -> str:
+        return value.strip()
 
 
 class RealtimeEvent(BaseModel):
@@ -400,6 +441,12 @@ class GenerateEventFinalizationJobRequest(BaseModel):
     model_id: str | None = None
 
 
+class GenerateContextCompressionJobRequest(BaseModel):
+    event_id: str
+    base_revision: int = Field(ge=1)
+    model_id: str | None = None
+
+
 class ConfirmEventFinalizationRequest(BaseModel):
     base_revision: int = Field(ge=1)
     chronicle: str = Field(min_length=1, max_length=100_000)
@@ -414,10 +461,19 @@ class ConfirmEventFinalizationRequest(BaseModel):
     @field_validator("player_notes")
     @classmethod
     def validate_notes(cls, value: dict[str, str]) -> dict[str, str]:
-        return ArchivistOutput(
-            chronicle="validation-placeholder",
-            player_notes=value,
-        ).player_notes
+        if len(value) > 100:
+            raise ValueError("too many player notes")
+        cleaned: dict[str, str] = {}
+        for character_id, note in value.items():
+            if not character_id.strip():
+                raise ValueError("player note character id cannot be empty")
+            note = note.strip()
+            if not note:
+                raise ValueError("player note cannot be empty")
+            if len(note) > 100_000:
+                raise ValueError("player note is too long")
+            cleaned[character_id] = note
+        return cleaned
 
 
 class CapabilityView(BaseModel):

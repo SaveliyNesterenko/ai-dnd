@@ -61,7 +61,9 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
     await readFile(resolve(runtimeDirectory, "security.json"), "utf8"),
   ) as { bootstrap_token: string; spectator_code: string };
   await page.goto(`/api/v1/auth/gm/bootstrap?token=${security.bootstrap_token}`);
-  await expect(page.getByRole("heading", { name: "The Clockwork Crossroads" })).toBeVisible();
+  await expect(
+    page.getByLabel("Активная кампания").locator("option:checked"),
+  ).toHaveText("The Clockwork Crossroads");
 
   await expect(page.locator(".gm-character-card")).toHaveCount(2);
   await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
@@ -82,7 +84,7 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
   await page.getByRole("button", { name: "Отправить с dice roll" }).click();
   await expect(page.getByText(action, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Подготовить предложение" }).click();
+  await page.getByRole("button", { name: "Создать вручную" }).click();
   await expect(page.getByText("Ожидает подтверждения")).toBeVisible();
   await page.getByRole("button", { name: "Применить изменения" }).click();
   await expect(page.getByText("Ожидает подтверждения")).toBeHidden();
@@ -101,7 +103,9 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
       .getByRole("heading", { name: "Событие завершается" }),
   ).toBeVisible();
   await expect(page.getByText("Лог сохранён")).toBeVisible();
-  await expect(page.getByText("Архивариус сейчас недоступен.")).toBeVisible();
+  await expect(
+    page.getByText("Архивариус или модель игрока сейчас недоступны."),
+  ).toBeVisible();
   await expect(page.getByText(action, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Ввести результат вручную" }).click();

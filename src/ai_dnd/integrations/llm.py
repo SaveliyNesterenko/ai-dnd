@@ -15,7 +15,13 @@ from openai.types.chat import (
 from openai.types.shared_params import ResponseFormatJSONObject, ResponseFormatJSONSchema
 from pydantic import BaseModel, ValidationError
 
-from ai_dnd.api.schemas import ArchivistOutput, ObserverOutput, PlayerTurnOutput
+from ai_dnd.api.schemas import (
+    ArchivistOutput,
+    ContextSummaryOutput,
+    ObserverOutput,
+    PlayerRecollectionOutput,
+    PlayerTurnOutput,
+)
 from ai_dnd.core.settings import Settings
 
 T = TypeVar("T", bound=BaseModel)
@@ -49,6 +55,14 @@ class LLMProvider(Protocol):
         self, *, profile: ModelProfile, system_prompt: str, prompt: str
     ) -> ArchivistOutput: ...
 
+    async def generate_player_recollection(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> PlayerRecollectionOutput: ...
+
+    async def generate_context_summary(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ContextSummaryOutput: ...
+
 
 class DisabledLLMProvider:
     async def generate_player_turn(
@@ -64,6 +78,16 @@ class DisabledLLMProvider:
     async def generate_archivist_result(
         self, *, profile: ModelProfile, system_prompt: str, prompt: str
     ) -> ArchivistOutput:
+        raise LLMUnavailableError("LLM integration is disabled: no API key is configured.")
+
+    async def generate_player_recollection(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> PlayerRecollectionOutput:
+        raise LLMUnavailableError("LLM integration is disabled: no API key is configured.")
+
+    async def generate_context_summary(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ContextSummaryOutput:
         raise LLMUnavailableError("LLM integration is disabled: no API key is configured.")
 
 
@@ -103,6 +127,26 @@ class OpenAICompatibleLLMProvider:
     ) -> ArchivistOutput:
         return await self._generate(
             output_type=ArchivistOutput,
+            profile=profile,
+            system_prompt=system_prompt,
+            prompt=prompt,
+        )
+
+    async def generate_player_recollection(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> PlayerRecollectionOutput:
+        return await self._generate(
+            output_type=PlayerRecollectionOutput,
+            profile=profile,
+            system_prompt=system_prompt,
+            prompt=prompt,
+        )
+
+    async def generate_context_summary(
+        self, *, profile: ModelProfile, system_prompt: str, prompt: str
+    ) -> ContextSummaryOutput:
+        return await self._generate(
+            output_type=ContextSummaryOutput,
             profile=profile,
             system_prompt=system_prompt,
             prompt=prompt,

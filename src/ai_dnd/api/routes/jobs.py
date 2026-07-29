@@ -1,9 +1,11 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 from typing import Any
 
 from fastapi import APIRouter, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from ai_dnd.api.dependencies import (
     BrokerDep,
@@ -16,19 +18,23 @@ from ai_dnd.api.dependencies import (
 from ai_dnd.api.schemas import (
     BackgroundJobView,
     CreateObserverProposalRequest,
+    GenerateContextCompressionJobRequest,
     GenerateEventFinalizationJobRequest,
     GenerateObserverJobRequest,
     GenerateTurnJobRequest,
+    ObserverProposalView,
 )
 from ai_dnd.application.game_service import GameService
 from ai_dnd.application.jobs import DegradedJobError
 from ai_dnd.application.prompts import (
     build_archivist_prompt,
+    build_context_compression_prompt,
     build_observer_prompt,
     build_player_prompt,
+    build_player_recollection_prompt,
 )
-from ai_dnd.domain.enums import RealtimeAudience
-from ai_dnd.domain.errors import NotFoundError
+from ai_dnd.domain.enums import EventStatus, RealtimeAudience
+from ai_dnd.domain.errors import ConflictError, NotFoundError, StaleRevisionError
 from ai_dnd.infrastructure.models import (
     BackgroundJobModel,
     CampaignModel,
@@ -39,6 +45,45 @@ from ai_dnd.infrastructure.models import (
 from ai_dnd.integrations.llm import LLMUnavailableError, ModelProfile
 
 router = APIRouter(prefix="/campaigns/{campaign_id}/jobs", tags=["background jobs"])
+
+
+def _effective_event_history(
+    turns: list[TurnModel],
+    *,
+    context_summary: str | None = None,
+    context_summary_through_sequence: int | None = None,
+    own_thought_character_id: str | None = None,
+) -> list[dict[str, Any]]:
+    history: list[dict[str, Any]] = []
+    through_sequence = context_summary_through_sequence or 0
+    if context_summary:
+        history.append(
+            {
+                "sequence": f"1-{through_sequence}",
+                "actor": "Game Master",
+                "role": "gm",
+                "action": context_summary,
+                "dice_roll": None,
+            }
+        )
+    for turn in turns:
+        if turn.sequence <= through_sequence:
+            continue
+        item: dict[str, Any] = {
+            "sequence": turn.sequence,
+            "actor": turn.actor_name,
+            "role": turn.actor_role,
+            "action": turn.action,
+            "dice_roll": turn.dice_roll,
+        }
+        if (
+            own_thought_character_id is not None
+            and turn.character_id == own_thought_character_id
+            and turn.thought
+        ):
+            item["own_thought"] = turn.thought
+        history.append(item)
+    return history
 
 
 @router.post(
@@ -65,7 +110,7 @@ async def generate_event_finalization(
     )
     await session.commit()
     event_id = event.id
-    model_id = request.model_id or settings.default_model
+    archivist_model_id = request.model_id or settings.default_model
 
     async def runner() -> dict[str, Any]:
         factory = jobs.session_factory
@@ -95,72 +140,83 @@ async def generate_event_finalization(
                     .order_by(CharacterModel.name)
                 )
             )
+            turns = list(current_event.turns)
+            context_summary = current_event.context_summary
+            context_summary_through_sequence = (
+                current_event.context_summary_through_sequence
+            )
+            participant_data: list[dict[str, Any]] = [
+                {
+                    "id": character.id,
+                    "name": character.name,
+                    "biography": character.biography,
+                    "kind": character.kind,
+                    "model_id": character.model_id,
+                    "global_chronicle": list(character.global_chronicle),
+                    "private_notes": list(character.private_notes),
+                }
+                for character in participants
+            ]
 
+        public_history = _effective_event_history(
+            turns,
+            context_summary=context_summary,
+            context_summary_through_sequence=context_summary_through_sequence,
+        )
         chronicle_versions: list[list[str]] = []
         seen_versions: set[tuple[str, ...]] = set()
-        for character in participants:
-            version = tuple(character.global_chronicle)
+        for character in participant_data:
+            version = tuple(character["global_chronicle"])
             if version not in seen_versions:
                 chronicle_versions.append(list(version))
                 seen_versions.add(version)
-        event_history = [
-            {
-                "sequence": turn.sequence,
-                "actor": turn.actor_name,
-                "role": turn.actor_role,
-                "action": turn.action,
-                "dice_roll": turn.dice_roll,
-            }
-            for turn in current_event.turns
-        ]
-        players = [
-            {
-                "id": character.id,
-                "name": character.name,
-                "biography": character.biography,
-                "prior_private_notes": list(character.private_notes),
-                "own_thoughts": [
-                    {
-                        "sequence": turn.sequence,
-                        "thought": turn.thought,
-                    }
-                    for turn in current_event.turns
-                    if turn.character_id == character.id and turn.thought
-                ],
-            }
-            for character in participants
-            if character.kind == "player"
-        ]
-        prompt = build_archivist_prompt(
-            event={
-                "id": current_event.id,
-                "title": current_event.title,
-                "started_at": (
-                    current_event.started_at.isoformat()
-                    if current_event.started_at
-                    else None
-                ),
-            },
-            chronicle_versions=chronicle_versions,
-            players=players,
-            event_history=event_history,
-        )
         try:
-            output = await llm.generate_archivist_result(
-                profile=ModelProfile(model_id=model_id, temperature=0.2),
+            archivist_output = await llm.generate_archivist_result(
+                profile=ModelProfile(model_id=archivist_model_id, temperature=0.2),
                 system_prompt=(
-                    "You are the Archivist for a tabletop campaign. You consolidate durable "
-                    "campaign memory and private player recollections."
+                    "Ты — Синтезатор Хроники кампании D&D. Веди только общую "
+                    "фактологическую летопись."
                 ),
-                prompt=prompt,
+                prompt=build_archivist_prompt(
+                    chronicle_versions=chronicle_versions,
+                    event_history=public_history,
+                ),
             )
+            player_notes: dict[str, str] = {}
+            for character in participant_data:
+                if character["kind"] != "player":
+                    continue
+                recollection = await llm.generate_player_recollection(
+                    profile=ModelProfile(
+                        model_id=character["model_id"] or settings.default_model
+                    ),
+                    system_prompt=(
+                        "Ты — актёр, исполняющий роль своего персонажа. Веди личный "
+                        "дневник только от его лица."
+                    ),
+                    prompt=build_player_recollection_prompt(
+                        character={
+                            "id": character["id"],
+                            "name": character["name"],
+                            "biography": character["biography"],
+                        },
+                        prior_private_notes=character["private_notes"],
+                        event_history=_effective_event_history(
+                            turns,
+                            context_summary=context_summary,
+                            context_summary_through_sequence=(
+                                context_summary_through_sequence
+                            ),
+                            own_thought_character_id=str(character["id"]),
+                        ),
+                    ),
+                )
+                player_notes[str(character["id"])] = recollection.note
         except LLMUnavailableError as error:
             raise DegradedJobError(
-                "Archivist is unavailable. The GM can retry or enter the result manually."
+                "Archivist or a player model is unavailable. The GM can retry or enter "
+                "the result manually."
             ) from error
-        expected_player_ids = {player["id"] for player in players}
-        if set(output.player_notes) != expected_player_ids:
-            raise ValueError("Archivist returned notes for an unexpected set of players.")
         await broker.publish(
             campaign_id=campaign_id,
             event_type="event.finalization_draft_ready",
@@ -169,8 +225,8 @@ async def generate_event_finalization(
         )
         return {
             "event_id": event_id,
-            "chronicle": output.chronicle,
-            "player_notes": output.player_notes,
+            "chronicle": archivist_output.chronicle,
+            "player_notes": player_notes,
             "validation_status": "valid",
         }
 
@@ -188,6 +244,114 @@ async def generate_event_finalization(
         payload={"event_id": event_id, "job_id": job.id},
     )
     return job
+
+
+@router.post(
+    "/context-compression",
+    response_model=BackgroundJobView,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def generate_context_compression(
+    campaign_id: str,
+    request: GenerateContextCompressionJobRequest,
+    session: SessionDep,
+    settings: SettingsDep,
+    jobs: JobManagerDep,
+    llm: LLMProviderDep,
+    broker: BrokerDep,
+    gm: GMDep,
+) -> BackgroundJobModel:
+    del gm
+    event = await session.get(GameEventModel, request.event_id)
+    if not event or event.campaign_id != campaign_id:
+        raise NotFoundError("Game event not found.")
+    if event.status != EventStatus.ACTIVE.value:
+        raise ConflictError("Only an active game event can be compressed.")
+    if event.revision != request.base_revision:
+        raise StaleRevisionError("Game event changed since it was loaded.")
+    event_id = event.id
+    base_revision = event.revision
+    model_id = request.model_id or settings.default_model
+
+    async def runner() -> dict[str, Any]:
+        factory = jobs.session_factory
+        async with factory() as job_session:
+            current_event = await job_session.scalar(
+                select(GameEventModel)
+                .options(selectinload(GameEventModel.turns))
+                .where(
+                    GameEventModel.id == event_id,
+                    GameEventModel.campaign_id == campaign_id,
+                )
+            )
+            if not current_event:
+                raise NotFoundError("Game event not found.")
+            through_sequence = current_event.context_summary_through_sequence or 0
+            uncompressed_turns = [
+                turn
+                for turn in current_event.turns
+                if turn.sequence > through_sequence
+            ]
+            if len(uncompressed_turns) <= 10:
+                return {
+                    "event_id": event_id,
+                    "status": "skipped",
+                    "message": "Недостаточно новых событий для сжатия (нужно больше 10).",
+                }
+            turns_to_compress = uncompressed_turns[:-10]
+            compression_history = _effective_event_history(
+                turns_to_compress,
+                context_summary=current_event.context_summary,
+                context_summary_through_sequence=(
+                    current_event.context_summary_through_sequence
+                ),
+            )
+            compressed_through_sequence = turns_to_compress[-1].sequence
+        try:
+            output = await llm.generate_context_summary(
+                profile=ModelProfile(model_id=model_id, temperature=0.2),
+                system_prompt=(
+                    "Ты — Синтезатор Хроники. Сжимай старую часть текущего игрового лога."
+                ),
+                prompt=build_context_compression_prompt(
+                    event_history=compression_history
+                ),
+            )
+        except LLMUnavailableError as error:
+            raise DegradedJobError(
+                "Context compression is unavailable. The event log was not changed."
+            ) from error
+        async with factory() as job_session:
+            await GameService(job_session).apply_context_summary(
+                campaign_id,
+                event_id,
+                base_revision=base_revision,
+                summary=output.summary,
+                through_sequence=compressed_through_sequence,
+            )
+            await job_session.commit()
+        await broker.publish(
+            campaign_id=campaign_id,
+            event_type="event.context_compressed",
+            audience=RealtimeAudience.GM,
+            payload={
+                "event_id": event_id,
+                "through_sequence": compressed_through_sequence,
+            },
+        )
+        return {
+            "event_id": event_id,
+            "status": "succeeded",
+            "summary": output.summary,
+            "through_sequence": compressed_through_sequence,
+        }
+
+    return await jobs.submit(
+        kind="context_compression",
+        campaign_id=campaign_id,
+        input_data={"event_id": event_id, "base_revision": base_revision},
+        runner=runner,
+    )
 
 
 @router.post("/player-turn", response_model=BackgroundJobView, status_code=status.HTTP_202_ACCEPTED)
@@ -240,6 +404,8 @@ async def generate_player_turn(
         "role": character.role,
     }
     event_id = event.id
+    context_summary = event.context_summary
+    context_summary_through_sequence = event.context_summary_through_sequence
     public_snapshot = await GameService(session).get_snapshot(campaign_id, gm_view=False)
     scene_participants = [
         {
@@ -265,20 +431,12 @@ async def generate_player_turn(
             character=character_snapshot,
             global_chronicle=global_chronicle,
             private_notes=private_notes,
-            event_history=[
-                {
-                    "actor": turn.actor_name,
-                    "role": turn.actor_role,
-                    "action": turn.action,
-                    "dice_roll": turn.dice_roll,
-                    **(
-                        {"own_thought": turn.thought}
-                        if turn.character_id == actor["id"] and turn.thought
-                        else {}
-                    ),
-                }
-                for turn in history_rows
-            ],
+            event_history=_effective_event_history(
+                history_rows,
+                context_summary=context_summary,
+                context_summary_through_sequence=context_summary_through_sequence,
+                own_thought_character_id=character.id,
+            ),
             scene_participants=scene_participants,
         )
         output = await llm.generate_player_turn(
@@ -329,12 +487,51 @@ async def generate_observer_proposal(
         raise NotFoundError("Turn not found in game event.")
     if not event or event.campaign_id != campaign_id or not campaign:
         raise NotFoundError("Campaign or game event not found.")
-    public_snapshot = await GameService(session).get_snapshot(campaign_id, gm_view=False)
+    await session.refresh(event, attribute_names=["participants"])
+    participant_ids = [participant.character_id for participant in event.participants]
+    participant_models = list(
+        await session.scalars(
+            select(CharacterModel)
+            .options(
+                selectinload(CharacterModel.inventory),
+                selectinload(CharacterModel.status_effects),
+            )
+            .where(
+                CharacterModel.campaign_id == campaign_id,
+                CharacterModel.id.in_(participant_ids),
+            )
+            .order_by(CharacterModel.name)
+        )
+    )
     public_characters = [
-        character.model_dump(mode="json") for character in public_snapshot.characters
+        {
+            "id": character.id,
+            "name": character.name,
+            "role": character.role,
+            "stats": {
+                "hp": {"current": character.hp_current, "max": character.hp_max},
+                "mp": {"current": character.mp_current, "max": character.mp_max},
+                "attributes": character.attributes,
+                "status_effects": [
+                    {"id": effect.id, "name": effect.name}
+                    for effect in character.status_effects
+                ],
+            },
+            "inventory": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "quantity": item.quantity,
+                    "description": item.description,
+                }
+                for item in character.inventory
+            ],
+        }
+        for character in participant_models
     ]
     action = turn.action
     dice_roll = turn.dice_roll
+    actor_name = turn.actor_name
     base_revision = campaign.revision
     model_id = request.model_id or settings.default_model
 
@@ -342,6 +539,7 @@ async def generate_observer_proposal(
         prompt = build_observer_prompt(
             action=action,
             dice_roll=dice_roll,
+            actor_name=actor_name,
             public_characters=public_characters,
             campaign_revision=base_revision,
         )
@@ -369,7 +567,11 @@ async def generate_observer_proposal(
             audience=RealtimeAudience.GM,
             payload={"proposal_id": proposal.id, "turn_id": proposal.turn_id},
         )
-        return {"proposal_id": proposal.id}
+        proposal_view = ObserverProposalView.model_validate(proposal)
+        return {
+            "proposal_id": proposal.id,
+            "proposal": proposal_view.model_dump(mode="json"),
+        }
 
     return await jobs.submit(
         kind="observer",

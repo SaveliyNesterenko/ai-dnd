@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ import type {
   CharacterGM,
   CharacterPublic,
   GameStateSnapshot,
+  ObserverOperation,
   ObserverProposal,
 } from "../api/types";
 import { ErrorNotice } from "../components/ErrorNotice";
@@ -26,6 +27,7 @@ type TurnForm = z.infer<typeof turnSchema>;
 export default function GmPage() {
   const queryClient = useQueryClient();
   const [proposal, setProposal] = useState<ObserverProposal | null>(null);
+  const [observerTurnId, setObserverTurnId] = useState<string>();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>();
   const selectedCharacterId = useUiStore((state) => state.selectedCharacterId);
   const selectCharacter = useUiStore((state) => state.selectCharacter);
@@ -149,7 +151,11 @@ export default function GmPage() {
       <section className="gm-grid">
         <aside className="panel panel--voice-log" aria-label="Голос и лог события">
           <VoiceWorkspace />
-          <EventTimeline snapshot={snapshot.data} />
+          <EventTimeline
+            campaignId={campaignId}
+            snapshot={snapshot.data}
+            onChanged={refreshSnapshot}
+          />
         </aside>
 
         <section className="panel panel--stage">
@@ -159,6 +165,10 @@ export default function GmPage() {
               campaignId={campaignId}
               eventId={snapshot.data.active_event.id}
               character={selectedCharacter}
+              onTurnPublished={(turnId) => {
+                setProposal(null);
+                setObserverTurnId(turnId);
+              }}
               onChanged={refreshSnapshot}
             />
           ) : (
@@ -179,10 +189,10 @@ export default function GmPage() {
 
         <aside className="panel panel--observer">
           <ObserverPanel
-            key={selectedCharacter?.id}
+            key={snapshot.data.active_event?.id ?? "no-event"}
             campaignId={campaignId}
             snapshot={snapshot.data}
-            selectedCharacter={selectedCharacter}
+            requestedTurnId={observerTurnId}
             proposal={proposal}
             setProposal={setProposal}
             onChanged={refreshSnapshot}
@@ -249,7 +259,51 @@ function VoiceWorkspace() {
   );
 }
 
-function EventTimeline({ snapshot }: { snapshot: GameStateSnapshot }) {
+function EventTimeline({
+  campaignId,
+  snapshot,
+  onChanged,
+}: {
+  campaignId: string;
+  snapshot: GameStateSnapshot;
+  onChanged: () => void;
+}) {
+  const [compressionMessage, setCompressionMessage] = useState<string>();
+  const activeEvent = snapshot.active_event;
+  const throughSequence = activeEvent?.context_summary_through_sequence ?? 0;
+  const visibleTurns =
+    activeEvent?.turns.filter((turn) => turn.sequence > throughSequence) ?? [];
+  const compress = useMutation({
+    mutationFn: async () => {
+      if (!activeEvent) throw new Error("Нет активного события.");
+      const job = await api.generateContextCompression(
+        campaignId,
+        activeEvent.id,
+        activeEvent.revision,
+      );
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const current = await api.getJob(campaignId, job.id);
+        if (current.status === "succeeded") {
+          return current.output_data;
+        }
+        if (["failed", "degraded", "cancelled"].includes(current.status)) {
+          throw new Error(
+            `Не удалось сжать контекст: ${current.error_code ?? current.status}`,
+          );
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+      throw new Error("Архивариус не ответил вовремя.");
+    },
+    onSuccess: (output) => {
+      setCompressionMessage(
+        output?.status === "skipped"
+          ? String(output.message)
+          : "Старая часть контекста сжата.",
+      );
+      onChanged();
+    },
+  });
   return (
     <section className="event-log-workspace">
       <div className="panel__header">
@@ -257,10 +311,33 @@ function EventTimeline({ snapshot }: { snapshot: GameStateSnapshot }) {
           <span className="eyebrow">Event log</span>
           <h2>{snapshot.active_event?.title ?? "Нет активного события"}</h2>
         </div>
-        <span>{snapshot.active_event?.turns.length ?? 0}</span>
+        <div className="event-log-workspace__actions">
+          <span>
+            {(activeEvent?.context_summary ? 1 : 0) + visibleTurns.length}
+          </span>
+          {activeEvent?.status === "active" && (
+            <button
+              className="button button--quiet"
+              type="button"
+              disabled={compress.isPending}
+              onClick={() => compress.mutate()}
+            >
+              {compress.isPending ? "Сжимаем…" : "Сжать контекст"}
+            </button>
+          )}
+        </div>
       </div>
       <div className="timeline" aria-live="polite">
-        {snapshot.active_event?.turns.map((turn) => (
+        {activeEvent?.context_summary && (
+          <article className="turn turn--summary">
+            <span className="turn__sequence">1–{throughSequence}</span>
+            <div>
+              <strong>Game Master · сжатый контекст</strong>
+              <p>{activeEvent.context_summary}</p>
+            </div>
+          </article>
+        )}
+        {visibleTurns.map((turn) => (
           <article className="turn" key={turn.id}>
             <span className="turn__sequence">{String(turn.sequence).padStart(2, "0")}</span>
             <div>
@@ -275,6 +352,8 @@ function EventTimeline({ snapshot }: { snapshot: GameStateSnapshot }) {
           <div className="event-log-workspace__empty">Лог появится после запуска события.</div>
         )}
       </div>
+      {compressionMessage && <p className="compression-message">{compressionMessage}</p>}
+      {compress.error && <ErrorNotice error={compress.error} />}
     </section>
   );
 }
@@ -283,11 +362,13 @@ function TurnComposer({
   campaignId,
   eventId,
   character,
+  onTurnPublished,
   onChanged,
 }: {
   campaignId: string;
   eventId: string;
   character: CharacterPublic | undefined;
+  onTurnPublished: (turnId: string) => void;
   onChanged: () => void;
 }) {
   const [draftReady, setDraftReady] = useState(false);
@@ -311,9 +392,10 @@ function TurnComposer({
         action: value.action,
         roll_dice: rollDice,
       }),
-    onSuccess: () => {
+    onSuccess: (turn) => {
       form.reset();
       setDraftReady(false);
+      onTurnPublished(turn.id);
       void onChanged();
     },
   });
@@ -415,54 +497,114 @@ function TurnComposer({
 function ObserverPanel({
   campaignId,
   snapshot,
-  selectedCharacter,
+  requestedTurnId,
   proposal,
   setProposal,
   onChanged,
 }: {
   campaignId: string;
   snapshot: GameStateSnapshot;
-  selectedCharacter: CharacterPublic | undefined;
+  requestedTurnId: string | undefined;
   proposal: ObserverProposal | null;
   setProposal: (proposal: ObserverProposal | null) => void;
   onChanged: () => void;
 }) {
-  const [brief, setBrief] = useState("Механическое последствие подтверждено мастером.");
-  const [hp, setHp] = useState(selectedCharacter?.hp_current ?? 0);
+  const [brief, setBrief] = useState("");
+  const [operationsText, setOperationsText] = useState("[]");
   const lastTurn = snapshot.active_event?.turns.at(-1);
   const eventAcceptsChanges = snapshot.active_event?.status === "active";
-
-  const operation = useMemo(
-    () =>
-      selectedCharacter
-        ? [
-            {
-              op: "set_resource" as const,
-              character_id: selectedCharacter.id,
-              resource: "hp" as const,
-              current: hp,
-            },
-          ]
-        : [],
-    [hp, selectedCharacter],
+  const requestedTurnExists = snapshot.active_event?.turns.some(
+    (turn) => turn.id === requestedTurnId,
   );
-  const create = useMutation({
+  const parseOperations = () => {
+    const parsed: unknown = JSON.parse(operationsText);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Operations должны быть JSON-массивом.");
+    }
+    return parsed as ObserverOperation[];
+  };
+  const useProposal = (nextProposal: ObserverProposal) => {
+    setProposal(nextProposal);
+    setBrief(nextProposal.gm_brief);
+    setOperationsText(JSON.stringify(nextProposal.operations, null, 2));
+  };
+  const generate = useMutation({
+    mutationFn: async (turnId: string) => {
+      const job = await api.generateObserver(
+        campaignId,
+        snapshot.active_event!.id,
+        turnId,
+      );
+      for (let attempt = 0; attempt < 180; attempt += 1) {
+        const current = await api.getJob(campaignId, job.id);
+        if (current.status === "succeeded") {
+          const proposalId = current.output_data?.proposal_id;
+          if (typeof proposalId !== "string") {
+            throw new Error("Наблюдатель не вернул предложение.");
+          }
+          return api.getProposal(campaignId, proposalId);
+        }
+        if (["failed", "degraded", "cancelled"].includes(current.status)) {
+          throw new Error(
+            `Наблюдатель недоступен: ${current.error_code ?? current.status}`,
+          );
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+      throw new Error("Наблюдатель не ответил вовремя.");
+    },
+    onSuccess: useProposal,
+  });
+  const createManual = useMutation({
     mutationFn: () =>
       api.createProposal(campaignId, snapshot.active_event!.id, {
         turn_id: lastTurn!.id,
-        gm_brief: brief,
+        gm_brief: brief.trim() || "Ручное предложение GM.",
         base_revision: snapshot.campaign.revision,
-        operations: operation,
+        operations: parseOperations(),
       }),
-    onSuccess: setProposal,
+    onSuccess: useProposal,
   });
   const apply = useMutation({
-    mutationFn: () => api.applyProposal(campaignId, proposal!.id, operation),
+    mutationFn: () =>
+      api.applyProposal(
+        campaignId,
+        proposal!.id,
+        brief.trim(),
+        parseOperations(),
+      ),
     onSuccess: () => {
       setProposal(null);
+      setBrief("");
+      setOperationsText("[]");
       void onChanged();
     },
   });
+  const automaticTurnRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (
+      requestedTurnId &&
+      requestedTurnExists &&
+      eventAcceptsChanges &&
+      proposal?.turn_id !== requestedTurnId &&
+      automaticTurnRef.current !== requestedTurnId &&
+      !generate.isPending
+    ) {
+      automaticTurnRef.current = requestedTurnId;
+      generate.mutate(requestedTurnId);
+    }
+  }, [
+    eventAcceptsChanges,
+    generate,
+    proposal?.turn_id,
+    requestedTurnExists,
+    requestedTurnId,
+  ]);
+  const reset = () => {
+    setProposal(null);
+    setBrief("");
+    setOperationsText("[]");
+  };
 
   return (
     <>
@@ -473,41 +615,76 @@ function ObserverPanel({
         </div>
         <span className="revision">rev {snapshot.campaign.revision}</span>
       </div>
-      {!eventAcceptsChanges || !lastTurn || !selectedCharacter ? (
+      {!eventAcceptsChanges || !lastTurn ? (
         <div className="empty-state empty-state--small">
           <p>
             {snapshot.active_event?.status === "finalizing"
               ? "Изменения механики отключены, пока Архивариус завершает событие."
-              : "Сначала выберите персонажа и зафиксируйте ход."}
+              : "Сначала зафиксируйте ход."}
           </p>
         </div>
       ) : (
         <div className="observer-form">
           <label htmlFor="gm-brief">GM Brief</label>
           <textarea id="gm-brief" rows={7} value={brief} onChange={(e) => setBrief(e.target.value)} />
-          <label htmlFor="observer-hp">Новое HP · {selectedCharacter.name}</label>
-          <input
-            id="observer-hp"
-            type="number"
-            min={0}
-            max={selectedCharacter.hp_max}
-            value={hp}
-            onChange={(event) => setHp(Number(event.target.value))}
+          <label htmlFor="observer-operations">Typed operations · JSON</label>
+          <textarea
+            id="observer-operations"
+            rows={12}
+            value={operationsText}
+            spellCheck={false}
+            onChange={(event) => setOperationsText(event.target.value)}
           />
           {proposal ? (
             <div className="proposal-preview">
               <span className="eyebrow">Ожидает подтверждения</span>
-              <p>{proposal.gm_brief}</p>
-              <button className="button" type="button" onClick={() => apply.mutate()}>
-                Применить изменения
-              </button>
+              <div className="observer-buttons">
+                <button
+                  className="button"
+                  type="button"
+                  disabled={apply.isPending || !brief.trim()}
+                  onClick={() => apply.mutate()}
+                >
+                  Применить изменения
+                </button>
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  disabled={generate.isPending}
+                  onClick={() => generate.mutate(lastTurn.id)}
+                >
+                  {generate.isPending ? "Повторяем…" : "Повторить"}
+                </button>
+                <button className="button button--quiet" type="button" onClick={reset}>
+                  Сбросить
+                </button>
+              </div>
             </div>
           ) : (
-            <button className="button button--secondary" type="button" onClick={() => create.mutate()}>
-              Подготовить предложение
-            </button>
+            <div className="observer-buttons">
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={generate.isPending}
+                onClick={() => generate.mutate(lastTurn.id)}
+              >
+                {generate.isPending ? "Наблюдатель анализирует…" : "Запустить Наблюдателя"}
+              </button>
+              <button
+                className="button button--quiet"
+                type="button"
+                disabled={createManual.isPending}
+                onClick={() => createManual.mutate()}
+              >
+                Создать вручную
+              </button>
+            </div>
           )}
-          {(create.error || apply.error) && <ErrorNotice error={create.error ?? apply.error} />}
+          {(generate.error || createManual.error || apply.error) && (
+            <ErrorNotice
+              error={generate.error ?? createManual.error ?? apply.error}
+            />
+          )}
         </div>
       )}
     </>

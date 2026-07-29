@@ -304,14 +304,23 @@ def test_typed_observer_proposal_and_stale_revision(
     )
     assert first.status_code == 201
     assert second.status_code == 201
+    fetched = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/observer-proposals/{first.json()['id']}"
+    )
+    assert fetched.status_code == 200
+    assert fetched.json()["gm_brief"] == proposal_body["gm_brief"]
 
-    apply_body = {"operations": proposal_body["operations"]}
+    apply_body = {
+        "gm_brief": "Edited by the GM.",
+        "operations": proposal_body["operations"],
+    }
     applied = authenticated_client.post(
         f"/api/v1/campaigns/{demo_campaign_id}/observer-proposals/{first.json()['id']}/apply",
         json=apply_body,
         headers={"Idempotency-Key": str(uuid4())},
     )
     assert applied.status_code == 200
+    assert applied.json()["gm_brief"] == "Edited by the GM."
     stale = authenticated_client.post(
         f"/api/v1/campaigns/{demo_campaign_id}/observer-proposals/{second.json()['id']}/apply",
         json=apply_body,

@@ -1,6 +1,7 @@
 import type {
   AddInventoryItemOperation,
   AddStatusEffectOperation,
+  AdjustInventoryItemOperation,
   CampaignSummary,
   CharacterGm as GeneratedCharacterGm,
   CharacterPublic as GeneratedCharacterPublic,
@@ -26,6 +27,7 @@ export type ObserverOperation =
   | AddInventoryItemOperation
   | UpdateInventoryItemOperation
   | RemoveInventoryItemOperation
+  | AdjustInventoryItemOperation
   | AddStatusEffectOperation
   | RemoveStatusEffectOperation;
 

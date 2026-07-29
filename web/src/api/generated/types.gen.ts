@@ -38,9 +38,39 @@ export type AddStatusEffectOperation = {
 };
 
 /**
+ * AdjustInventoryItemOperation
+ */
+export type AdjustInventoryItemOperation = {
+    /**
+     * Op
+     */
+    op: 'adjust_inventory_item';
+    /**
+     * Character Id
+     */
+    character_id: string;
+    /**
+     * Item Id
+     */
+    item_id?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Quantity Delta
+     */
+    quantity_delta: number;
+};
+
+/**
  * ApplyObserverProposalRequest
  */
 export type ApplyObserverProposalRequest = {
+    /**
+     * Gm Brief
+     */
+    gm_brief?: string | null;
     /**
      * Operations
      */
@@ -55,6 +85,8 @@ export type ApplyObserverProposalRequest = {
     } & UpdateInventoryItemOperation) | ({
         op: 'remove_inventory_item';
     } & RemoveInventoryItemOperation) | ({
+        op: 'adjust_inventory_item';
+    } & AdjustInventoryItemOperation) | ({
         op: 'add_status_effect';
     } & AddStatusEffectOperation) | ({
         op: 'remove_status_effect';
@@ -411,6 +443,8 @@ export type CreateObserverProposalRequest = {
     } & UpdateInventoryItemOperation) | ({
         op: 'remove_inventory_item';
     } & RemoveInventoryItemOperation) | ({
+        op: 'adjust_inventory_item';
+    } & AdjustInventoryItemOperation) | ({
         op: 'add_status_effect';
     } & AddStatusEffectOperation) | ({
         op: 'remove_status_effect';
@@ -480,6 +514,14 @@ export type GameEventView = {
      */
     finalization_job_id?: string | null;
     /**
+     * Context Summary
+     */
+    context_summary?: string | null;
+    /**
+     * Context Summary Through Sequence
+     */
+    context_summary_through_sequence?: number | null;
+    /**
      * Turns
      */
     turns: Array<TurnView>;
@@ -510,6 +552,24 @@ export type GameStateSnapshot = {
      * Last Sequence
      */
     last_sequence: number;
+};
+
+/**
+ * GenerateContextCompressionJobRequest
+ */
+export type GenerateContextCompressionJobRequest = {
+    /**
+     * Event Id
+     */
+    event_id: string;
+    /**
+     * Base Revision
+     */
+    base_revision: number;
+    /**
+     * Model Id
+     */
+    model_id?: string | null;
 };
 
 /**
@@ -793,7 +853,11 @@ export type RemoveInventoryItemOperation = {
     /**
      * Item Id
      */
-    item_id: string;
+    item_id?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
 };
 
 /**
@@ -811,7 +875,11 @@ export type RemoveStatusEffectOperation = {
     /**
      * Status Effect Id
      */
-    status_effect_id: string;
+    status_effect_id?: string | null;
+    /**
+     * Name
+     */
+    name?: string | null;
 };
 
 /**
@@ -1057,7 +1125,11 @@ export type UpdateInventoryItemOperation = {
     /**
      * Item Id
      */
-    item_id: string;
+    item_id?: string | null;
+    /**
+     * Item Name
+     */
+    item_name?: string | null;
     /**
      * Name
      */
@@ -1658,6 +1730,40 @@ export type ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdAppl
 
 export type ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostResponse = ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostResponses[keyof ApplyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPostResponses];
 
+export type GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Proposal Id
+         */
+        proposal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/observer-proposals/{proposal_id}';
+};
+
+export type GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetError = GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetErrors[keyof GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetErrors];
+
+export type GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ObserverProposalView;
+};
+
+export type GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetResponse = GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetResponses[keyof GetProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGetResponses];
+
 export type ArchiveEventApiV1CampaignsCampaignIdEventsEventIdArchivePostData = {
     body?: never;
     headers?: {
@@ -1775,6 +1881,36 @@ export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizati
 };
 
 export type GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponse = GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses[keyof GenerateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPostResponses];
+
+export type GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostData = {
+    body: GenerateContextCompressionJobRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/jobs/context-compression';
+};
+
+export type GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostError = GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostErrors[keyof GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostErrors];
+
+export type GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: BackgroundJobView;
+};
+
+export type GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostResponse = GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostResponses[keyof GenerateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPostResponses];
 
 export type GeneratePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPostData = {
     body: GenerateTurnJobRequest;

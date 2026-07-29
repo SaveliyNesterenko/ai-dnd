@@ -4,9 +4,12 @@ import {
   confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
   createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost,
-  generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost,
+  generateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPost,
   generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost,
+  generateObserverProposalApiV1CampaignsCampaignIdJobsObserverPost,
+  generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost,
   getJobApiV1CampaignsCampaignIdJobsJobIdGet,
+  getProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGet,
   gmSnapshotApiV1CampaignsCampaignIdGmSnapshotGet,
   listCampaignsApiV1CampaignsGet,
   sessionInfoApiV1AuthSessionGet,
@@ -135,6 +138,33 @@ export const api = {
         body: { event_id: eventId, base_revision: baseRevision },
       }),
     ),
+  generateContextCompression: (
+    campaignId: string,
+    eventId: string,
+    baseRevision: number,
+  ) =>
+    execute(
+      generateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: { event_id: eventId, base_revision: baseRevision },
+      }),
+    ),
+  generateObserver: (campaignId: string, eventId: string, turnId: string) =>
+    execute(
+      generateObserverProposalApiV1CampaignsCampaignIdJobsObserverPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: { event_id: eventId, turn_id: turnId },
+      }),
+    ),
+  getProposal: (campaignId: string, proposalId: string) =>
+    execute(
+      getProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGet({
+        ...requestOptions,
+        path: { campaign_id: campaignId, proposal_id: proposalId },
+      }),
+    ),
   updateScene: (campaignId: string, input: UpdateSceneRequest) =>
     execute(
       updateSceneApiV1CampaignsCampaignIdScenePatch({
@@ -182,6 +212,7 @@ export const api = {
   applyProposal: (
     campaignId: string,
     proposalId: string,
+    gmBrief: string,
     operations: ObserverOperation[],
   ) =>
     execute(
@@ -189,7 +220,7 @@ export const api = {
         ...requestOptions,
         path: { campaign_id: campaignId, proposal_id: proposalId },
         headers: { "Idempotency-Key": crypto.randomUUID() },
-        body: { operations },
+        body: { gm_brief: gmBrief, operations },
       }),
     ),
   confirmEventFinalization: (

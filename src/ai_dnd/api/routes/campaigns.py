@@ -346,7 +346,10 @@ async def apply_proposal(
         if cached:
             return ObserverProposalView.model_validate(cached.response_body)
     proposal = await GameService(session).apply_proposal(
-        campaign_id, proposal_id, request.operations
+        campaign_id,
+        proposal_id,
+        request.operations,
+        gm_brief=request.gm_brief,
     )
     view = ObserverProposalView.model_validate(proposal)
     if concurrent := await _commit_response(
@@ -363,6 +366,21 @@ async def apply_proposal(
         payload={"proposal_id": proposal.id},
     )
     return view
+
+
+@router.get(
+    "/{campaign_id}/observer-proposals/{proposal_id}",
+    response_model=ObserverProposalView,
+)
+async def get_proposal(
+    campaign_id: str,
+    proposal_id: str,
+    session: SessionDep,
+    gm: GMDep,
+) -> ObserverProposalView:
+    del gm
+    proposal = await GameService(session).get_proposal(campaign_id, proposal_id)
+    return ObserverProposalView.model_validate(proposal)
 
 
 @router.post("/{campaign_id}/events/{event_id}/archive")
