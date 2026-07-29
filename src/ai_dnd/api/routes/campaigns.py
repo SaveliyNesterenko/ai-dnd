@@ -5,7 +5,16 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 
-from ai_dnd.api.dependencies import BrokerDep, GMDep, SecurityDep, SessionDep
+from ai_dnd.api.dependencies import (
+    BrokerDep,
+    GMDep,
+    JobManagerDep,
+    SecurityDep,
+    SessionDep,
+    SettingsDep,
+    SpeechLockDep,
+    TTSWorkerDep,
+)
 from ai_dnd.api.schemas import (
     ApplyObserverProposalRequest,
     CampaignSummary,
@@ -23,6 +32,7 @@ from ai_dnd.api.schemas import (
     UpdateSceneRequest,
 )
 from ai_dnd.application.game_service import GameService
+from ai_dnd.application.speech import synthesize_turn_speech
 from ai_dnd.domain.enums import RealtimeAudience
 from ai_dnd.domain.errors import ConflictError, NotFoundError
 from ai_dnd.infrastructure.models import GameEventModel, IdempotencyRecordModel
@@ -170,6 +180,10 @@ async def create_turn(
     request: CreateTurnRequest,
     session: SessionDep,
     broker: BrokerDep,
+    jobs: JobManagerDep,
+    settings: SettingsDep,
+    speech_lock: SpeechLockDep,
+    tts: TTSWorkerDep,
     gm: GMDep,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict[str, Any]:
@@ -200,6 +214,25 @@ async def create_turn(
         campaign_id=campaign_id,
         event_type="turn.created",
         payload=body,
+    )
+    turn_id = turn.id
+
+    async def run_speech_synthesis() -> dict[str, Any]:
+        async with speech_lock:
+            return await synthesize_turn_speech(
+                session_factory=jobs.session_factory,
+                broker=broker,
+                tts=tts,
+                settings=settings,
+                campaign_id=campaign_id,
+                turn_id=turn_id,
+            )
+
+    await jobs.submit(
+        kind="speech_synthesis",
+        campaign_id=campaign_id,
+        input_data={"turn_id": turn_id},
+        runner=run_speech_synthesis,
     )
     return body
 

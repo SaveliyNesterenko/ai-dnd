@@ -282,6 +282,8 @@ class TurnModel(Base):
     action: Mapped[str] = mapped_column(Text)
     dice_roll: Mapped[int | None] = mapped_column(Integer, nullable=True)
     audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    thought_audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    action_audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
 
     event: Mapped[GameEventModel] = relationship(back_populates="turns")

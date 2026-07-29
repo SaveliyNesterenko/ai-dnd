@@ -70,6 +70,8 @@ class TurnView(BaseModel):
     action: str
     dice_roll: int | None
     audio_url: str | None
+    thought_audio_url: str | None
+    action_audio_url: str | None
     created_at: datetime
 
 

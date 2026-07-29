@@ -27,7 +27,7 @@ from ai_dnd.domain.errors import ConflictError, NotFoundError, ValidationError
 from ai_dnd.infrastructure.database import create_engine, create_session_factory
 from ai_dnd.infrastructure.security import SecurityManager
 from ai_dnd.integrations.llm import create_llm_provider
-from ai_dnd.integrations.voice import create_stt_provider
+from ai_dnd.integrations.voice import create_stt_provider, create_tts_worker
 from ai_dnd.migrations import run_migrations
 
 
@@ -84,6 +84,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         app.state.llm = create_llm_provider(application_settings)
         app.state.stt = create_stt_provider(application_settings)
+        app.state.tts = create_tts_worker(application_settings)
+        app.state.speech_lock = asyncio.Lock()
         structlog.get_logger().info(
             "application_started",
             version=__version__,

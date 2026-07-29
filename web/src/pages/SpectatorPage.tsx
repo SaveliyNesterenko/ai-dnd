@@ -2,10 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "../api/client";
+import type { RealtimeEvent } from "../api/types";
 import { CharacterCard } from "../components/CharacterCard";
 import { ConnectionBadge } from "../components/ConnectionBadge";
 import { ErrorNotice } from "../components/ErrorNotice";
+import { SpeechBubble } from "../components/SpeechBubble";
 import { useRealtime } from "../hooks/useRealtime";
+import { useSpeechPlayback } from "../hooks/useSpeechPlayback";
 
 export default function SpectatorPage() {
   const queryClient = useQueryClient();
@@ -14,6 +17,12 @@ export default function SpectatorPage() {
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
   const campaignId =
     campaigns.data?.find((campaign) => campaign.is_active)?.id ?? campaigns.data?.[0]?.id;
+  const {
+    activeCue,
+    diceRoll,
+    enqueueRealtimeEvent,
+    completeActiveCue,
+  } = useSpeechPlayback(campaignId);
   const snapshot = useQuery({
     queryKey: ["public-snapshot", campaignId, joinCode],
     queryFn: () => api.publicSnapshot(campaignId!, joinCode),
@@ -21,10 +30,11 @@ export default function SpectatorPage() {
     retry: false,
   });
   const handleRealtime = useCallback(
-    () => {
+    (event: RealtimeEvent) => {
+      enqueueRealtimeEvent(event);
       void queryClient.invalidateQueries({ queryKey: ["public-snapshot", campaignId, joinCode] });
     },
-    [campaignId, joinCode, queryClient],
+    [campaignId, enqueueRealtimeEvent, joinCode, queryClient],
   );
   const connection = useRealtime(
     snapshot.data ? campaignId : undefined,
@@ -103,8 +113,6 @@ export default function SpectatorPage() {
     (item) => item.id === snapshot.data.scene.music_track_id,
   );
   const activeCharacters = snapshot.data.characters.filter((character) => character.is_active);
-  const turns = snapshot.data.active_event?.turns ?? [];
-  const lastTurn = turns.at(-1);
 
   return (
     <main
@@ -135,41 +143,49 @@ export default function SpectatorPage() {
             if (!character) return null;
             const imageUrl =
               character.avatar_url ?? character.portrait_url ?? character.sprite_url;
+            const isSpeaking = activeCue?.characterId === character.id;
+            const avatarSize = snapshot.data.scene.avatar_size * (state.scale / 100);
             return (
               <figure
-                className="spectator-avatar"
+                className={`spectator-avatar${isSpeaking ? " spectator-avatar--speaking" : ""}`}
                 key={character.id}
                 style={{
                   left: `${state.x}%`,
                   top: `${state.y}%`,
-                  zIndex: state.order + 1,
-                  width: `${
-                    snapshot.data.scene.avatar_size * (state.scale / 100)
-                  }px`,
-                  transform: `translate(-50%, -100%) scaleX(${
-                    state.flip_x ? -1 : 1
-                  })`,
+                  zIndex: isSpeaking ? 1000 : state.order + 1,
+                  width: `${avatarSize}px`,
+                  transform: "translate(-50%, -100%)",
                 }}
               >
-                {imageUrl ? <img src={imageUrl} alt={character.name} /> : null}
+                {isSpeaking && activeCue ? (
+                  <SpeechBubble
+                    cue={activeCue}
+                    onComplete={completeActiveCue}
+                    anchorHeight={avatarSize}
+                  />
+                ) : null}
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={character.name}
+                    style={{ transform: state.flip_x ? "scaleX(-1)" : undefined }}
+                  />
+                ) : null}
               </figure>
             );
           })}
       </section>
 
-      <section className="spectator__story" aria-live="polite">
-        {lastTurn ? (
-          <article className="speech-card">
-            <span className="speech-card__actor">{lastTurn.actor_name}</span>
-            {lastTurn.thought && <p className="speech-card__thought">{lastTurn.thought}</p>}
-            <p className="speech-card__action">{lastTurn.action}</p>
-            {lastTurn.dice_roll && <span className="die die--large">{lastTurn.dice_roll}</span>}
-          </article>
-        ) : (
-          <div className="speech-card speech-card--waiting">
-            <p>Сцена готова. Ожидаем первый ход.</p>
+      <section className="spectator__stage">
+        {diceRoll !== null ? (
+          <div
+            className="spectator-dice-roll"
+            role="status"
+            aria-label={`Результат броска: ${diceRoll}`}
+          >
+            {diceRoll}
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="spectator__characters" aria-label="Активные персонажи">

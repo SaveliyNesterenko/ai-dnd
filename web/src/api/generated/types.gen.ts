@@ -1061,6 +1061,14 @@ export type TurnView = {
      */
     audio_url: string | null;
     /**
+     * Thought Audio Url
+     */
+    thought_audio_url: string | null;
+    /**
+     * Action Audio Url
+     */
+    action_audio_url: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -2005,6 +2013,34 @@ export type GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponses = {
 };
 
 export type GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponse = GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponses[keyof GetJobApiV1CampaignsCampaignIdJobsJobIdGetResponses];
+
+export type GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetData = {
+    body?: never;
+    path: {
+        /**
+         * Filename
+         */
+        filename: string;
+    };
+    query?: never;
+    url: '/api/v1/assets/generated-audio/{filename}';
+};
+
+export type GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetError = GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetErrors[keyof GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetErrors];
+
+export type GetGeneratedAudioApiV1AssetsGeneratedAudioFilenameGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type GetAssetApiV1AssetsAssetIdGetData = {
     body?: never;

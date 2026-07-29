@@ -1278,6 +1278,46 @@
         }
       }
     },
+    "/api/v1/assets/generated-audio/{filename}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Generated Audio",
+        "operationId": "get_generated_audio_api_v1_assets_generated_audio__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assets/{asset_id}": {
       "get": {
         "tags": [
@@ -3273,6 +3313,28 @@
             ],
             "title": "Audio Url"
           },
+          "thought_audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thought Audio Url"
+          },
+          "action_audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Audio Url"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3290,6 +3352,8 @@
           "action",
           "dice_roll",
           "audio_url",
+          "thought_audio_url",
+          "action_audio_url",
           "created_at"
         ],
         "title": "TurnView"

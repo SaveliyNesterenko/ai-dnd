@@ -9,10 +9,12 @@ from ai_dnd.api.routes.voice import _has_valid_signature
 from ai_dnd.core.settings import Settings
 from ai_dnd.integrations import voice
 from ai_dnd.integrations.voice import (
+    CoquiTTSWorker,
     DisabledSTTProvider,
     DisabledTTSWorker,
     NexaraSTTProvider,
     create_stt_provider,
+    create_tts_worker,
 )
 
 
@@ -80,3 +82,31 @@ async def test_disabled_voice_capabilities_are_explicit(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError):
         await tts.synthesize(text="test", voice_asset=tmp_path, output_path=tmp_path)
     assert await tts.health() is False
+
+
+def test_generated_speech_audio_is_served_from_runtime_storage(
+    client: Any,
+    settings: Settings,
+) -> None:
+    settings.ensure_directories()
+    audio_path = settings.data_dir / "generated-audio" / "turn-thought.wav"
+    audio_path.write_bytes(b"RIFF\x04\x00\x00\x00WAVE")
+
+    response = client.get("/api/v1/assets/generated-audio/turn-thought.wav")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content == audio_path.read_bytes()
+    assert client.get("/api/v1/assets/generated-audio/not-a-wave.mp3").status_code == 404
+    assert client.get("/api/v1/assets/generated-audio/missing.wav").status_code == 404
+
+
+def test_tts_factory_enables_lazy_coqui_worker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(voice, "find_spec", lambda _module: object())
+
+    worker = create_tts_worker(Settings(environment="development", data_dir=tmp_path))
+
+    assert isinstance(worker, CoquiTTSWorker)

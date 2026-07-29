@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+from asyncio import Lock, to_thread
 from dataclasses import dataclass
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
-from typing import ClassVar, Protocol
+from typing import Any, ClassVar, Protocol
 from uuid import uuid4
 
 import httpx
@@ -39,6 +43,60 @@ class DisabledTTSWorker:
 
     async def health(self) -> bool:
         return False
+
+
+class CoquiTTSWorker:
+    def __init__(self, settings: Settings) -> None:
+        self._model_name = settings.tts_model
+        self._language = settings.tts_language
+        self._temperature = settings.tts_temperature
+        self._model: Any | None = None
+        self._load_lock = Lock()
+        self._synthesis_lock = Lock()
+        self._fallback_data_dir = settings.data_dir
+
+    async def _get_model(self) -> Any:
+        if self._model is not None:
+            return self._model
+        async with self._load_lock:
+            if self._model is None:
+                self._model = await to_thread(self._load_model)
+        return self._model
+
+    def _load_model(self) -> Any:
+        if os.name == "nt" and "TTS_HOME" not in os.environ:
+            os.environ["TTS_HOME"] = os.environ.get(
+                "LOCALAPPDATA",
+                str(self._fallback_data_dir),
+            )
+        torch = import_module("torch")
+        tts_class = import_module("TTS.api").TTS
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        return tts_class(self._model_name).to(device)
+
+    async def synthesize(self, *, text: str, voice_asset: Path, output_path: Path) -> Path:
+        def prepare_paths() -> None:
+            if not voice_asset.is_file():
+                raise FileNotFoundError("Character voice sample is missing.")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        await to_thread(prepare_paths)
+        async with self._synthesis_lock:
+            model = await self._get_model()
+            await to_thread(
+                model.tts_to_file,
+                text=text,
+                speaker_wav=str(voice_asset),
+                language=self._language,
+                file_path=str(output_path),
+                temperature=self._temperature,
+            )
+        if not await to_thread(output_path.is_file):
+            raise RuntimeError("TTS worker did not create an audio file.")
+        return output_path
+
+    async def health(self) -> bool:
+        return find_spec("TTS") is not None and find_spec("torch") is not None
 
 
 class NexaraSTTProvider:
@@ -85,3 +143,14 @@ def create_stt_provider(settings: Settings) -> STTProvider:
     if not settings.stt_api_key:
         return DisabledSTTProvider()
     return NexaraSTTProvider(settings)
+
+
+def create_tts_worker(settings: Settings) -> TTSWorker:
+    if (
+        not settings.tts_enabled
+        or settings.environment == "test"
+        or find_spec("TTS") is None
+        or find_spec("torch") is None
+    ):
+        return DisabledTTSWorker()
+    return CoquiTTSWorker(settings)

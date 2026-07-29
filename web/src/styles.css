@@ -1139,21 +1139,17 @@ button.character-card:hover {
 }
 
 .spectator__header,
-.spectator__story,
+.spectator__stage,
 .spectator__characters {
   position: relative;
   z-index: 1;
-}
-
-.spectator__story {
-  z-index: 4;
 }
 
 .spectator__avatars {
   position: absolute;
   z-index: 2;
   inset: 8% 0 15%;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -1165,12 +1161,17 @@ button.character-card:hover {
   transform-origin: center bottom;
 }
 
+.spectator-avatar--speaking {
+  z-index: 1000;
+}
+
 .spectator-avatar img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 24px 18px rgba(0, 0, 0, 0.58));
+  transform-origin: center bottom;
 }
 
 .scene-music {
@@ -1192,68 +1193,106 @@ button.character-card:hover {
   text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
 }
 
-.spectator__story {
-  display: grid;
-  width: min(820px, calc(100% - 2rem));
-  align-self: center;
-  justify-self: center;
-  place-items: center;
+.spectator__stage {
+  min-height: 0;
 }
 
-.speech-card {
-  position: relative;
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 28px 28px 28px 5px;
-  padding: clamp(1.25rem, 3vw, 2.2rem);
-  background: rgba(18, 16, 22, 0.88);
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.46);
-  backdrop-filter: blur(20px);
-}
-
-.speech-card__actor {
-  color: var(--accent);
-  font-family: Inter, "Segoe UI", sans-serif;
-  font-size: 0.8rem;
-}
-
-.speech-card__thought {
-  border-left: 2px solid rgba(157, 146, 181, 0.45);
-  margin: 1rem 0;
-  color: #aaa2b5;
-  padding-left: 1rem;
-  font-style: italic;
-  line-height: 1.65;
-  white-space: pre-wrap;
-}
-
-.speech-card__action {
-  margin: 1rem 0 0;
-  font-size: clamp(1rem, 1.7vw, 1.35rem);
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-
-.speech-card--waiting {
-  width: auto;
-  border-style: dashed;
-  color: var(--muted);
-}
-
-.die--large {
+.speech-bubble {
   position: absolute;
-  top: -22px;
-  right: -22px;
-  display: grid;
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
-  place-items: center;
-  color: #21150b;
-  background: var(--accent-bright);
-  box-shadow: 0 10px 40px rgba(240, 170, 85, 0.4);
-  font-size: 1.2rem;
-  transform: rotate(5deg);
+  left: 50%;
+  width: clamp(240px, 120%, 350px);
+  border-radius: 15px;
+  padding: 0;
+  color: #333;
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: speech-bubble-appear 300ms ease-out both;
+}
+
+.speech-bubble-viewport {
+  max-height: 200px;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.speech-bubble-content {
+  padding: 15px 20px;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  will-change: transform;
+}
+
+.speech-bubble.action::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  border-top: 10px solid rgba(255, 255, 255, 0.92);
+  border-right: 10px solid transparent;
+  border-left: 10px solid transparent;
+  transform: translateX(-50%);
+}
+
+.speech-bubble.thought {
+  border: 2px dashed #aaa;
+  border-radius: 25px;
+  color: #555;
+  background-color: rgba(240, 240, 240, 0.88);
+  font-style: italic;
+}
+
+.speech-audio-unlock {
+  position: fixed;
+  z-index: 1100;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  pointer-events: auto;
+}
+
+.spectator-dice-roll {
+  position: fixed;
+  z-index: 1001;
+  top: clamp(90px, 12vh, 140px);
+  right: clamp(20px, 3vw, 48px);
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: clamp(72px, 10vw, 120px);
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    0 0 8px #fff,
+    0 0 15px #ffc800,
+    0 0 25px #ffc800,
+    0 0 35px #ffae00;
+  pointer-events: none;
+  animation: dice-roll-appear 500ms ease-out both;
+}
+
+@keyframes speech-bubble-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes dice-roll-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .spectator__characters {
@@ -1348,12 +1387,12 @@ button.character-card:hover {
     min-width: 190px;
   }
 
-  .speech-card {
-    border-radius: 20px 20px 20px 5px;
+  .speech-bubble {
+    width: min(300px, calc(100vw - 2rem));
   }
 
-  .die--large {
-    right: 8px;
+  .speech-bubble-content {
+    font-size: 16px;
   }
 }
 

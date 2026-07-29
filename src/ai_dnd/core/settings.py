@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     stt_api_key: str | None = None
     stt_base_url: str = "https://api.nexara.ru/api/v1"
     stt_timeout_seconds: float = Field(default=60.0, ge=1.0, le=180.0)
+    tts_enabled: bool = True
+    tts_model: str = "tts_models/multilingual/multi-dataset/xtts_v2"
+    tts_language: str = "ru"
+    tts_temperature: float = Field(default=0.75, ge=0.0, le=2.0)
 
     @field_validator("host")
     @classmethod

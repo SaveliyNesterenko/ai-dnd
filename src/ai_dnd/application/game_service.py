@@ -288,6 +288,8 @@ class GameService:
                         action=turn.action,
                         dice_roll=turn.dice_roll,
                         audio_url=turn.audio_url,
+                        thought_audio_url=turn.thought_audio_url,
+                        action_audio_url=turn.action_audio_url,
                         created_at=turn.created_at,
                     )
                     for turn in active_event.turns

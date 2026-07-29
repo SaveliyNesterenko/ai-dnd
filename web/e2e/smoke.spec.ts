@@ -57,6 +57,7 @@ test("spectator route offers a protected join flow", async ({ page }) => {
 });
 
 test("GM turn is applied and reaches the spectator projection", async ({ page, context }) => {
+  test.setTimeout(60_000);
   const security = JSON.parse(
     await readFile(resolve(runtimeDirectory, "security.json"), "utf8"),
   ) as { bootstrap_token: string; spectator_code: string };
@@ -77,24 +78,28 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
 
   await page.getByRole("button", { name: "Запустить событие" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();
+  const spectator = await context.newPage();
+  await spectator.goto("/spectator");
+  await spectator.getByLabel("Код зрителя").fill(security.spectator_code);
+  await spectator.getByRole("button", { name: "Войти в сцену" }).click();
+  await expect(spectator.locator(".spectator-avatar")).toHaveCount(2);
+
   const action = "<img src=x onerror=alert(1)> Aria studies the mechanism.";
   await page.getByLabel("Публичное действие").fill(action);
   const thought = "Aria notices a pattern visible to the audience.";
   await page.getByLabel("Мысль модели").fill(thought);
   await page.getByRole("button", { name: "Отправить с dice roll" }).click();
   await expect(page.getByText(action, { exact: true })).toBeVisible();
+  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
+  await expect(spectator.locator(".speech-bubble.thought")).toBeVisible();
+  await expect(spectator.getByText(action, { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(spectator.locator(".speech-bubble.action")).toBeVisible();
+  await expect(spectator.getByText(thought, { exact: true })).toBeHidden();
 
   await page.getByRole("button", { name: "Создать вручную" }).click();
   await expect(page.getByText("Ожидает подтверждения")).toBeVisible();
   await page.getByRole("button", { name: "Применить изменения" }).click();
   await expect(page.getByText("Ожидает подтверждения")).toBeHidden();
-
-  const spectator = await context.newPage();
-  await spectator.goto("/spectator");
-  await spectator.getByLabel("Код зрителя").fill(security.spectator_code);
-  await spectator.getByRole("button", { name: "Войти в сцену" }).click();
-  await expect(spectator.getByText(action, { exact: true })).toBeVisible();
-  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Завершить событие" }).click();
   await expect(

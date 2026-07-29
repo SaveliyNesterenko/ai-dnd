@@ -26,6 +26,14 @@ dependencies = [
   "uvicorn[standard]>=0.40,<0.41",
 ]
 
+[project.optional-dependencies]
+voice = [
+  "coqui-tts>=0.27.5,<0.28",
+  "torch>=2.2,<2.9",
+  "torchaudio>=2.2,<2.9",
+  "transformers==4.57.6",
+]
+
 [project.scripts]
 ai-dnd = "ai_dnd.cli:main"
 

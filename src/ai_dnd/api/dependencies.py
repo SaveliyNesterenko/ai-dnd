@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
@@ -11,7 +12,7 @@ from ai_dnd.application.realtime import RealtimeBroker
 from ai_dnd.core.settings import Settings
 from ai_dnd.infrastructure.security import SecurityManager
 from ai_dnd.integrations.llm import LLMProvider
-from ai_dnd.integrations.voice import STTProvider
+from ai_dnd.integrations.voice import STTProvider, TTSWorker
 
 
 def get_settings_from_app(request: Request) -> Settings:
@@ -57,6 +58,14 @@ def get_stt_provider(request: Request) -> STTProvider:
     return cast(STTProvider, request.app.state.stt)
 
 
+def get_tts_worker(request: Request) -> TTSWorker:
+    return cast(TTSWorker, request.app.state.tts)
+
+
+def get_speech_lock(request: Request) -> asyncio.Lock:
+    return cast(asyncio.Lock, request.app.state.speech_lock)
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings_from_app)]
 SecurityDep = Annotated[SecurityManager, Depends(get_security)]
@@ -64,4 +73,6 @@ BrokerDep = Annotated[RealtimeBroker, Depends(get_broker)]
 JobManagerDep = Annotated[BackgroundJobManager, Depends(get_job_manager)]
 LLMProviderDep = Annotated[LLMProvider, Depends(get_llm_provider)]
 STTProviderDep = Annotated[STTProvider, Depends(get_stt_provider)]
+TTSWorkerDep = Annotated[TTSWorker, Depends(get_tts_worker)]
+SpeechLockDep = Annotated[asyncio.Lock, Depends(get_speech_lock)]
 GMDep = Annotated[None, Depends(require_gm)]
