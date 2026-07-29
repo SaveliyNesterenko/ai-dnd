@@ -1,0 +1,91 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-dnd"
+version = "0.1.0"
+description = "Local-first AI-assisted tabletop role-playing engine."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Saveliy Nesterenko" }]
+dependencies = [
+  "aiosqlite>=0.21,<1",
+  "alembic>=1.16,<2",
+  "fastapi>=0.141,<1",
+  "httpx>=0.28,<1",
+  "openai>=2.14,<3",
+  "platformdirs>=4.3,<5",
+  "pydantic>=2.12,<3",
+  "pydantic-settings>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "sqlalchemy[asyncio]>=2.0.41,<2.1",
+  "starlette>=1.3.1,<2",
+  "structlog>=25.4,<26",
+  "uvicorn[standard]>=0.40,<0.41",
+]
+
+[project.scripts]
+ai-dnd = "ai_dnd.cli:main"
+
+[dependency-groups]
+dev = [
+  "cyclonedx-bom>=7.1,<8",
+  "httpx2>=2.9.1,<3",
+  "mypy>=1.17,<2",
+  "pip-audit>=2.9,<3",
+  "pytest>=9.0.3,<10",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+  "setuptools>=83,<84",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_dnd"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -ra --cov=ai_dnd --cov-report=term-missing --cov-fail-under=80"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["ai_dnd"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+extend-exclude = [
+  "archivist.py",
+  "orchestrator.py",
+  "prompt_builder.py",
+  "response_handler.py",
+  "run_dev.py",
+  "tts_service.py",
+  "utils",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "SIM", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["ai_dnd"]
+exclude = ["alembic"]
+
+[[tool.mypy.overrides]]
+module = ["alembic.*"]
+ignore_missing_imports = true

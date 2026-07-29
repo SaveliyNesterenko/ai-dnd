@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+import time
+from uuid import uuid4
+
+from fastapi.testclient import TestClient
+
+
+def _gm_snapshot(client: TestClient, campaign_id: str) -> dict[str, object]:
+    response = client.get(f"/api/v1/campaigns/{campaign_id}/gm-snapshot")
+    assert response.status_code == 200
+    return response.json()
+
+
+def _start_event(client: TestClient, campaign_id: str) -> dict[str, object]:
+    response = client.post(
+        f"/api/v1/campaigns/{campaign_id}/events",
+        json={"title": "The first gear"},
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _create_turn(
+    client: TestClient,
+    campaign_id: str,
+    event_id: str,
+    character_id: str,
+) -> dict[str, object]:
+    response = client.post(
+        f"/api/v1/campaigns/{campaign_id}/events/{event_id}/turns",
+        json={
+            "character_id": character_id,
+            "actor_name": "<img src=x onerror=alert(1)>",
+            "actor_role": "Player",
+            "thought": "This remains a turn thought, not a private memory.",
+            "action": "<script>alert('xss')</script>",
+            "dice_roll": 17,
+        },
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_health_and_capabilities(client: TestClient) -> None:
+    assert client.get("/api/v1/health/live").json() == {"status": "ok"}
+    assert client.get("/api/v1/health/ready").json() == {"status": "ready"}
+    assert client.get("/api/v1/capabilities").json() == {
+        "llm_enabled": False,
+        "stt_enabled": False,
+        "tts_enabled": False,
+    }
+
+
+def test_gm_bootstrap_token_is_single_use(client: TestClient) -> None:
+    token = client.app.state.security.bootstrap_token
+    first = client.get(
+        f"/api/v1/auth/gm/bootstrap?token={token}",
+        follow_redirects=False,
+    )
+    second = client.get(
+        f"/api/v1/auth/gm/bootstrap?token={token}",
+        follow_redirects=False,
+    )
+    assert first.status_code == 303
+    assert second.status_code == 401
+
+
+def test_mutations_require_gm(client: TestClient, demo_campaign_id: str) -> None:
+    response = client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events",
+        json={"title": "Unauthorized"},
+    )
+    assert response.status_code == 401
+    assert response.headers["content-type"].startswith("application/problem+json")
+
+
+def test_public_projection_hides_private_fields(
+    client: TestClient,
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    session_response = authenticated_client.get("/api/v1/auth/session")
+    spectator_code = session_response.json()["spectator_code"]
+    gm = _gm_snapshot(authenticated_client, demo_campaign_id)
+    public_response = client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": spectator_code},
+    )
+    assert public_response.status_code == 200
+    public = public_response.json()
+    assert "private_notes" in gm["characters"][0]
+    assert "model_id" in gm["characters"][0]
+    assert "private_notes" not in public["characters"][0]
+    assert "model_id" not in public["characters"][0]
+    assert public["global_chronicle"] is None
+
+
+def test_event_turn_and_idempotency(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    key = str(uuid4())
+    first = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events",
+        json={"title": "One event"},
+        headers={"Idempotency-Key": key},
+    )
+    second = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events",
+        json={"title": "Duplicate click"},
+        headers={"Idempotency-Key": key},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = snapshot["characters"][0]["id"]
+    turn = _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        first.json()["id"],
+        character_id,
+    )
+    assert turn["action"] == "<script>alert('xss')</script>"
+
+
+def test_public_turn_projection_hides_private_thought(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    gm_snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = str(gm_snapshot["characters"][0]["id"])
+    _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        str(event["id"]),
+        character_id,
+    )
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    public = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": code},
+    ).json()
+    assert public["active_event"]["turns"][0]["thought"] is None
+
+    with authenticated_client.websocket_connect(
+        f"/api/v1/realtime?campaign_id={demo_campaign_id}&last_sequence=1&join_code={code}"
+    ) as websocket:
+        realtime_turn = websocket.receive_json()
+        assert realtime_turn["type"] == "turn.created"
+        assert "thought" not in realtime_turn["payload"]
+
+
+def test_typed_observer_proposal_and_stale_revision(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character = snapshot["characters"][0]
+    turn = _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        str(event["id"]),
+        str(character["id"]),
+    )
+    base_revision = snapshot["campaign"]["revision"]
+    proposal_body = {
+        "turn_id": turn["id"],
+        "gm_brief": "The mechanism causes minor damage.",
+        "base_revision": base_revision,
+        "operations": [
+            {
+                "op": "set_resource",
+                "character_id": character["id"],
+                "resource": "hp",
+                "current": character["hp_current"] - 1,
+            }
+        ],
+    }
+    first = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}/observer-proposals",
+        json=proposal_body,
+    )
+    second = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}/observer-proposals",
+        json=proposal_body,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    apply_body = {"operations": proposal_body["operations"]}
+    applied = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/observer-proposals/{first.json()['id']}/apply",
+        json=apply_body,
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert applied.status_code == 200
+    stale = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/observer-proposals/{second.json()['id']}/apply",
+        json=apply_body,
+        headers={"Idempotency-Key": str(uuid4())},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "stale_revision"
+
+
+def test_realtime_replays_to_multiple_spectators(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    event = _start_event(authenticated_client, demo_campaign_id)
+    url = f"/api/v1/realtime?campaign_id={demo_campaign_id}&last_sequence=0&join_code={code}"
+    with (
+        authenticated_client.websocket_connect(url) as first,
+        authenticated_client.websocket_connect(url) as second,
+    ):
+        first_event = first.receive_json()
+        second_event = second.receive_json()
+        assert first_event["type"] == "event.started"
+        assert second_event["type"] == "event.started"
+        assert first_event["payload"]["id"] == event["id"]
+        assert second_event["sequence"] == first_event["sequence"]
+
+
+def test_openapi_contains_versioned_contract(client: TestClient) -> None:
+    schema = client.get("/api/openapi.json")
+    assert schema.status_code == 200
+    paths = schema.json()["paths"]
+    assert "/api/v1/campaigns/{campaign_id}/gm-snapshot" in paths
+    assert "/api/v1/campaigns/{campaign_id}/events" in paths
+
+
+def test_stt_upload_validation_and_degraded_job(
+    authenticated_client: TestClient,
+) -> None:
+    invalid = authenticated_client.post(
+        "/api/v1/voice/jobs/transcription",
+        files={"file": ("payload.wav", b"not-a-wave", "audio/wav")},
+    )
+    assert invalid.status_code == 415
+
+    wave_header = b"RIFF\x04\x00\x00\x00WAVE"
+    accepted = authenticated_client.post(
+        "/api/v1/voice/jobs/transcription",
+        files={"file": ("ignored-name.wav", wave_header, "audio/wav")},
+    )
+    assert accepted.status_code == 202
+    job_id = accepted.json()["id"]
+    result = accepted.json()
+    for _ in range(20):
+        result = authenticated_client.get(f"/api/v1/voice/jobs/{job_id}").json()
+        if result["status"] not in {"queued", "running"}:
+            break
+        time.sleep(0.01)
+    assert result["status"] == "degraded"
+    assert result["error_code"] == "capability_unavailable"

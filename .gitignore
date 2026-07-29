@@ -1,6 +1,8 @@
 # --- Секреты и ключи (САМОЕ ВАЖНОЕ) ---
 .env
 .env.local
+.env.*
+!.env.example
 
 # --- Python ---
 __pycache__/
@@ -34,22 +36,36 @@ Desktop.ini
 dist/
 build/
 *.spec
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# --- Аудио генерации
-assets/audio/generated
-assets/audio/music
-assets/voices/*
-assets/characters/*
-assets/locations/*
+# --- New application runtime state ---
+.ai-dnd/
+*.db
+*.db-shm
+*.db-wal
+backups/
 
-# --- Состояние игры ---
-characters.json
-event_log.json
-npc.json
-public_state.json
-active_characters.json
-data/characters.json
-data/event_log.json
-data/npc.json
-data/public_state.json
-data/active_characters.json
+# --- Frontend toolchain ---
+web/node_modules/
+web/dist/
+web/playwright-report/
+web/test-results/
+web/.playwright-runtime/
+
+# --- Legacy runtime data and unlicensed local assets ---
+# Public, licensed fixtures belong under demo/.
+/data/
+/assets/
+
+# --- Legacy state files created from an arbitrary working directory ---
+/characters.json
+/event_log.json
+/npc.json
+/public_state.json
+/active_characters.json
+
+# Demo assets and fixtures are explicitly tracked under demo/.

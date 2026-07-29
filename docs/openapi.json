@@ -1,0 +1,2442 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI-DND API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Live",
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Live Api V1 Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Ready Api V1 Health Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Version",
+        "operationId": "version_api_v1_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Version Api V1 Version Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Capabilities",
+        "operationId": "capabilities_api_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Logout",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Session Info",
+        "operationId": "session_info_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Session Info Api V1 Auth Session Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "List Campaigns",
+        "operationId": "list_campaigns_api_v1_campaigns_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Campaigns Api V1 Campaigns Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Campaign",
+        "operationId": "create_campaign_api_v1_campaigns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/snapshot": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Snapshot",
+        "operationId": "snapshot_api_v1_campaigns__campaign_id__snapshot_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(public|gm)$",
+              "default": "public",
+              "title": "View"
+            }
+          },
+          {
+            "name": "spectator_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Spectator Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameStateSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/gm-snapshot": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Gm Snapshot",
+        "operationId": "gm_snapshot_api_v1_campaigns__campaign_id__gm_snapshot_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameStateSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/events": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Start Event",
+        "operationId": "start_event_api_v1_campaigns__campaign_id__events_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Start Event Api V1 Campaigns  Campaign Id  Events Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/events/{event_id}/turns": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Turn",
+        "operationId": "create_turn_api_v1_campaigns__campaign_id__events__event_id__turns_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTurnRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Turn Api V1 Campaigns  Campaign Id  Events  Event Id  Turns Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/events/{event_id}/observer-proposals": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Proposal",
+        "operationId": "create_proposal_api_v1_campaigns__campaign_id__events__event_id__observer_proposals_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateObserverProposalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObserverProposalView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/observer-proposals/{proposal_id}/apply": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Apply Proposal",
+        "operationId": "apply_proposal_api_v1_campaigns__campaign_id__observer_proposals__proposal_id__apply_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyObserverProposalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObserverProposalView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/events/{event_id}/archive": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Archive Event",
+        "operationId": "archive_event_api_v1_campaigns__campaign_id__events__event_id__archive_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Archive Event Api V1 Campaigns  Campaign Id  Events  Event Id  Archive Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/jobs/player-turn": {
+      "post": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "Generate Player Turn",
+        "operationId": "generate_player_turn_api_v1_campaigns__campaign_id__jobs_player_turn_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateTurnJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/jobs/observer": {
+      "post": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "Generate Observer Proposal",
+        "operationId": "generate_observer_proposal_api_v1_campaigns__campaign_id__jobs_observer_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateObserverJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_api_v1_campaigns__campaign_id__jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assets/{asset_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset",
+        "operationId": "get_asset_api_v1_assets__asset_id__get",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy/import": {
+      "post": {
+        "tags": [
+          "legacy migration"
+        ],
+        "summary": "Import Legacy",
+        "operationId": "import_legacy_api_v1_legacy_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegacyImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyImportReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/legacy/campaigns/{campaign_id}/export": {
+      "get": {
+        "tags": [
+          "legacy migration"
+        ],
+        "summary": "Export Campaign",
+        "operationId": "export_campaign_api_v1_legacy_campaigns__campaign_id__export_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyExportV1"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/jobs/transcription": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Transcribe Audio",
+        "operationId": "transcribe_audio_api_v1_voice_jobs_transcription_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_transcribe_audio_api_v1_voice_jobs_transcription_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Get Voice Job",
+        "operationId": "get_voice_job_api_v1_voice_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddInventoryItemOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "add_inventory_item",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "item": {
+            "$ref": "#/components/schemas/InventoryItem"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "item"
+        ],
+        "title": "AddInventoryItemOperation"
+      },
+      "AddStatusEffectOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "add_status_effect",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "name"
+        ],
+        "title": "AddStatusEffectOperation"
+      },
+      "ApplyObserverProposalRequest": {
+        "properties": {
+          "operations": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SetResourceOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/SetAttributeOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/AddInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/UpdateInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/RemoveInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/AddStatusEffectOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/RemoveStatusEffectOperation"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "op",
+                "mapping": {
+                  "add_inventory_item": "#/components/schemas/AddInventoryItemOperation",
+                  "add_status_effect": "#/components/schemas/AddStatusEffectOperation",
+                  "remove_inventory_item": "#/components/schemas/RemoveInventoryItemOperation",
+                  "remove_status_effect": "#/components/schemas/RemoveStatusEffectOperation",
+                  "set_attribute": "#/components/schemas/SetAttributeOperation",
+                  "set_resource": "#/components/schemas/SetResourceOperation",
+                  "update_inventory_item": "#/components/schemas/UpdateInventoryItemOperation"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Operations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operations"
+        ],
+        "title": "ApplyObserverProposalRequest"
+      },
+      "BackgroundJobView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "output_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Data"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "kind",
+          "status",
+          "output_data",
+          "error_code",
+          "created_at",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "BackgroundJobView"
+      },
+      "Body_transcribe_audio_api_v1_voice_jobs_transcription_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_transcribe_audio_api_v1_voice_jobs_transcription_post"
+      },
+      "CampaignSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "revision",
+          "is_active"
+        ],
+        "title": "CampaignSummary"
+      },
+      "CapabilityView": {
+        "properties": {
+          "llm_enabled": {
+            "type": "boolean",
+            "title": "Llm Enabled"
+          },
+          "stt_enabled": {
+            "type": "boolean",
+            "title": "Stt Enabled"
+          },
+          "tts_enabled": {
+            "type": "boolean",
+            "title": "Tts Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "llm_enabled",
+          "stt_enabled",
+          "tts_enabled"
+        ],
+        "title": "CapabilityView"
+      },
+      "CharacterGM": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "biography": {
+            "type": "string",
+            "title": "Biography"
+          },
+          "sprite_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sprite Url"
+          },
+          "flip_x": {
+            "type": "boolean",
+            "title": "Flip X"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "hp_current": {
+            "type": "integer",
+            "title": "Hp Current"
+          },
+          "hp_max": {
+            "type": "integer",
+            "title": "Hp Max"
+          },
+          "mp_current": {
+            "type": "integer",
+            "title": "Mp Current"
+          },
+          "mp_max": {
+            "type": "integer",
+            "title": "Mp Max"
+          },
+          "attributes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Attributes"
+          },
+          "inventory": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryItem"
+            },
+            "type": "array",
+            "title": "Inventory"
+          },
+          "status_effects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Status Effects"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "voice_asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Asset Id"
+          },
+          "private_notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Private Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "kind",
+          "role",
+          "biography",
+          "flip_x",
+          "is_active",
+          "hp_current",
+          "hp_max",
+          "mp_current",
+          "mp_max",
+          "attributes",
+          "inventory",
+          "status_effects",
+          "revision",
+          "private_notes"
+        ],
+        "title": "CharacterGM"
+      },
+      "CharacterPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "biography": {
+            "type": "string",
+            "title": "Biography"
+          },
+          "sprite_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sprite Url"
+          },
+          "flip_x": {
+            "type": "boolean",
+            "title": "Flip X"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "hp_current": {
+            "type": "integer",
+            "title": "Hp Current"
+          },
+          "hp_max": {
+            "type": "integer",
+            "title": "Hp Max"
+          },
+          "mp_current": {
+            "type": "integer",
+            "title": "Mp Current"
+          },
+          "mp_max": {
+            "type": "integer",
+            "title": "Mp Max"
+          },
+          "attributes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Attributes"
+          },
+          "inventory": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryItem"
+            },
+            "type": "array",
+            "title": "Inventory"
+          },
+          "status_effects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Status Effects"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "kind",
+          "role",
+          "biography",
+          "flip_x",
+          "is_active",
+          "hp_current",
+          "hp_max",
+          "mp_current",
+          "mp_max",
+          "attributes",
+          "inventory",
+          "status_effects",
+          "revision"
+        ],
+        "title": "CharacterPublic"
+      },
+      "CreateCampaignRequest": {
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,78}[a-z0-9]$",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "CreateCampaignRequest"
+      },
+      "CreateObserverProposalRequest": {
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "gm_brief": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Gm Brief"
+          },
+          "base_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Revision"
+          },
+          "operations": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SetResourceOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/SetAttributeOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/AddInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/UpdateInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/RemoveInventoryItemOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/AddStatusEffectOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/RemoveStatusEffectOperation"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "op",
+                "mapping": {
+                  "add_inventory_item": "#/components/schemas/AddInventoryItemOperation",
+                  "add_status_effect": "#/components/schemas/AddStatusEffectOperation",
+                  "remove_inventory_item": "#/components/schemas/RemoveInventoryItemOperation",
+                  "remove_status_effect": "#/components/schemas/RemoveStatusEffectOperation",
+                  "set_attribute": "#/components/schemas/SetAttributeOperation",
+                  "set_resource": "#/components/schemas/SetResourceOperation",
+                  "update_inventory_item": "#/components/schemas/UpdateInventoryItemOperation"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Operations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn_id",
+          "gm_brief",
+          "base_revision",
+          "operations"
+        ],
+        "title": "CreateObserverProposalRequest"
+      },
+      "CreateTurnRequest": {
+        "properties": {
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "actor_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Actor Name"
+          },
+          "actor_role": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Role"
+          },
+          "thought": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thought"
+          },
+          "action": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Action"
+          },
+          "dice_roll": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dice Roll"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actor_name",
+          "actor_role",
+          "action"
+        ],
+        "title": "CreateTurnRequest"
+      },
+      "GameEventView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TurnView"
+            },
+            "type": "array",
+            "title": "Turns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "revision",
+          "turns"
+        ],
+        "title": "GameEventView"
+      },
+      "GameStateSnapshot": {
+        "properties": {
+          "campaign": {
+            "$ref": "#/components/schemas/CampaignSummary"
+          },
+          "world_state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "World State"
+          },
+          "global_chronicle": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Chronicle"
+          },
+          "active_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameEventView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "characters": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CharacterPublic"
+                },
+                {
+                  "$ref": "#/components/schemas/CharacterGM"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Characters"
+          },
+          "last_sequence": {
+            "type": "integer",
+            "title": "Last Sequence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign",
+          "world_state",
+          "active_event",
+          "characters",
+          "last_sequence"
+        ],
+        "title": "GameStateSnapshot"
+      },
+      "GenerateObserverJobRequest": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "turn_id"
+        ],
+        "title": "GenerateObserverJobRequest"
+      },
+      "GenerateTurnJobRequest": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "character_id"
+        ],
+        "title": "GenerateTurnJobRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InventoryItem": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Quantity",
+            "default": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "InventoryItem"
+      },
+      "LegacyExportV1": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "exported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Exported At"
+          },
+          "campaign": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Campaign"
+          },
+          "characters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Characters"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exported_at",
+          "campaign",
+          "characters",
+          "events"
+        ],
+        "title": "LegacyExportV1"
+      },
+      "LegacyImportReport": {
+        "properties": {
+          "source_dir": {
+            "type": "string",
+            "title": "Source Dir"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "characters": {
+            "type": "integer",
+            "title": "Characters"
+          },
+          "active_characters": {
+            "type": "integer",
+            "title": "Active Characters"
+          },
+          "locations": {
+            "type": "integer",
+            "title": "Locations"
+          },
+          "events": {
+            "type": "integer",
+            "title": "Events"
+          },
+          "missing_assets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Assets"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "campaign_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "backup_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup Dir"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_dir",
+          "dry_run",
+          "characters",
+          "active_characters",
+          "locations",
+          "events",
+          "missing_assets",
+          "warnings"
+        ],
+        "title": "LegacyImportReport"
+      },
+      "LegacyImportRequest": {
+        "properties": {
+          "source_dir": {
+            "type": "string",
+            "title": "Source Dir"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_dir"
+        ],
+        "title": "LegacyImportRequest"
+      },
+      "ObserverProposalView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "turn_id": {
+            "type": "string",
+            "title": "Turn Id"
+          },
+          "gm_brief": {
+            "type": "string",
+            "title": "Gm Brief"
+          },
+          "base_revision": {
+            "type": "integer",
+            "title": "Base Revision"
+          },
+          "operations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Operations"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "event_id",
+          "turn_id",
+          "gm_brief",
+          "base_revision",
+          "operations",
+          "status",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "ObserverProposalView"
+      },
+      "RemoveInventoryItemOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "remove_inventory_item",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "item_id"
+        ],
+        "title": "RemoveInventoryItemOperation"
+      },
+      "RemoveStatusEffectOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "remove_status_effect",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "status_effect_id": {
+            "type": "string",
+            "title": "Status Effect Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "status_effect_id"
+        ],
+        "title": "RemoveStatusEffectOperation"
+      },
+      "SetAttributeOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "set_attribute",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "attribute": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$",
+            "title": "Attribute"
+          },
+          "value": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": -1000000.0,
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "attribute",
+          "value"
+        ],
+        "title": "SetAttributeOperation"
+      },
+      "SetResourceOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "set_resource",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "resource": {
+            "type": "string",
+            "enum": [
+              "hp",
+              "mp"
+            ],
+            "title": "Resource"
+          },
+          "current": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Current"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "resource",
+          "current"
+        ],
+        "title": "SetResourceOperation"
+      },
+      "StartEventRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "default": "Game event"
+          }
+        },
+        "type": "object",
+        "title": "StartEventRequest"
+      },
+      "TurnView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          },
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "actor_name": {
+            "type": "string",
+            "title": "Actor Name"
+          },
+          "actor_role": {
+            "type": "string",
+            "title": "Actor Role"
+          },
+          "thought": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thought"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "dice_roll": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dice Roll"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sequence",
+          "character_id",
+          "actor_name",
+          "actor_role",
+          "thought",
+          "action",
+          "dice_roll",
+          "audio_url",
+          "created_at"
+        ],
+        "title": "TurnView"
+      },
+      "UpdateInventoryItemOperation": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "update_inventory_item",
+            "title": "Op"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "character_id",
+          "item_id"
+        ],
+        "title": "UpdateInventoryItemOperation"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

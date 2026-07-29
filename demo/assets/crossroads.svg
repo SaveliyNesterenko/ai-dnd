@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Clockwork Crossroads</title>
+  <desc id="desc">A stylized night landscape with a clockwork tower and crossing paths.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161427"/>
+      <stop offset=".55" stop-color="#3a2d43"/>
+      <stop offset="1" stop-color="#7f5840"/>
+    </linearGradient>
+    <radialGradient id="moon">
+      <stop offset="0" stop-color="#ffe5a6"/>
+      <stop offset="1" stop-color="#f3ad5e"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1260" cy="175" r="74" fill="#f3ad5e" opacity=".25" filter="url(#glow)"/>
+  <circle cx="1260" cy="175" r="48" fill="url(#moon)"/>
+  <path d="M0 560 240 390 410 520 650 300 830 510 1050 355 1260 525 1450 400 1600 520V900H0Z" fill="#171522"/>
+  <path d="M0 650 280 520 500 650 760 480 1040 630 1320 490 1600 620V900H0Z" fill="#211d26"/>
+  <path d="M744 555 801 555 820 278 774 204 726 278Z" fill="#17141b" stroke="#aa7143" stroke-width="6"/>
+  <circle cx="773" cy="330" r="53" fill="#211a1e" stroke="#d7954e" stroke-width="8"/>
+  <circle cx="773" cy="330" r="9" fill="#ffd27d"/>
+  <path d="M773 330 773 294M773 330 806 347" stroke="#ffd27d" stroke-width="7" stroke-linecap="round"/>
+  <path d="M716 440H829M705 491H838" stroke="#815637" stroke-width="10"/>
+  <path d="M785 900C760 760 700 674 610 584M772 900C825 758 936 674 1098 584" fill="none" stroke="#9d7656" stroke-width="84" opacity=".72"/>
+  <path d="M0 803C300 720 517 708 773 900M1600 803C1300 720 1083 708 772 900" fill="none" stroke="#8b674d" stroke-width="88" opacity=".62"/>
+  <g fill="#d59a57" opacity=".75">
+    <circle cx="600" cy="628" r="5"/><circle cx="946" cy="638" r="4"/><circle cx="530" cy="705" r="3"/>
+    <circle cx="1050" cy="708" r="5"/><circle cx="676" cy="740" r="3"/><circle cx="886" cy="760" r="4"/>
+  </g>
+</svg>
