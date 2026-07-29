@@ -11,7 +11,6 @@ import type {
   GameStateSnapshot,
   ObserverProposal,
 } from "../api/types";
-import { ConnectionBadge } from "../components/ConnectionBadge";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { GmCharacterCard } from "../components/GmCharacterCard";
 import { GmTopControls } from "../components/GmTopControls";
@@ -81,7 +80,7 @@ export default function GmPage() {
     },
     [campaignId, queryClient],
   );
-  const connection = useRealtime(
+  useRealtime(
     campaignId,
     snapshot.data?.last_sequence ?? 0,
     undefined,
@@ -126,31 +125,18 @@ export default function GmPage() {
   return (
     <main className="gm-shell">
       <header className="topbar">
-        <div className="topbar__identity">
-          <span className="eyebrow">GM Console</span>
-          <label className="campaign-picker">
-            <span>Кампания</span>
-            <select
-              aria-label="Активная кампания"
-              value={campaignId}
-              disabled={activateCampaign.isPending}
-              onChange={(event) => activateCampaign.mutate(event.target.value)}
-            >
-              {campaigns.data?.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <h1>{snapshot.data.campaign.name}</h1>
-          {activateCampaign.error && <ErrorNotice error={activateCampaign.error} />}
-        </div>
         <GmTopControls
           key={campaignId}
           campaignId={campaignId}
+          campaigns={campaigns.data ?? []}
+          campaignSelectionPending={activateCampaign.isPending}
+          campaignSelectionError={activateCampaign.error}
+          onSelectCampaign={(nextCampaignId) =>
+            activateCampaign.mutate(nextCampaignId)
+          }
           snapshot={snapshot.data}
           characters={characters}
+          spectatorCode={session.data?.spectator_code}
           onToggleCharacter={(characterId) =>
             toggleCharacterVisibility.mutate(characterId)
           }
@@ -158,12 +144,6 @@ export default function GmPage() {
           characterSelectionError={toggleCharacterVisibility.error}
           onChanged={refreshSnapshot}
         />
-        <div className="topbar__session">
-          <ConnectionBadge state={connection} />
-          <span className="join-code">
-            Код зрителя <strong>{session.data?.spectator_code}</strong>
-          </span>
-        </div>
       </header>
 
       <section className="gm-grid">

@@ -120,9 +120,9 @@ flowchart LR
     WS --> DB
 ```
 
-Подробности: [архитектура](docs/architecture.md),
-[product vision](docs/product-vision.md), [ADR](docs/adr/) и
-[план миграции](docs/migration-status.md).
+Подробности: [структура проекта](docs/project-structure.md),
+[архитектура](docs/architecture.md), [product vision](docs/product-vision.md),
+[ADR](docs/adr/) и [план миграции](docs/migration-status.md).
 
 ## Безопасность и приватность
 

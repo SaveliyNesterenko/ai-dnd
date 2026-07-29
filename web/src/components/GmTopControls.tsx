@@ -2,22 +2,32 @@ import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { api } from "../api/client";
-import type { CharacterGM, GameStateSnapshot } from "../api/types";
+import type { Campaign, CharacterGM, GameStateSnapshot } from "../api/types";
 import { ErrorNotice } from "./ErrorNotice";
 import { EventFinalization } from "./EventFinalization";
 
 export function GmTopControls({
   campaignId,
+  campaigns,
+  campaignSelectionPending,
+  campaignSelectionError,
+  onSelectCampaign,
   snapshot,
   characters,
+  spectatorCode,
   onToggleCharacter,
   characterSelectionPending,
   characterSelectionError,
   onChanged,
 }: {
   campaignId: string;
+  campaigns: Campaign[];
+  campaignSelectionPending: boolean;
+  campaignSelectionError: unknown;
+  onSelectCampaign: (campaignId: string) => void;
   snapshot: GameStateSnapshot;
   characters: CharacterGM[];
+  spectatorCode?: string;
   onToggleCharacter: (characterId: string) => void;
   characterSelectionPending: boolean;
   characterSelectionError: unknown;
@@ -53,10 +63,30 @@ export function GmTopControls({
   };
   const finalizing = snapshot.active_event?.status === "finalizing";
   const eventError = startEvent.error;
-  const error = updateScene.error ?? characterSelectionError ?? eventError;
+  const error =
+    campaignSelectionError ??
+    updateScene.error ??
+    characterSelectionError ??
+    eventError;
 
   return (
     <div className="gm-top-controls">
+      <label className="top-control top-control--campaign">
+        <span>Кампания</span>
+        <select
+          aria-label="Активная кампания"
+          value={campaignId}
+          disabled={campaignSelectionPending}
+          onChange={(event) => onSelectCampaign(event.target.value)}
+        >
+          {campaigns.map((campaign) => (
+            <option key={campaign.id} value={campaign.id}>
+              {campaign.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <label className="top-control top-control--character">
         <span>Персонажи</span>
         <select
@@ -161,6 +191,11 @@ export function GmTopControls({
           }}
         />
       </label>
+
+      <div className="top-control top-control--audience">
+        <span>Код зрителя</span>
+        <strong>{spectatorCode ?? "—"}</strong>
+      </div>
 
       <div className="top-event-control">
         {snapshot.active_event ? (
