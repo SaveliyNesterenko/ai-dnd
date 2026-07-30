@@ -10,11 +10,13 @@ import {
   generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost,
   getJobApiV1CampaignsCampaignIdJobsJobIdGet,
   getProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGet,
+  getVoiceJobApiV1VoiceJobsJobIdGet,
   gmSnapshotApiV1CampaignsCampaignIdGmSnapshotGet,
   listCampaignsApiV1CampaignsGet,
   sessionInfoApiV1AuthSessionGet,
   snapshotApiV1CampaignsCampaignIdSnapshotGet,
   startEventApiV1CampaignsCampaignIdEventsPost,
+  transcribeAudioApiV1VoiceJobsTranscriptionPost,
   updateSceneApiV1CampaignsCampaignIdScenePatch,
   updateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatch,
   updateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatch,
@@ -156,6 +158,20 @@ export const api = {
         ...requestOptions,
         path: { campaign_id: campaignId },
         body: { event_id: eventId, turn_id: turnId },
+      }),
+    ),
+  transcribeVoice: (file: File) =>
+    execute(
+      transcribeAudioApiV1VoiceJobsTranscriptionPost({
+        ...requestOptions,
+        body: { file },
+      }),
+    ),
+  getVoiceJob: (jobId: string) =>
+    execute(
+      getVoiceJobApiV1VoiceJobsJobIdGet({
+        ...requestOptions,
+        path: { job_id: jobId },
       }),
     ),
   getProposal: (campaignId: string, proposalId: string) =>

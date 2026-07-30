@@ -367,6 +367,7 @@ async def generate_player_turn(
     character_snapshot = {
         "id": character.id,
         "name": character.name,
+        "role": character.role,
         "biography": character.biography,
         "stats": {
             "hp": {"current": character.hp_current, "max": character.hp_max},
@@ -404,6 +405,14 @@ async def generate_player_turn(
         for item in public_snapshot.characters
         if item.is_active
     ]
+    scene_location = next(
+        (
+            location.name
+            for location in public_snapshot.scene.locations
+            if location.id == public_snapshot.scene.location_id
+        ),
+        None,
+    )
 
     async def runner() -> dict[str, Any]:
         factory = jobs.session_factory
@@ -426,6 +435,7 @@ async def generate_player_turn(
                 own_thought_character_id=character.id,
             ),
             scene_participants=scene_participants,
+            scene_location=scene_location,
         )
         output = await llm.generate_player_turn(
             profile=ModelProfile(model_id=model_id),

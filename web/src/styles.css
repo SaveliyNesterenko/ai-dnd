@@ -382,9 +382,44 @@ h2 {
   padding: 0 0.7rem 0.7rem;
 }
 
+.voice-workspace__body {
+  align-content: start;
+  grid-template-rows: minmax(74px, 1fr) auto;
+}
+
 .voice-workspace__body textarea {
   min-height: 74px;
   resize: none;
+}
+
+.voice-workspace__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.voice-workspace__hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.button--recording {
+  border-color: rgba(239, 131, 122, 0.55);
+  color: #f5b2ac;
+  background: rgba(239, 131, 122, 0.14);
+  animation: recording-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  50% {
+    background: rgba(239, 131, 122, 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button--recording {
+    animation: none;
+  }
 }
 
 .event-log-workspace {

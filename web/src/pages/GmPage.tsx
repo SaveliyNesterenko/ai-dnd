@@ -15,6 +15,7 @@ import type {
 import { ErrorNotice } from "../components/ErrorNotice";
 import { GmCharacterCard } from "../components/GmCharacterCard";
 import { GmTopControls } from "../components/GmTopControls";
+import { VoiceWorkspace } from "../components/VoiceWorkspace";
 import { useRealtime } from "../hooks/useRealtime";
 import { useUiStore } from "../store/ui";
 
@@ -150,7 +151,15 @@ export default function GmPage() {
 
       <section className="gm-grid">
         <aside className="panel panel--voice-log" aria-label="Голос и лог события">
-          <VoiceWorkspace />
+          <VoiceWorkspace
+            campaignId={campaignId}
+            eventId={
+              snapshot.data.active_event?.status === "active"
+                ? snapshot.data.active_event.id
+                : undefined
+            }
+            onChanged={refreshSnapshot}
+          />
           <EventTimeline
             campaignId={campaignId}
             snapshot={snapshot.data}
@@ -235,30 +244,6 @@ export default function GmPage() {
         </section>
       </section>
     </main>
-  );
-}
-
-function VoiceWorkspace() {
-  return (
-    <section className="voice-workspace">
-      <div className="panel__header">
-        <div>
-          <span className="eyebrow">Голос GM</span>
-          <h2>TTS / STT</h2>
-        </div>
-        <span>следующий этап</span>
-      </div>
-      <div className="voice-workspace__body">
-        <textarea
-          aria-label="Текст голоса GM"
-          placeholder="Здесь появятся запись речи, распознанный текст и управление TTS."
-          disabled
-        />
-        <button className="button button--quiet" type="button" disabled>
-          Запись голоса
-        </button>
-      </div>
-    </section>
   );
 }
 
