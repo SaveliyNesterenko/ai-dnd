@@ -116,10 +116,15 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await expect(spectator.locator(".speech-bubble.action")).toBeVisible();
   await expect(spectator.getByText(thought, { exact: true })).toBeHidden();
 
+  // Предложение Наблюдателя: строки изменений вместо сырого JSON, применение
+  // возвращает панель к исходному состоянию.
   await page.getByRole("button", { name: "Создать вручную" }).click();
-  await expect(page.getByText("Ожидает подтверждения")).toBeVisible();
-  await page.getByRole("button", { name: "Применить изменения" }).click();
-  await expect(page.getByText("Ожидает подтверждения")).toBeHidden();
+  const applyButton = page.getByRole("button", { name: /^Применить \(/ });
+  await expect(applyButton).toBeVisible();
+  await expect(page.getByLabel("GM Brief")).toHaveValue("Ручное предложение GM.");
+  await applyButton.click();
+  await expect(applyButton).toBeHidden();
+  await expect(page.getByRole("button", { name: "Создать вручную" })).toBeVisible();
 
   await page.getByRole("button", { name: "Завершить событие" }).click();
   await expect(

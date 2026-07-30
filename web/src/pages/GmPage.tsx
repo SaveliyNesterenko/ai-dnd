@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { api, ApiError } from "../api/client";
 import type {
   CharacterGM,
   GameStateSnapshot,
-  ObserverOperation,
   ObserverProposal,
 } from "../api/types";
 import { ErrorNotice } from "../components/ErrorNotice";
@@ -14,6 +13,7 @@ import { ActorHeader } from "../components/gm/ActorHeader";
 import { ColumnResizer } from "../components/gm/ColumnResizer";
 import { CommandBar, type OpenPopover } from "../components/gm/CommandBar";
 import { EventLog } from "../components/gm/EventLog";
+import { ObserverPanel } from "../components/gm/ObserverPanel";
 import { TurnComposer } from "../components/gm/TurnComposer";
 import { TurnFlowStrip, type TurnStage } from "../components/gm/TurnFlowStrip";
 import { VoiceDock } from "../components/gm/VoiceDock";
@@ -248,6 +248,7 @@ export default function GmPage() {
             key={activeEvent?.id ?? "no-event"}
             campaignId={campaignId}
             snapshot={snapshot.data}
+            characters={characters}
             requestedTurnId={observerTurnId}
             proposal={proposal}
             setProposal={setProposal}
@@ -342,180 +343,6 @@ function FlowStripBinding({ stage, idle }: { stage: TurnStage; idle: boolean }) 
   return <TurnFlowStrip stage={stage} busy={busy ?? undefined} idle={idle} />;
 }
 
-function ObserverPanel({
-  campaignId,
-  snapshot,
-  requestedTurnId,
-  proposal,
-  setProposal,
-  onApplied,
-  onChanged,
-}: {
-  campaignId: string;
-  snapshot: GameStateSnapshot;
-  requestedTurnId: string | undefined;
-  proposal: ObserverProposal | null;
-  setProposal: (proposal: ObserverProposal | null) => void;
-  onApplied: (turnId: string) => void;
-  onChanged: () => void;
-}) {
-  const [brief, setBrief] = useState("");
-  const [operationsText, setOperationsText] = useState("[]");
-  const lastTurn = snapshot.active_event?.turns.at(-1);
-  const eventAcceptsChanges = snapshot.active_event?.status === "active";
-  const requestedTurnExists = snapshot.active_event?.turns.some(
-    (turn) => turn.id === requestedTurnId,
-  );
-  const parseOperations = () => {
-    const parsed: unknown = JSON.parse(operationsText);
-    if (!Array.isArray(parsed)) throw new Error("Operations должны быть JSON-массивом.");
-    return parsed as ObserverOperation[];
-  };
-  const useProposal = (nextProposal: ObserverProposal) => {
-    setProposal(nextProposal);
-    setBrief(nextProposal.gm_brief);
-    setOperationsText(JSON.stringify(nextProposal.operations, null, 2));
-  };
-  const generate = useJobRunner({
-    start: (turnId: string) =>
-      api.generateObserver(campaignId, snapshot.active_event!.id, turnId),
-    fetchJob: (jobId) => api.getJob(campaignId, jobId),
-    parse: (job) => {
-      const proposalId = job.output_data?.proposal_id;
-      if (typeof proposalId !== "string") throw new Error("Наблюдатель не вернул предложение.");
-      return api.getProposal(campaignId, proposalId);
-    },
-    describeFailure: (job) => `Наблюдатель недоступен: ${job.error_code ?? job.status}`,
-    timeoutMessage: "Наблюдатель не ответил вовремя.",
-    onSuccess: useProposal,
-  });
-  const createManual = useMutation({
-    mutationFn: () =>
-      api.createProposal(campaignId, snapshot.active_event!.id, {
-        turn_id: lastTurn!.id,
-        gm_brief: brief.trim() || "Ручное предложение GM.",
-        base_revision: snapshot.campaign.revision,
-        operations: parseOperations(),
-      }),
-    onSuccess: useProposal,
-  });
-  const apply = useMutation({
-    mutationFn: () =>
-      api.applyProposal(campaignId, proposal!.id, brief.trim(), parseOperations()),
-    onSuccess: () => {
-      if (proposal) onApplied(proposal.turn_id);
-      setProposal(null);
-      setBrief("");
-      setOperationsText("[]");
-      onChanged();
-    },
-  });
-  const automaticTurnRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (
-      requestedTurnId &&
-      requestedTurnExists &&
-      eventAcceptsChanges &&
-      proposal?.turn_id !== requestedTurnId &&
-      automaticTurnRef.current !== requestedTurnId &&
-      !generate.isPending
-    ) {
-      automaticTurnRef.current = requestedTurnId;
-      generate.run(requestedTurnId);
-    }
-  }, [eventAcceptsChanges, generate, proposal?.turn_id, requestedTurnExists, requestedTurnId]);
-  const reset = () => {
-    setProposal(null);
-    setBrief("");
-    setOperationsText("[]");
-  };
-
-  return (
-    <>
-      <div className="panel-head">
-        <h2 className="panel-head__title panel-head__title--observer">Наблюдатель</h2>
-        <span className="panel-head__aside mono">rev {snapshot.campaign.revision}</span>
-      </div>
-      <div className="gm-column__scroll">
-        {!eventAcceptsChanges || !lastTurn ? (
-          <div className="empty-state empty-state--small">
-            <p>
-              {snapshot.active_event?.status === "finalizing"
-                ? "Изменения механики отключены, пока Архивариус завершает событие."
-                : "Сначала зафиксируйте ход."}
-            </p>
-          </div>
-        ) : (
-          <div className="observer-form">
-            <label htmlFor="gm-brief">GM Brief</label>
-            <textarea
-              id="gm-brief"
-              rows={7}
-              value={brief}
-              onChange={(event) => setBrief(event.target.value)}
-            />
-            <label htmlFor="observer-operations">Typed operations · JSON</label>
-            <textarea
-              id="observer-operations"
-              rows={12}
-              value={operationsText}
-              spellCheck={false}
-              onChange={(event) => setOperationsText(event.target.value)}
-            />
-            {proposal ? (
-              <div className="proposal-preview">
-                <span className="eyebrow">Ожидает подтверждения</span>
-                <div className="observer-buttons">
-                  <button
-                    className="button"
-                    type="button"
-                    disabled={apply.isPending || !brief.trim()}
-                    onClick={() => apply.mutate()}
-                  >
-                    Применить изменения
-                  </button>
-                  <button
-                    className="button button--secondary"
-                    type="button"
-                    disabled={generate.isPending}
-                    onClick={() => generate.run(lastTurn.id)}
-                  >
-                    {generate.isPending ? "Повторяем…" : "Повторить"}
-                  </button>
-                  <button className="button button--quiet" type="button" onClick={reset}>
-                    Сбросить
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="observer-buttons">
-                <button
-                  className="button button--secondary"
-                  type="button"
-                  disabled={generate.isPending}
-                  onClick={() => generate.run(lastTurn.id)}
-                >
-                  {generate.isPending ? "Наблюдатель анализирует…" : "Запустить Наблюдателя"}
-                </button>
-                <button
-                  className="button button--quiet"
-                  type="button"
-                  disabled={createManual.isPending}
-                  onClick={() => createManual.mutate()}
-                >
-                  Создать вручную
-                </button>
-              </div>
-            )}
-            {(generate.error || createManual.error || apply.error) && (
-              <ErrorNotice error={generate.error ?? createManual.error ?? apply.error} />
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
 
 function EventLogColumn({
   campaignId,

@@ -1142,56 +1142,301 @@ kbd {
   text-align: center;
 }
 
-/* ── Наблюдатель: разметка панели переезжает на этапе 5 ───────────────── */
+/* ── Наблюдатель ──────────────────────────────────────────────────────── */
 
-.observer-form {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.observer-form label {
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.observer-form > textarea {
-  resize: vertical;
-}
-
-.observer-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.proposal-preview {
-  border: 1px solid rgb(240 170 85 / 30%);
-  border-radius: 12px;
-  margin-top: 0.5rem;
-  background: rgb(240 170 85 / 5.5%);
-  padding: 0.8rem;
-}
-
-.empty-state {
+.observer-empty {
   display: grid;
   flex: 1;
   place-content: center;
-  padding: 2rem;
+  justify-items: center;
+  gap: 10px;
+  padding: var(--s5);
   text-align: center;
 }
 
-.empty-state p {
-  max-width: 360px;
-  margin: 0.75rem auto 0;
+.observer-empty h3 {
+  margin: 0;
+  color: #cfc9d6;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.observer-empty p {
+  max-width: 32ch;
+  margin: 0;
   color: var(--muted);
+  font-size: 12px;
   line-height: 1.6;
 }
 
-.empty-state--small {
-  min-height: 250px;
+.observer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+  overflow-y: auto;
+  padding: var(--s3);
+}
+
+.observer-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--role-observer);
+  font-size: 12px;
+}
+
+.spinner--observer {
+  border-color: rgb(154 135 216 / 25%);
+  border-top-color: var(--role-observer);
+}
+
+.observer-intro p {
+  margin: 0 0 var(--s3);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.observer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.observer-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border: 1px solid rgb(121 195 154 / 28%);
+  border-radius: var(--r-s);
+  margin: 0;
+  color: #a9d8be;
+  background: var(--role-archivist-dim);
+  padding: 7px 10px;
+  font-size: 11.5px;
+}
+
+.observer-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+
+.observer-section-head h3 {
+  margin: 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.observer-section-head .mini-button {
+  margin-left: auto;
+}
+
+.count-pill--observer {
+  color: var(--role-observer);
+  background: var(--role-observer-dim);
+}
+
+/* Brief — это проза, которую ГМ дочитывает и правит, поэтому серифом и с
+   ограничением высоты до раскрытия. */
+.observer-brief__text {
+  width: 100%;
+  height: 74px;
+  border: 0;
+  border-left: 2px solid var(--role-observer);
+  border-radius: 0;
+  color: #d5cfd9;
+  background: none;
+  padding: 2px 0 2px 10px;
+  resize: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  transition: height var(--t) ease;
+}
+
+.observer-brief__text:hover {
+  border-color: var(--role-observer);
+}
+
+.observer-brief__text.is-expanded {
+  height: 200px;
+}
+
+.observer-ops__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.observer-ops__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.operation-row {
+  display: grid;
+  align-items: center;
+  gap: 9px;
+  grid-template-columns: 15px 26px minmax(0, 1fr) auto;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: var(--inset);
+  padding: 8px 10px;
+  transition: opacity var(--t-fast) ease;
+}
+
+.operation-row.is-skipped {
+  opacity: 0.42;
+}
+
+.operation-row > input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--role-observer);
+}
+
+.operation-row__portrait {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  color: var(--muted);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-family: Georgia, serif;
+  font-size: 12px;
+}
+
+.operation-row__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.operation-row__text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.operation-row__who {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.operation-row__what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.operation-row__what b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.operation-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(154 135 216 / 35%);
+  border-radius: 999px;
+  color: #c7b8f0;
+  background: var(--role-observer-dim);
+  padding: 1px 8px;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.delta {
+  font-weight: 700;
+}
+
+.delta--down {
+  color: var(--health);
+}
+
+.delta--up {
+  color: var(--role-archivist);
+}
+
+.operation-row__value {
+  width: 56px;
+  height: 26px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 40%);
+  padding: 0 4px;
+  font-size: 12px;
+  text-align: center;
+
+  /* Стрелки счётчика съедают и без того узкую колонку. */
+  appearance: textfield;
+}
+
+.operation-row__value::-webkit-outer-spin-button,
+.operation-row__value::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.observer-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  border-top: 1px solid var(--edge);
+  padding: var(--s3);
+}
+
+/* Сырой JSON остаётся полноценным инструментом, но уходит из вида по
+   умолчанию: посреди сессии ГМ читает строки, а не структуру. */
+.json-toggle {
+  align-self: flex-start;
+  border: 0;
+  color: var(--faint);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.json-toggle:hover {
+  color: var(--muted);
+}
+
+.json-editor textarea {
+  width: 100%;
+  height: 150px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 9px;
+  color: #b9b2c4;
+  background: #08070c;
+  padding: 10px;
+  resize: vertical;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 /* ── завершение события ───────────────────────────────────────────────── */
