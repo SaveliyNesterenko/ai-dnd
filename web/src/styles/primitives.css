@@ -1,0 +1,119 @@
+/* Переиспользуемые элементы: кнопки, уведомления, оверлеи.
+   Диалоговые правила ниже обслуживают ещё старый EditorDialog и уезжают
+   на общий Dialog вместе с этапами 1 и 7. */
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.button {
+  min-height: 42px;
+  border: 1px solid #f1b05f;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgb(233 155 66 / 18%);
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.button--quiet {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: rgb(255 255 255 / 4%);
+  box-shadow: none;
+}
+
+.button--secondary {
+  border-color: rgb(240 170 85 / 35%);
+  color: var(--accent-bright);
+  background: rgb(240 170 85 / 8%);
+  box-shadow: none;
+}
+
+.notice {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.notice--error {
+  border-color: rgb(239 131 122 / 35%);
+  color: #f5b2ac;
+  background: rgb(239 131 122 / 7%);
+}
+
+.notice span {
+  color: var(--muted);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.72rem;
+}
+
+.character-editor-overlay {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(5 4 7 / 78%);
+  backdrop-filter: blur(8px);
+}
+
+.character-editor-dialog {
+  width: min(920px, calc(100vw - 2rem));
+  max-height: min(760px, calc(100vh - 2rem));
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 18px;
+  background: #19171f;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.character-editor-dialog > header,
+.character-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.character-editor-dialog h2 {
+  margin: 0;
+}
+
+.character-editor-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.character-editor-actions {
+  justify-content: flex-end;
+}

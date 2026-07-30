@@ -1,0 +1,609 @@
+/* Экран зрителя: вход по коду, сцена с аватарами, реплики и карточки. */
+
+.join-screen {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+  background:
+    linear-gradient(rgb(10 9 14 / 72%), rgb(10 9 14 / 94%)),
+    url("/demo-assets/crossroads.svg") center / cover;
+  text-align: center;
+}
+
+.join-card {
+  width: min(460px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 24px;
+  padding: 2rem;
+  background: rgb(17 16 23 / 90%);
+  box-shadow: 0 30px 100px rgb(0 0 0 / 50%);
+  text-align: left;
+  backdrop-filter: blur(18px);
+}
+
+.join-card p {
+  margin: 1rem 0 1.5rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.join-card label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.join-card form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.join-card input {
+  height: 64px;
+  text-align: center;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.22em;
+}
+
+.spectator {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  overflow: hidden;
+  grid-template-rows: auto 1fr;
+  background-color: #17131a;
+  background-position: center;
+  background-size: cover;
+}
+
+.spectator__veil {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(11 9 14 / 72%) 0%,
+      transparent 32%,
+      transparent 62%,
+      rgb(8 7 10 / 92%) 100%
+    ),
+    radial-gradient(circle at center, transparent 30%, rgb(8 6 10 / 35%));
+}
+
+.spectator__stage {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+}
+
+/* Сцена перетаскивания занимает весь экран: координаты 0–100% совпадают с тем,
+   что видит зритель, включая нижнюю кромку кадра. */
+.spectator__avatars {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Фигура обтягивает картинку, поэтому область захвата равна самому аватару. */
+.spectator-avatar {
+  position: absolute;
+  margin: 0;
+  transform-origin: center bottom;
+}
+
+.spectator-avatar--draggable {
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transition: scale var(--t) ease;
+  user-select: none;
+}
+
+.spectator-avatar--speaking {
+  z-index: 1000;
+}
+
+.spectator-avatar--dragging {
+  cursor: grabbing;
+  scale: 1.04;
+}
+
+.spectator-avatar--saving {
+  cursor: progress;
+}
+
+.spectator-avatar img {
+  display: block;
+
+  /* Высота считается по пропорциям картинки; масштаб задаёт слайдер GM. */
+  width: var(--avatar-width, 270px);
+  max-width: 42vw;
+  height: auto;
+  filter: drop-shadow(0 24px 18px rgb(0 0 0 / 58%));
+  pointer-events: none;
+  transform-origin: center bottom;
+  user-select: none;
+}
+
+.spectator__position-error {
+  position: fixed;
+  z-index: 1200;
+  top: 1rem;
+  left: 50%;
+  width: min(420px, calc(100% - 2rem));
+  transform: translateX(-50%);
+}
+
+.scene-music {
+  position: fixed;
+  z-index: 10;
+  right: 1.5rem;
+  bottom: 1.5rem;
+}
+
+.speech-bubble {
+  position: absolute;
+  bottom: calc(100% + 20px);
+  left: 50%;
+  width: clamp(240px, 120%, 350px);
+  border-radius: 15px;
+  padding: 0;
+  color: #333;
+  background-color: rgb(255 255 255 / 92%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 28%);
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: speech-bubble-appear 300ms ease-out both;
+}
+
+.speech-bubble-viewport {
+  max-height: 200px;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.speech-bubble-content {
+  padding: 15px 20px;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  will-change: transform;
+}
+
+.speech-bubble.action::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  border-top: 10px solid rgb(255 255 255 / 92%);
+  border-right: 10px solid transparent;
+  border-left: 10px solid transparent;
+  transform: translateX(-50%);
+}
+
+.speech-bubble.thought {
+  border: 2px dashed #aaa;
+  border-radius: 25px;
+  color: #555;
+  background-color: rgb(240 240 240 / 88%);
+  font-style: italic;
+}
+
+.speech-audio-unlock {
+  position: fixed;
+  z-index: 1100;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  pointer-events: auto;
+}
+
+.spectator-dice-roll {
+  position: fixed;
+  z-index: 1001;
+  top: clamp(90px, 12vh, 140px);
+  right: clamp(20px, 3vw, 48px);
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: clamp(72px, 10vw, 120px);
+  font-weight: 700;
+  line-height: 1;
+  text-shadow:
+    0 0 8px #fff,
+    0 0 15px #ffc800,
+    0 0 25px #ffc800,
+    0 0 35px #ffae00;
+  pointer-events: none;
+  animation: dice-roll-appear 500ms ease-out both;
+}
+
+@keyframes speech-bubble-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes dice-roll-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.spectator__characters {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+  padding: clamp(0.6rem, 1.5vw, 1rem) clamp(1rem, 3vw, 2.5rem);
+
+  /* Лента перехватывает клики только самими карточками: иначе аватар, который
+     стоит под ней, нельзя было бы взять мышью. */
+  pointer-events: none;
+}
+
+.spectator__characters .character-card {
+  pointer-events: auto;
+}
+
+/* Карточка зрителя повторяет пропорции legacy-экрана: портрет, имя,
+   имя модели и две тонкие полосы ресурсов. */
+.character-card {
+  display: flex;
+  width: 104px;
+  height: 152px;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgb(240 170 85 / 22%);
+  border-radius: 10px;
+  color: var(--text);
+  background: rgb(18 16 22 / 85%);
+  padding: 8px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 70%);
+  text-align: center;
+  transition:
+    border-color var(--t) ease,
+    transform var(--t) ease,
+    box-shadow var(--t) ease;
+}
+
+button.character-card {
+  cursor: pointer;
+}
+
+button.character-card:hover {
+  border-color: rgb(240 170 85 / 55%);
+  box-shadow: 0 8px 20px rgb(240 170 85 / 20%);
+  transform: translateY(-5px);
+}
+
+.character-card__portrait {
+  display: grid;
+  width: 100%;
+  height: 80px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgb(240 170 85 / 35%);
+  border-radius: 6px;
+  margin-bottom: 5px;
+  place-items: center;
+  color: var(--accent);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-size: 1.6rem;
+}
+
+.character-card__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-card__name {
+  font-family: Georgia, serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.character-card__model {
+  margin: 2px 0 auto;
+  color: var(--muted);
+  font-size: 0.62rem;
+  overflow-wrap: anywhere;
+}
+
+.character-card__bar {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  margin-top: 4px;
+  background: rgb(0 0 0 / 55%);
+}
+
+.character-card__bar-fill {
+  height: 100%;
+  transition: width 300ms ease;
+}
+
+.character-card__bar-fill--health {
+  background: var(--health);
+}
+
+.character-card__bar-fill--mana {
+  background: var(--mana);
+}
+
+.resource {
+  margin-top: 0.35rem;
+}
+
+.resource__header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.resource__track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+  background: rgb(255 255 255 / 9%);
+}
+
+.resource__fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 300ms ease;
+}
+
+.resource__fill--health {
+  background: var(--health);
+}
+
+.resource__fill--mana {
+  background: var(--mana);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.chip {
+  border: 1px solid rgb(240 170 85 / 20%);
+  border-radius: 999px;
+  color: #eec996;
+  background: rgb(240 170 85 / 7%);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.62rem;
+}
+
+.character-modal-overlay {
+  position: fixed;
+  z-index: 1300;
+  display: grid;
+  overflow: auto;
+  inset: 0;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: rgb(0 0 0 / 85%);
+  backdrop-filter: blur(5px);
+  place-items: center;
+}
+
+.character-modal {
+  position: relative;
+  display: grid;
+  width: min(800px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 15px;
+  gap: clamp(1rem, 3vw, 1.6rem);
+  grid-template-columns: 250px minmax(0, 1fr);
+  background: var(--surface);
+  padding: clamp(1.2rem, 3vw, 1.6rem);
+  box-shadow: var(--shadow);
+}
+
+.character-modal__close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.8rem;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.character-modal__close:hover {
+  color: var(--text);
+}
+
+.character-modal__left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.character-modal__portrait {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid rgb(240 170 85 / 35%);
+  border-radius: 10px;
+  place-items: center;
+  color: var(--accent);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-size: 3rem;
+}
+
+.character-modal__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-modal__name {
+  margin: 0.8rem 0 0;
+  color: var(--accent-bright);
+  font-family: Georgia, serif;
+  font-size: 1.4rem;
+  overflow-wrap: anywhere;
+}
+
+.character-modal__role {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.character-modal__resources {
+  width: 100%;
+  margin-top: 0.9rem;
+}
+
+.character-modal__resources .resource__track {
+  height: 10px;
+}
+
+.character-modal__right {
+  min-width: 0;
+}
+
+.character-modal__section {
+  border-bottom: 1px solid var(--line);
+  margin: 1rem 0 0.6rem;
+  color: #d9b38a;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  padding-bottom: 0.3rem;
+}
+
+.character-modal__right > .character-modal__section:first-child {
+  margin-top: 0;
+}
+
+.character-modal__bio {
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.character-modal__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.character-modal__attributes {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.character-modal__attributes > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 3px solid rgb(240 170 85 / 60%);
+  border-radius: 5px;
+  background: rgb(0 0 0 / 22%);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.82rem;
+}
+
+.character-modal__attributes span {
+  color: var(--muted);
+}
+
+.character-modal__inventory {
+  max-height: 190px;
+  overflow-y: auto;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.character-modal__inventory li {
+  display: grid;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: rgb(0 0 0 / 18%);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.character-modal__inventory strong {
+  color: #e0c09a;
+  overflow-wrap: anywhere;
+}
+
+.character-modal__inventory span {
+  color: var(--muted);
+}
+
+.character-modal__inventory small {
+  grid-column: 1 / -1;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .character-modal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-modal__portrait {
+    width: min(250px, 100%);
+  }
+}
+
+@media (max-width: 700px) {
+  .speech-bubble {
+    width: min(300px, calc(100vw - 2rem));
+  }
+
+  .speech-bubble-content {
+    font-size: 16px;
+  }
+}
