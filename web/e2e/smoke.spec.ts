@@ -21,6 +21,12 @@ test.beforeAll(async () => {
         ...process.env,
         AI_DND_DATA_DIR: runtimeDirectory,
         AI_DND_ENVIRONMENT: "test",
+        // Сценарий проверяет поведение консоли без внешних моделей. Иначе тест
+        // зависит от того, лежит ли у разработчика рабочий ключ в .env:
+        // Наблюдатель отвечает по-настоящему, и ветка ручного ввода не
+        // показывается. Переменные окружения перекрывают .env.
+        AI_DND_OPENAI_API_KEY: "",
+        AI_DND_STT_API_KEY: "",
       },
       stdio: "ignore",
     },
