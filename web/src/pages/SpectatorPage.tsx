@@ -5,7 +5,6 @@ import { api } from "../api/client";
 import type { RealtimeEvent } from "../api/types";
 import { CharacterCard } from "../components/CharacterCard";
 import { CharacterDetailsModal } from "../components/CharacterDetailsModal";
-import { ConnectionBadge } from "../components/ConnectionBadge";
 import { DraggableSpectatorAvatar } from "../components/DraggableSpectatorAvatar";
 import type { SpectatorAvatarPosition } from "../components/DraggableSpectatorAvatar";
 import { ErrorNotice } from "../components/ErrorNotice";
@@ -47,7 +46,7 @@ export default function SpectatorPage() {
     },
     [campaignId, enqueueRealtimeEvent, joinCode, queryClient],
   );
-  const connection = useRealtime(
+  useRealtime(
     snapshot.data ? campaignId : undefined,
     snapshot.data?.last_sequence ?? 0,
     joinCode || undefined,
@@ -174,22 +173,15 @@ export default function SpectatorPage() {
         isPlaying={snapshot.data.scene.music_is_playing}
         volume={snapshot.data.scene.music_volume}
       />
-      <header className="spectator__header">
-        <div className="spectator__title">
-          <span className="eyebrow">Сейчас в игре</span>
-          <h1>{location?.name ?? snapshot.data.campaign.name}</h1>
-        </div>
-        <section className="spectator__characters" aria-label="Активные персонажи">
-          {activeCharacters.map((character) => (
-            <CharacterCard
-              key={character.id}
-              character={character}
-              onOpen={(selected) => setOpenCharacterId(selected.id)}
-            />
-          ))}
-        </section>
-        <ConnectionBadge state={connection} />
-      </header>
+      <section className="spectator__characters" aria-label="Активные персонажи">
+        {activeCharacters.map((character) => (
+          <CharacterCard
+            key={character.id}
+            character={character}
+            onOpen={(selected) => setOpenCharacterId(selected.id)}
+          />
+        ))}
+      </section>
 
       <section className="spectator__avatars" aria-label="Персонажи на сцене">
         {snapshot.data.scene.characters
@@ -217,11 +209,7 @@ export default function SpectatorPage() {
                 zIndex={isSpeaking ? 1000 : state.order + 1}
               >
                 {isSpeaking && activeCue ? (
-                  <SpeechBubble
-                    cue={activeCue}
-                    onComplete={completeActiveCue}
-                    anchorHeight={avatarSize}
-                  />
+                  <SpeechBubble cue={activeCue} onComplete={completeActiveCue} />
                 ) : null}
                 {imageUrl ? (
                   <img
