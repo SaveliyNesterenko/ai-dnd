@@ -1,6 +1,5 @@
-/* Переиспользуемые элементы: кнопки, уведомления, оверлеи.
-   Диалоговые правила ниже обслуживают ещё старый EditorDialog и уезжают
-   на общий Dialog вместе с этапами 1 и 7. */
+/* Переиспользуемые элементы интерфейса: кнопки, уведомления, оверлеи.
+   Всё, что появляется больше чем на одном экране, описывается здесь. */
 
 .eyebrow {
   display: block;
@@ -50,6 +49,41 @@
   box-shadow: none;
 }
 
+.icon-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  place-items: center;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    color var(--t-fast) ease,
+    background var(--t-fast) ease,
+    border-color var(--t-fast) ease;
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--edge);
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.icon-button--danger:hover:not(:disabled) {
+  border-color: rgb(239 131 122 / 45%);
+  color: #ffe2de;
+  background: rgb(239 131 122 / 20%);
+}
+
 .notice {
   display: grid;
   gap: 0.25rem;
@@ -75,45 +109,226 @@
   font-size: 0.72rem;
 }
 
-.character-editor-overlay {
+/* ── Popover ─────────────────────────────────────────────────────────────
+   Якорная панель для настроек, которые нужны эпизодически. */
+
+.popover {
   position: fixed;
-  z-index: 100;
+  z-index: 60;
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r);
+  background: #16141e;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 62%);
+  padding: var(--s3);
+  animation: popover-appear var(--t-fast) ease-out both;
+}
+
+@keyframes popover-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Dialog ──────────────────────────────────────────────────────────────
+   Один шаблон на все модальные окна: шапка, прокручиваемое тело,
+   закреплённый футер с действиями. */
+
+.dialog-backdrop {
+  position: fixed;
+  z-index: 70;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(5 4 7 / 78%);
-  backdrop-filter: blur(8px);
+  background: rgb(5 4 7 / 74%);
+  padding: var(--s5);
+  backdrop-filter: blur(6px);
 }
 
-.character-editor-dialog {
-  width: min(920px, calc(100vw - 2rem));
-  max-height: min(760px, calc(100vh - 2rem));
-  overflow: auto;
-  border: 1px solid var(--line-strong);
-  border-radius: 18px;
-  background: #19171f;
-  box-shadow: var(--shadow);
-  padding: 1rem;
+.dialog {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: 84vh;
+  flex-direction: column;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-l);
+  background: #16141e;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 60%);
 }
 
-.character-editor-dialog > header,
-.character-editor-actions {
+.dialog--s {
+  width: min(480px, 100%);
+}
+
+.dialog--l {
+  width: min(960px, 100%);
+}
+
+.dialog__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.7rem;
+  gap: var(--s3);
+  border-bottom: 1px solid var(--edge);
+  padding: var(--s3) var(--s4);
 }
 
-.character-editor-dialog h2 {
+.dialog__heading {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.dialog__header h2 {
   margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
-.character-editor-list {
+.dialog__eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dialog--archivist .dialog__eyebrow {
+  color: var(--role-archivist);
+}
+
+.dialog__close {
   display: grid;
-  gap: 0.5rem;
-  margin: 1rem 0;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  place-items: center;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
 }
 
-.character-editor-actions {
-  justify-content: flex-end;
+.dialog__close:hover {
+  border-color: var(--edge);
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s4);
+}
+
+.dialog__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border-top: 1px solid var(--edge);
+  padding: var(--s3) var(--s4);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────
+   Статусы и ошибки не двигают вёрстку панелей. */
+
+.toasts {
+  position: fixed;
+  z-index: 90;
+  right: var(--s4);
+  bottom: var(--s4);
+  display: flex;
+  width: 330px;
+  max-width: calc(100vw - 2 * var(--s4));
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: #1a1722;
+  padding: 11px 12px;
+  box-shadow: 0 14px 40px rgb(0 0 0 / 55%);
+  animation: popover-appear var(--t) ease-out both;
+}
+
+.toast__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+}
+
+.toast p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.toast--success {
+  border-color: rgb(121 195 154 / 35%);
+}
+
+.toast--success strong {
+  color: var(--role-archivist);
+}
+
+.toast--archivist {
+  border-color: rgb(121 195 154 / 35%);
+}
+
+.toast--archivist strong {
+  color: var(--role-archivist);
+}
+
+.toast--observer {
+  border-color: rgb(154 135 216 / 40%);
+}
+
+.toast--observer strong {
+  color: #c7b8f0;
+}
+
+.toast--error {
+  border-color: rgb(239 131 122 / 40%);
+}
+
+.toast--error strong {
+  color: #f5b2ac;
+}
+
+.toast__close {
+  flex: 0 0 auto;
+  border: 0;
+  color: var(--faint);
+  background: none;
+  padding: 2px;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.toast__close:hover {
+  color: var(--text);
 }

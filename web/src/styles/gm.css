@@ -437,36 +437,15 @@
   min-height: 250px;
 }
 
-.finalization {
-  width: 100%;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
-  padding-top: 18px;
-}
-
-.finalization-dialog {
-  width: min(820px, calc(100vw - 2rem));
-}
-
-.finalization__heading,
 .finalization__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
-.finalization__heading-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.finalization__heading h3 {
-  margin: 3px 0 0;
-}
-
 .finalization__safe {
+  flex: 0 0 auto;
   color: var(--success);
   font-size: 0.84rem;
   letter-spacing: 0.04em;

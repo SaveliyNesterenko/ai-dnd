@@ -16,6 +16,7 @@ import { ErrorNotice } from "../components/ErrorNotice";
 import { GmCharacterCard } from "../components/GmCharacterCard";
 import { GmTopControls } from "../components/GmTopControls";
 import { VoiceWorkspace } from "../components/VoiceWorkspace";
+import { useJobRunner } from "../hooks/useJobPolling";
 import { useRealtime } from "../hooks/useRealtime";
 import { useUiStore } from "../store/ui";
 
@@ -261,28 +262,16 @@ function EventTimeline({
   const throughSequence = activeEvent?.context_summary_through_sequence ?? 0;
   const visibleTurns =
     activeEvent?.turns.filter((turn) => turn.sequence > throughSequence) ?? [];
-  const compress = useMutation({
-    mutationFn: async () => {
+  const compress = useJobRunner({
+    start: () => {
       if (!activeEvent) throw new Error("Нет активного события.");
-      const job = await api.generateContextCompression(
-        campaignId,
-        activeEvent.id,
-        activeEvent.revision,
-      );
-      for (let attempt = 0; attempt < 180; attempt += 1) {
-        const current = await api.getJob(campaignId, job.id);
-        if (current.status === "succeeded") {
-          return current.output_data;
-        }
-        if (["failed", "degraded", "cancelled"].includes(current.status)) {
-          throw new Error(
-            `Не удалось сжать контекст: ${current.error_code ?? current.status}`,
-          );
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-      }
-      throw new Error("Архивариус не ответил вовремя.");
+      return api.generateContextCompression(campaignId, activeEvent.id, activeEvent.revision);
     },
+    fetchJob: (jobId) => api.getJob(campaignId, jobId),
+    parse: (job) => job.output_data,
+    describeFailure: (job) =>
+      `Не удалось сжать контекст: ${job.error_code ?? job.status}`,
+    timeoutMessage: "Архивариус не ответил вовремя.",
     onSuccess: (output) => {
       setCompressionMessage(
         output?.status === "skipped"
@@ -308,7 +297,7 @@ function EventTimeline({
               className="button button--quiet"
               type="button"
               disabled={compress.isPending}
-              onClick={() => compress.mutate()}
+              onClick={() => compress.run()}
             >
               {compress.isPending ? "Сжимаем…" : "Сжать контекст"}
             </button>
@@ -387,32 +376,22 @@ function TurnComposer({
       void onChanged();
     },
   });
-  const generateTurn = useMutation({
-    mutationFn: async () => {
+  const generateTurn = useJobRunner({
+    start: () => {
       if (!character) throw new Error("Сначала выберите персонажа.");
-      const job = await api.generatePlayerTurn(campaignId, eventId, character.id);
-      for (let attempt = 0; attempt < 180; attempt += 1) {
-        const current = await api.getJob(campaignId, job.id);
-        if (current.status === "succeeded") {
-          const output = current.output_data;
-          if (
-            !output ||
-            typeof output.thought !== "string" ||
-            typeof output.action !== "string"
-          ) {
-            throw new Error("Модель вернула неполный черновик.");
-          }
-          return { thought: output.thought, action: output.action };
-        }
-        if (["failed", "degraded", "cancelled"].includes(current.status)) {
-          throw new Error(
-            `Не удалось создать черновик: ${current.error_code ?? current.status}`,
-          );
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-      }
-      throw new Error("Модель не ответила вовремя.");
+      return api.generatePlayerTurn(campaignId, eventId, character.id);
     },
+    fetchJob: (jobId) => api.getJob(campaignId, jobId),
+    parse: (job) => {
+      const output = job.output_data;
+      if (!output || typeof output.thought !== "string" || typeof output.action !== "string") {
+        throw new Error("Модель вернула неполный черновик.");
+      }
+      return { thought: output.thought, action: output.action };
+    },
+    describeFailure: (job) =>
+      `Не удалось создать черновик: ${job.error_code ?? job.status}`,
+    timeoutMessage: "Модель не ответила вовремя.",
     onSuccess: (draft) => {
       form.setValue("thought", draft.thought, { shouldDirty: true });
       form.setValue("action", draft.action, { shouldDirty: true });
@@ -442,7 +421,7 @@ function TurnComposer({
           className="button button--secondary"
           type="button"
           disabled={!character || generateTurn.isPending}
-          onClick={() => generateTurn.mutate()}
+          onClick={() => generateTurn.run()}
         >
           {generateTurn.isPending ? "Модель отвечает…" : "Сгенерировать ответ"}
         </button>
@@ -516,31 +495,19 @@ function ObserverPanel({
     setBrief(nextProposal.gm_brief);
     setOperationsText(JSON.stringify(nextProposal.operations, null, 2));
   };
-  const generate = useMutation({
-    mutationFn: async (turnId: string) => {
-      const job = await api.generateObserver(
-        campaignId,
-        snapshot.active_event!.id,
-        turnId,
-      );
-      for (let attempt = 0; attempt < 180; attempt += 1) {
-        const current = await api.getJob(campaignId, job.id);
-        if (current.status === "succeeded") {
-          const proposalId = current.output_data?.proposal_id;
-          if (typeof proposalId !== "string") {
-            throw new Error("Наблюдатель не вернул предложение.");
-          }
-          return api.getProposal(campaignId, proposalId);
-        }
-        if (["failed", "degraded", "cancelled"].includes(current.status)) {
-          throw new Error(
-            `Наблюдатель недоступен: ${current.error_code ?? current.status}`,
-          );
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
+  const generate = useJobRunner({
+    start: (turnId: string) =>
+      api.generateObserver(campaignId, snapshot.active_event!.id, turnId),
+    fetchJob: (jobId) => api.getJob(campaignId, jobId),
+    parse: (job) => {
+      const proposalId = job.output_data?.proposal_id;
+      if (typeof proposalId !== "string") {
+        throw new Error("Наблюдатель не вернул предложение.");
       }
-      throw new Error("Наблюдатель не ответил вовремя.");
+      return api.getProposal(campaignId, proposalId);
     },
+    describeFailure: (job) => `Наблюдатель недоступен: ${job.error_code ?? job.status}`,
+    timeoutMessage: "Наблюдатель не ответил вовремя.",
     onSuccess: useProposal,
   });
   const createManual = useMutation({
@@ -579,7 +546,7 @@ function ObserverPanel({
       !generate.isPending
     ) {
       automaticTurnRef.current = requestedTurnId;
-      generate.mutate(requestedTurnId);
+      generate.run(requestedTurnId);
     }
   }, [
     eventAcceptsChanges,
@@ -639,7 +606,7 @@ function ObserverPanel({
                   className="button button--secondary"
                   type="button"
                   disabled={generate.isPending}
-                  onClick={() => generate.mutate(lastTurn.id)}
+                  onClick={() => generate.run(lastTurn.id)}
                 >
                   {generate.isPending ? "Повторяем…" : "Повторить"}
                 </button>
@@ -654,7 +621,7 @@ function ObserverPanel({
                 className="button button--secondary"
                 type="button"
                 disabled={generate.isPending}
-                onClick={() => generate.mutate(lastTurn.id)}
+                onClick={() => generate.run(lastTurn.id)}
               >
                 {generate.isPending ? "Наблюдатель анализирует…" : "Запустить Наблюдателя"}
               </button>

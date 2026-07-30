@@ -1,10 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { api } from "../api/client";
 import type { CharacterGM, InventoryItem } from "../api/types";
 import type { SceneCharacterView } from "../api/generated/types.gen";
 import { ErrorNotice } from "./ErrorNotice";
+import { Dialog } from "./ui/Dialog";
 
 type CardBack = "attributes" | "resources" | null;
 type Editor = "inventory" | "effects" | null;
@@ -230,7 +231,51 @@ export function GmCharacterCard({
         </div>
       </article>
       {editor === "inventory" && (
-        <EditorDialog title={`Инвентарь · ${character.name}`} onClose={() => setEditor(null)}>
+        <EditorDialog
+          title={`Инвентарь · ${character.name}`}
+          onClose={() => setEditor(null)}
+          footer={
+            <>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() =>
+                  setInventory((current) => [
+                    ...current,
+                    {
+                      id: null,
+                      name: "",
+                      quantity: 1,
+                      description: "",
+                      clientKey: crypto.randomUUID(),
+                    },
+                  ])
+                }
+              >
+                Добавить предмет
+              </button>
+              <button
+                className="button"
+                type="button"
+                style={{ marginLeft: "auto" }}
+                disabled={update.isPending || inventory.some((item) => !item.name.trim())}
+                onClick={() =>
+                  update.mutate({
+                    base_revision: character.revision,
+                    inventory: inventory.map((item) => ({
+                      id: item.id,
+                      name: item.name,
+                      quantity: item.quantity,
+                      description: item.description,
+                    })),
+                  })
+                }
+              >
+                Сохранить
+              </button>
+            </>
+          }
+        >
           <div className="character-editor-list">
             {inventory.map((item, index) => (
               <div className="inventory-editor-row" key={item.clientKey}>
@@ -291,46 +336,6 @@ export function GmCharacterCard({
               </div>
             ))}
           </div>
-          <div className="character-editor-actions">
-            <button
-              className="button button--secondary"
-              type="button"
-              onClick={() =>
-                setInventory((current) => [
-                  ...current,
-                  {
-                    id: null,
-                    name: "",
-                    quantity: 1,
-                    description: "",
-                    clientKey: crypto.randomUUID(),
-                  },
-                ])
-              }
-            >
-              Добавить предмет
-            </button>
-            <button
-              className="button"
-              type="button"
-              disabled={
-                update.isPending || inventory.some((item) => !item.name.trim())
-              }
-              onClick={() =>
-                update.mutate({
-                  base_revision: character.revision,
-                  inventory: inventory.map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    description: item.description,
-                  })),
-                })
-              }
-            >
-              Сохранить
-            </button>
-          </div>
           {update.error && <ErrorNotice error={update.error} />}
         </EditorDialog>
       )}
@@ -338,6 +343,31 @@ export function GmCharacterCard({
         <EditorDialog
           title={`Статусные эффекты · ${character.name}`}
           onClose={() => setEditor(null)}
+          footer={
+            <>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setEffects((current) => [...current, ""])}
+              >
+                Добавить эффект
+              </button>
+              <button
+                className="button"
+                type="button"
+                style={{ marginLeft: "auto" }}
+                disabled={update.isPending || effects.some((effect) => !effect.trim())}
+                onClick={() =>
+                  update.mutate({
+                    base_revision: character.revision,
+                    status_effects: effects,
+                  })
+                }
+              >
+                Сохранить
+              </button>
+            </>
+          }
         >
           <div className="character-editor-list">
             {effects.map((effect, index) => (
@@ -366,28 +396,6 @@ export function GmCharacterCard({
                 </button>
               </div>
             ))}
-          </div>
-          <div className="character-editor-actions">
-            <button
-              className="button button--secondary"
-              type="button"
-              onClick={() => setEffects((current) => [...current, ""])}
-            >
-              Добавить эффект
-            </button>
-            <button
-              className="button"
-              type="button"
-              disabled={update.isPending || effects.some((effect) => !effect.trim())}
-              onClick={() =>
-                update.mutate({
-                  base_revision: character.revision,
-                  status_effects: effects,
-                })
-              }
-            >
-              Сохранить
-            </button>
           </div>
           {update.error && <ErrorNotice error={update.error} />}
         </EditorDialog>
@@ -543,47 +551,17 @@ function ResourceInputs({
 function EditorDialog({
   title,
   onClose,
+  footer,
   children,
 }: {
   title: string;
   onClose: () => void;
+  footer: React.ReactNode;
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
   return (
-    <div
-      className="character-editor-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        className="character-editor-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <header>
-          <h2>{title}</h2>
-          <button
-            type="button"
-            className="button button--quiet"
-            onClick={onClose}
-            autoFocus
-          >
-            Закрыть
-          </button>
-        </header>
-        {children}
-      </section>
-    </div>
+    <Dialog title={title} size="l" onClose={onClose} footer={footer}>
+      {children}
+    </Dialog>
   );
 }

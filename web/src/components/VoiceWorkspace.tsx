@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "../api/client";
+import { useJobRunner } from "../hooks/useJobPolling";
 import { ErrorNotice } from "./ErrorNotice";
 
 // Порядок важен: opus в ogg распознаётся лучше, webm остаётся запасным вариантом.
@@ -47,31 +48,25 @@ export function VoiceWorkspace({
   const [micError, setMicError] = useState<string>();
   const recorderRef = useRef<MediaRecorder | null>(null);
 
-  const transcribe = useMutation({
-    mutationFn: async (blob: Blob) => {
+  const transcribe = useJobRunner({
+    start: (blob: Blob) => {
       const mediaType = (blob.type || "audio/webm").split(";", 1)[0]!;
       const file = new File([blob], `gm-speech.${extensionFor(mediaType)}`, {
         type: mediaType,
       });
-      const job = await api.transcribeVoice(file);
-      for (let attempt = 0; attempt < 180; attempt += 1) {
-        const current = await api.getVoiceJob(job.id);
-        if (current.status === "succeeded") {
-          const transcript = current.output_data?.transcript;
-          if (typeof transcript !== "string" || !transcript.trim()) {
-            throw new Error("Речь не распознана. Попробуйте записать ещё раз.");
-          }
-          return transcript.trim();
-        }
-        if (["failed", "degraded", "cancelled"].includes(current.status)) {
-          throw new Error(
-            `Не удалось расшифровать запись: ${current.error_code ?? current.status}`,
-          );
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-      }
-      throw new Error("Расшифровка не завершилась вовремя.");
+      return api.transcribeVoice(file);
     },
+    fetchJob: (jobId) => api.getVoiceJob(jobId),
+    parse: (job) => {
+      const transcript = job.output_data?.transcript;
+      if (typeof transcript !== "string" || !transcript.trim()) {
+        throw new Error("Речь не распознана. Попробуйте записать ещё раз.");
+      }
+      return transcript.trim();
+    },
+    describeFailure: (job) =>
+      `Не удалось расшифровать запись: ${job.error_code ?? job.status}`,
+    timeoutMessage: "Расшифровка не завершилась вовремя.",
     onSuccess: (transcript) => {
       setText((previous) => (previous.trim() ? `${previous.trim()} ${transcript}` : transcript));
     },
@@ -142,7 +137,7 @@ export function VoiceWorkspace({
         setMicError("Запись оказалась пустой. Попробуйте ещё раз.");
         return;
       }
-      transcribe.mutate(blob);
+      transcribe.run(blob);
     };
     recorderRef.current = recorder;
     setIsRecording(true);

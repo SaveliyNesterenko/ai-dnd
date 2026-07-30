@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { api } from "../api/client";
 import type { GameStateSnapshot } from "../api/types";
 import { ErrorNotice } from "./ErrorNotice";
+import { Dialog } from "./ui/Dialog";
 
 interface FinalizationDraft {
   chronicle: string;
@@ -66,15 +67,6 @@ export function EventFinalization({
       onChanged();
     },
   });
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (keyboardEvent: KeyboardEvent) => {
-      if (keyboardEvent.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
 
   if (!event) return null;
   if (event.status === "active") {
@@ -142,37 +134,14 @@ export function EventFinalization({
         Событие завершается
       </button>
       {open && (
-        <div
-          className="character-editor-overlay"
-          role="presentation"
-          onMouseDown={(mouseEvent) => {
-            if (mouseEvent.target === mouseEvent.currentTarget) setOpen(false);
-          }}
+        <Dialog
+          title="Событие завершается"
+          eyebrow="Архивариус"
+          tone="archivist"
+          onClose={() => setOpen(false)}
+          headerExtra={<span className="finalization__safe">Лог сохранён</span>}
         >
-          <section
-            className="character-editor-dialog finalization-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="finalization-title"
-          >
-            <div className="finalization__heading">
-              <div>
-                <span className="eyebrow">Архивариус</span>
-                <h3 id="finalization-title">Событие завершается</h3>
-              </div>
-              <div className="finalization__heading-actions">
-                <span className="finalization__safe">Лог сохранён</span>
-                <button
-                  className="button button--quiet"
-                  type="button"
-                  aria-label="Закрыть завершение события"
-                  onClick={() => setOpen(false)}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="finalization" aria-live="polite">
+          <div className="finalization" aria-live="polite">
               {jobWorking && (
                 <p>
                   Архивариус объединяет общую хронику, а модели игроков обновляют
@@ -282,9 +251,8 @@ export function EventFinalization({
               {(generate.error || job.error || confirm.error) && (
                 <ErrorNotice error={generate.error ?? job.error ?? confirm.error} />
               )}
-            </div>
-          </section>
-        </div>
+          </div>
+        </Dialog>
       )}
     </>
   );
