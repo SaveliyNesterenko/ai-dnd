@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import { api } from "../api/client";
 import type { Campaign, CharacterGM, GameStateSnapshot } from "../api/types";
+import { useUiStore } from "../store/ui";
 import { ErrorNotice } from "./ErrorNotice";
 import { EventFinalization } from "./EventFinalization";
 
@@ -35,6 +36,11 @@ export function GmTopControls({
 }) {
   const scene = snapshot.scene;
   const [volume, setVolume] = useState(scene.music_volume);
+  const [avatarSize, setAvatarSize] = useState(scene.avatar_size);
+  const selectedCharacterId = useUiStore((state) => state.selectedCharacterId);
+  const selectedSceneState = scene.characters.find(
+    (state) => state.character_id === selectedCharacterId && state.is_visible,
+  );
   const visibleStates = useMemo(
     () =>
       scene.characters
@@ -55,6 +61,18 @@ export function GmTopControls({
     mutationFn: () => api.startEvent(campaignId, "Новое игровое событие"),
     onSuccess: onChanged,
   });
+  const updateOrientation = useMutation({
+    mutationFn: (flipX: boolean) => {
+      if (!selectedCharacterId || !selectedSceneState) {
+        throw new Error("Сначала выберите персонажа.");
+      }
+      return api.updateSceneCharacter(campaignId, selectedCharacterId, {
+        flip_x: flipX,
+        base_revision: selectedSceneState.revision,
+      });
+    },
+    onSuccess: onChanged,
+  });
 
   const updateSceneField = (
     input: Omit<Parameters<typeof api.updateScene>[1], "base_revision">,
@@ -66,6 +84,7 @@ export function GmTopControls({
   const error =
     campaignSelectionError ??
     updateScene.error ??
+    updateOrientation.error ??
     characterSelectionError ??
     eventError;
 
@@ -106,6 +125,19 @@ export function GmTopControls({
               {character.name} · {categoryLabel(character.kind)}
             </option>
           ))}
+        </select>
+      </label>
+
+      <label className="top-control top-control--orientation">
+        <span>Положение</span>
+        <select
+          aria-label="Положение аватара"
+          value={selectedSceneState?.flip_x ? "right" : "left"}
+          disabled={!selectedSceneState || updateOrientation.isPending || finalizing}
+          onChange={(event) => updateOrientation.mutate(event.target.value === "right")}
+        >
+          <option value="left">Лево</option>
+          <option value="right">Право</option>
         </select>
       </label>
 
@@ -187,6 +219,30 @@ export function GmTopControls({
           onKeyUp={() => {
             if (volume !== scene.music_volume) {
               updateSceneField({ music_volume: volume });
+            }
+          }}
+        />
+      </label>
+
+      <label className="top-control top-control--avatar-size">
+        <span>Аватары {avatarSize}px</span>
+        <input
+          aria-label={`Размер аватаров ${avatarSize}px`}
+          type="range"
+          min={80}
+          max={600}
+          step={10}
+          value={avatarSize}
+          disabled={updateScene.isPending || finalizing}
+          onChange={(event) => setAvatarSize(Number(event.target.value))}
+          onPointerUp={() => {
+            if (avatarSize !== scene.avatar_size) {
+              updateSceneField({ avatar_size: avatarSize });
+            }
+          }}
+          onKeyUp={() => {
+            if (avatarSize !== scene.avatar_size) {
+              updateSceneField({ avatar_size: avatarSize });
             }
           }}
         />

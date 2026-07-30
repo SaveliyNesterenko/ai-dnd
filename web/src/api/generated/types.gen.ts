@@ -1177,6 +1177,10 @@ export type UpdateSceneCharacterRequest = {
      */
     order?: number | null;
     /**
+     * Flip X
+     */
+    flip_x?: boolean | null;
+    /**
      * Base Revision
      */
     base_revision: number;

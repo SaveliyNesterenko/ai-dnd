@@ -182,11 +182,12 @@ class UpdateSceneCharacterRequest(BaseModel):
     x: int | None = Field(default=None, ge=0, le=100)
     y: int | None = Field(default=None, ge=0, le=100)
     order: int | None = Field(default=None, ge=0, le=10_000)
+    flip_x: bool | None = None
     base_revision: int = Field(ge=1)
 
     @model_validator(mode="after")
     def contains_change(self) -> UpdateSceneCharacterRequest:
-        fields = (self.is_visible, self.x, self.y, self.order)
+        fields = (self.is_visible, self.x, self.y, self.order, self.flip_x)
         if all(value is None for value in fields):
             raise ValueError("at least one scene character field must be provided")
         return self

@@ -3624,6 +3624,17 @@
             ],
             "title": "Order"
           },
+          "flip_x": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flip X"
+          },
           "base_revision": {
             "type": "integer",
             "minimum": 1.0,

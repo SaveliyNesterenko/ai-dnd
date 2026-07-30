@@ -520,7 +520,7 @@ class GameService:
             self.session.add(state)
             await self.session.flush()
         values: dict[str, Any] = {"revision": SceneCharacterModel.revision + 1}
-        for field_name in ("is_visible", "x", "y", "order"):
+        for field_name in ("is_visible", "x", "y", "order", "flip_x"):
             value = getattr(request, field_name)
             if value is not None:
                 values[field_name] = value

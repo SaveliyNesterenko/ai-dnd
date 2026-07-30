@@ -244,6 +244,53 @@ def test_scene_character_updates_are_public_and_revision_guarded(
     assert (public_scene_character["x"], public_scene_character["y"]) == (40, 65)
 
 
+def test_gm_controls_avatar_orientation_and_size(
+    client: TestClient,
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character = snapshot["characters"][0]
+    scene_character = next(
+        item for item in snapshot["scene"]["characters"] if item["character_id"] == character["id"]
+    )
+    flipped = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"flip_x": True, "base_revision": scene_character["revision"]},
+    )
+    assert flipped.status_code == 200
+    updated = next(
+        item for item in flipped.json()["characters"] if item["character_id"] == character["id"]
+    )
+    assert updated["flip_x"] is True
+    assert (updated["x"], updated["y"]) == (scene_character["x"], scene_character["y"])
+
+    resized = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene",
+        json={"avatar_size": 420, "base_revision": snapshot["scene"]["revision"]},
+    )
+    assert resized.status_code == 200
+    assert resized.json()["avatar_size"] == 420
+
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    public = client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": code},
+    ).json()
+    public_scene_character = next(
+        item for item in public["scene"]["characters"] if item["character_id"] == character["id"]
+    )
+    assert public_scene_character["flip_x"] is True
+    assert public["scene"]["avatar_size"] == 420
+
+    stale = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"flip_x": False, "base_revision": scene_character["revision"]},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "stale_revision"
+
+
 def test_gm_can_edit_character_card_with_optimistic_revision(
     authenticated_client: TestClient,
     demo_campaign_id: str,
