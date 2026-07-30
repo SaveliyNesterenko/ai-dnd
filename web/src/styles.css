@@ -617,6 +617,33 @@ h2 {
   text-align: center;
 }
 
+.gm-character-card__flip {
+  position: absolute;
+  z-index: 2;
+  top: 0.45rem;
+  left: 0.45rem;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  place-items: center;
+  color: var(--text);
+  background: rgb(8 8 12 / 74%);
+  padding: 0;
+  cursor: pointer;
+}
+
+.gm-character-card__flip[aria-pressed="true"] {
+  border-color: rgb(240 170 85 / 65%);
+  color: var(--accent-bright);
+}
+
+.gm-character-card__flip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .gm-character-card__remove {
   position: absolute;
   z-index: 2;

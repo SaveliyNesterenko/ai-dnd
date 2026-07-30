@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "../api/client";
 import type { CharacterGM, InventoryItem } from "../api/types";
+import type { SceneCharacterView } from "../api/generated/types.gen";
 import { ErrorNotice } from "./ErrorNotice";
 
 type CardBack = "attributes" | "resources" | null;
@@ -12,6 +13,7 @@ type InventoryDraft = InventoryItem & { clientKey: string };
 export function GmCharacterCard({
   campaignId,
   character,
+  sceneState,
   selected,
   onSelect,
   onRemove,
@@ -19,6 +21,7 @@ export function GmCharacterCard({
 }: {
   campaignId: string;
   character: CharacterGM;
+  sceneState: SceneCharacterView | undefined;
   selected: boolean;
   onSelect: () => void;
   onRemove: () => void;
@@ -42,6 +45,18 @@ export function GmCharacterCard({
       setEditor(null);
       onChanged();
     },
+  });
+
+  const flipped = sceneState?.flip_x ?? character.flip_x;
+  const flip = useMutation({
+    mutationFn: () => {
+      if (!sceneState) throw new Error("Персонаж ещё не размещён на сцене.");
+      return api.updateSceneCharacter(campaignId, character.id, {
+        flip_x: !flipped,
+        base_revision: sceneState.revision,
+      });
+    },
+    onSuccess: onChanged,
   });
 
   const openResources = () => {
@@ -87,6 +102,22 @@ export function GmCharacterCard({
             <div className="gm-character-card__veil" />
             <div className="gm-character-card__content">
               <button
+                className="gm-character-card__flip"
+                type="button"
+                aria-label={`Отразить аватар ${character.name} по горизонтали. Сейчас смотрит ${
+                  flipped ? "вправо" : "влево"
+                }`}
+                aria-pressed={flipped}
+                title="Отразить аватар по горизонтали"
+                disabled={!sceneState || flip.isPending}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  flip.mutate();
+                }}
+              >
+                <FlipIcon />
+              </button>
+              <button
                 className="gm-character-card__remove"
                 type="button"
                 aria-label={`Скрыть карточку ${character.name}`}
@@ -122,6 +153,7 @@ export function GmCharacterCard({
                 <CardButton label="Статусные эффекты" symbol="S" onClick={openEffects} />
                 <CardButton label="Инвентарь" symbol="I" onClick={openInventory} />
               </div>
+              {flip.error && <ErrorNotice error={flip.error} />}
             </div>
           </section>
           <section
@@ -366,6 +398,29 @@ export function GmCharacterCard({
         </EditorDialog>
       )}
     </>
+  );
+}
+
+/** Две встречные стрелки: аватар отражается по горизонтали. */
+function FlipIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 9h16" />
+      <path d="M17 6l3 3-3 3" />
+      <path d="M20 15H4" />
+      <path d="M7 12l-3 3 3 3" />
+    </svg>
   );
 }
 

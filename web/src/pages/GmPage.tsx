@@ -221,6 +221,9 @@ export default function GmPage() {
                   key={character.id}
                   campaignId={campaignId}
                   character={character}
+                  sceneState={snapshot.data.scene.characters.find(
+                    (state) => state.character_id === character.id,
+                  )}
                   selected={character.id === selectedCharacterId}
                   onSelect={() => selectCharacter(character.id)}
                   onRemove={() => toggleCharacterVisibility.mutate(character.id)}
