@@ -76,6 +76,12 @@ def test_mutations_require_gm(client: TestClient, demo_campaign_id: str) -> None
     assert response.status_code == 401
     assert response.headers["content-type"].startswith("application/problem+json")
 
+    movement = client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/not-a-character",
+        json={"x": 40, "y": 65, "base_revision": 1},
+    )
+    assert movement.status_code == 401
+
 
 def test_public_projection_hides_private_fields(
     client: TestClient,
@@ -163,6 +169,7 @@ def test_public_turn_projection_includes_spectator_thought(
 
 
 def test_scene_character_updates_are_public_and_revision_guarded(
+    client: TestClient,
     authenticated_client: TestClient,
     demo_campaign_id: str,
 ) -> None:
@@ -200,20 +207,40 @@ def test_scene_character_updates_are_public_and_revision_guarded(
     assert stale.status_code == 409
     assert stale.json()["code"] == "stale_revision"
 
-    movement = authenticated_client.patch(
-        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
-        json={"x": 40, "base_revision": updated["revision"]},
-    )
-    assert movement.status_code == 422
-
     code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
-    public = authenticated_client.get(
+    public_before_movement = client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": code},
+    ).json()
+    with client.websocket_connect(
+        f"/api/v1/realtime?campaign_id={demo_campaign_id}"
+        f"&last_sequence={public_before_movement['last_sequence']}&join_code={code}"
+    ) as websocket:
+        movement = authenticated_client.patch(
+            f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+            json={"x": 40, "y": 65, "base_revision": updated["revision"]},
+        )
+        realtime_movement = websocket.receive_json()
+    assert movement.status_code == 200
+    assert realtime_movement["type"] == "scene.character_updated"
+    assert realtime_movement["payload"]["character_id"] == character["id"]
+    assert (realtime_movement["payload"]["x"], realtime_movement["payload"]["y"]) == (40, 65)
+    moved = next(
+        item for item in movement.json()["characters"] if item["character_id"] == character["id"]
+    )
+    assert (moved["x"], moved["y"]) == (40, 65)
+
+    public = client.get(
         f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
         params={"spectator_code": code},
     ).json()
     public_character = next(item for item in public["characters"] if item["id"] == character["id"])
+    public_scene_character = next(
+        item for item in public["scene"]["characters"] if item["character_id"] == character["id"]
+    )
     assert public_character["is_active"] is False
     assert public_character["flip_x"] is scene_character["flip_x"]
+    assert (public_scene_character["x"], public_scene_character["y"]) == (40, 65)
 
 
 def test_gm_can_edit_character_card_with_optimistic_revision(

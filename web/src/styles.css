@@ -1161,8 +1161,25 @@ button.character-card:hover {
   transform-origin: center bottom;
 }
 
+.spectator-avatar--draggable {
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transition: scale 160ms ease;
+  user-select: none;
+}
+
 .spectator-avatar--speaking {
   z-index: 1000;
+}
+
+.spectator-avatar--dragging {
+  cursor: grabbing;
+  scale: 1.04;
+}
+
+.spectator-avatar--saving {
+  cursor: progress;
 }
 
 .spectator-avatar img {
@@ -1171,7 +1188,18 @@ button.character-card:hover {
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 24px 18px rgba(0, 0, 0, 0.58));
+  pointer-events: none;
   transform-origin: center bottom;
+  user-select: none;
+}
+
+.spectator__position-error {
+  position: fixed;
+  z-index: 1200;
+  top: 1rem;
+  left: 50%;
+  width: min(420px, calc(100% - 2rem));
+  transform: translateX(-50%);
 }
 
 .scene-music {

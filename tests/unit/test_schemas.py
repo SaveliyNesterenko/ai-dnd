@@ -8,6 +8,7 @@ from ai_dnd.api.schemas import (
     ObserverOperation,
     SetResourceOperation,
     UpdateCharacterRequest,
+    UpdateSceneCharacterRequest,
 )
 
 
@@ -119,3 +120,11 @@ def test_character_card_update_normalizes_status_effects() -> None:
         status_effects=["  Inspired  ", ""],
     )
     assert request.status_effects == ["Inspired"]
+
+
+def test_scene_character_update_requires_a_bounded_change() -> None:
+    with pytest.raises(ValidationError):
+        UpdateSceneCharacterRequest(base_revision=1)
+
+    request = UpdateSceneCharacterRequest(base_revision=1, x=0, y=100)
+    assert (request.x, request.y) == (0, 100)

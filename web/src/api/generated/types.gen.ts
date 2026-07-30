@@ -1161,6 +1161,14 @@ export type UpdateSceneCharacterRequest = {
      */
     is_visible?: boolean | null;
     /**
+     * X
+     */
+    x?: number | null;
+    /**
+     * Y
+     */
+    y?: number | null;
+    /**
      * Order
      */
     order?: number | null;

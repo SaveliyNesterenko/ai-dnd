@@ -5,6 +5,8 @@ import { api } from "../api/client";
 import type { RealtimeEvent } from "../api/types";
 import { CharacterCard } from "../components/CharacterCard";
 import { ConnectionBadge } from "../components/ConnectionBadge";
+import { DraggableSpectatorAvatar } from "../components/DraggableSpectatorAvatar";
+import type { SpectatorAvatarPosition } from "../components/DraggableSpectatorAvatar";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { SpeechBubble } from "../components/SpeechBubble";
 import { useRealtime } from "../hooks/useRealtime";
@@ -14,6 +16,13 @@ export default function SpectatorPage() {
   const queryClient = useQueryClient();
   const [draftCode, setDraftCode] = useState("");
   const [joinCode, setJoinCode] = useState(() => sessionStorage.getItem("ai-dnd-join-code") ?? "");
+  const [positionError, setPositionError] = useState<unknown>(null);
+  const gmSession = useQuery({
+    queryKey: ["gm-session"],
+    queryFn: api.gmSession,
+    retry: false,
+  });
+  const hasGmAccess = gmSession.isSuccess;
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
   const campaignId =
     campaigns.data?.find((campaign) => campaign.is_active)?.id ?? campaigns.data?.[0]?.id;
@@ -26,7 +35,7 @@ export default function SpectatorPage() {
   const snapshot = useQuery({
     queryKey: ["public-snapshot", campaignId, joinCode],
     queryFn: () => api.publicSnapshot(campaignId!, joinCode),
-    enabled: Boolean(campaignId && joinCode),
+    enabled: Boolean(campaignId && (joinCode || hasGmAccess)),
     retry: false,
   });
   const handleRealtime = useCallback(
@@ -42,8 +51,40 @@ export default function SpectatorPage() {
     joinCode || undefined,
     handleRealtime,
   );
+  const persistAvatarPosition = useCallback(
+    async (
+      characterId: string,
+      baseRevision: number,
+      position: SpectatorAvatarPosition,
+    ) => {
+      if (!campaignId || !hasGmAccess) {
+        throw new Error("GM authentication is required.");
+      }
+      setPositionError(null);
+      try {
+        await api.updateSceneCharacter(campaignId, characterId, {
+          x: position.x,
+          y: position.y,
+          base_revision: baseRevision,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["public-snapshot", campaignId, joinCode],
+        });
+      } catch (error) {
+        setPositionError(error);
+        await queryClient.invalidateQueries({
+          queryKey: ["public-snapshot", campaignId, joinCode],
+        });
+        throw error;
+      }
+    },
+    [campaignId, hasGmAccess, joinCode, queryClient],
+  );
 
-  if (!joinCode) {
+  if (gmSession.isPending) {
+    return <main className="center-screen">Проверка доступа к сцене…</main>;
+  }
+  if (!joinCode && !hasGmAccess) {
     return (
       <main className="join-screen">
         <div className="join-card">
@@ -120,6 +161,11 @@ export default function SpectatorPage() {
       style={location?.image_url ? { backgroundImage: `url("${location.image_url}")` } : undefined}
     >
       <div className="spectator__veil" />
+      {positionError ? (
+        <div className="spectator__position-error">
+          <ErrorNotice error={positionError} title="Не удалось переместить персонажа" />
+        </div>
+      ) : null}
       <SceneMusic
         url={music?.audio_url}
         isPlaying={snapshot.data.scene.music_is_playing}
@@ -146,16 +192,17 @@ export default function SpectatorPage() {
             const isSpeaking = activeCue?.characterId === character.id;
             const avatarSize = snapshot.data.scene.avatar_size * (state.scale / 100);
             return (
-              <figure
-                className={`spectator-avatar${isSpeaking ? " spectator-avatar--speaking" : ""}`}
+              <DraggableSpectatorAvatar
+                canDrag={hasGmAccess}
+                initialPosition={{ x: state.x, y: state.y }}
+                isSpeaking={isSpeaking}
                 key={character.id}
-                style={{
-                  left: `${state.x}%`,
-                  top: `${state.y}%`,
-                  zIndex: isSpeaking ? 1000 : state.order + 1,
-                  width: `${avatarSize}px`,
-                  transform: "translate(-50%, -100%)",
-                }}
+                name={character.name}
+                onPositionChange={(position) =>
+                  persistAvatarPosition(character.id, state.revision, position)
+                }
+                width={avatarSize}
+                zIndex={isSpeaking ? 1000 : state.order + 1}
               >
                 {isSpeaking && activeCue ? (
                   <SpeechBubble
@@ -168,10 +215,11 @@ export default function SpectatorPage() {
                   <img
                     src={imageUrl}
                     alt={character.name}
+                    draggable={false}
                     style={{ transform: state.flip_x ? "scaleX(-1)" : undefined }}
                   />
                 ) : null}
-              </figure>
+              </DraggableSpectatorAvatar>
             );
           })}
       </section>
