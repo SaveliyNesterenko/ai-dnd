@@ -16,13 +16,13 @@ test.beforeAll(async () => {
     executable,
     ["-c", "from ai_dnd.cli import main; main()", "serve", "--port", "8765"],
     {
-    cwd: resolve(".."),
-    env: {
-      ...process.env,
-      AI_DND_DATA_DIR: runtimeDirectory,
-      AI_DND_ENVIRONMENT: "test",
-    },
-    stdio: "ignore",
+      cwd: resolve(".."),
+      env: {
+        ...process.env,
+        AI_DND_DATA_DIR: runtimeDirectory,
+        AI_DND_ENVIRONMENT: "test",
+      },
+      stdio: "ignore",
     },
   );
 
@@ -56,7 +56,7 @@ test("spectator route offers a protected join flow", async ({ page }) => {
   await expect(page.getByLabel("Код зрителя")).toBeVisible();
 });
 
-test("GM turn is applied and reaches the spectator projection", async ({ page, context }) => {
+test("GM turn is applied and reaches the spectator projection", async ({ page, browser }) => {
   test.setTimeout(60_000);
   const security = JSON.parse(
     await readFile(resolve(runtimeDirectory, "security.json"), "utf8"),
@@ -78,7 +78,10 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
 
   await page.getByRole("button", { name: "Запустить событие" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();
-  const spectator = await context.newPage();
+  const spectatorContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:8765/",
+  });
+  const spectator = await spectatorContext.newPage();
   await spectator.goto("/spectator");
   await spectator.getByLabel("Код зрителя").fill(security.spectator_code);
   await spectator.getByRole("button", { name: "Войти в сцену" }).click();
@@ -123,4 +126,5 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, c
   await recollections.nth(1).fill("I remember guarding the mechanism.");
   await page.getByRole("button", { name: "Сохранить и завершить" }).click();
   await expect(page.getByRole("button", { name: "Запустить событие" })).toBeVisible();
+  await spectatorContext.close();
 });

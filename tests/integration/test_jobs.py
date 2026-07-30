@@ -168,9 +168,7 @@ def test_archivist_uses_each_player_model_and_context_can_be_compressed(
     authenticated_client: TestClient,
     demo_campaign_id: str,
 ) -> None:
-    snapshot = authenticated_client.get(
-        f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
-    ).json()
+    snapshot = authenticated_client.get(f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot").json()
     players = [character for character in snapshot["characters"] if character["kind"] == "player"]
     provider = StubLLMProvider(players[0]["id"])
     authenticated_client.app.state.llm = provider
@@ -191,9 +189,7 @@ def test_archivist_uses_each_player_model_and_context_can_be_compressed(
         )
         assert response.status_code == 201
 
-    current = authenticated_client.get(
-        f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
-    ).json()
+    current = authenticated_client.get(f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot").json()
     compression = authenticated_client.post(
         f"/api/v1/campaigns/{demo_campaign_id}/jobs/context-compression",
         json={
@@ -212,9 +208,7 @@ def test_archivist_uses_each_player_model_and_context_can_be_compressed(
     compressed = authenticated_client.get(
         f"/api/v1/campaigns/{demo_campaign_id}/gm-snapshot"
     ).json()
-    assert compressed["active_event"]["context_summary"] == (
-        "The party completed the early steps."
-    )
+    assert compressed["active_event"]["context_summary"] == ("The party completed the early steps.")
     finalization = authenticated_client.post(
         f"/api/v1/campaigns/{demo_campaign_id}/jobs/event-finalization",
         json={

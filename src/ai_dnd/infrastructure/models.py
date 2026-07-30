@@ -122,9 +122,7 @@ class LocationModel(Base):
 
 class MusicTrackModel(Base):
     __tablename__ = "music_tracks"
-    __table_args__ = (
-        UniqueConstraint("campaign_id", "slug", name="uq_music_track_campaign_slug"),
-    )
+    __table_args__ = (UniqueConstraint("campaign_id", "slug", name="uq_music_track_campaign_slug"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     campaign_id: Mapped[str] = mapped_column(
@@ -232,9 +230,7 @@ class GameEventModel(Base):
     finalization_started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     finalization_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    context_summary_through_sequence: Mapped[int | None] = mapped_column(
-        Integer, nullable=True
-    )
+    context_summary_through_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     archive_chronicle: Mapped[str | None] = mapped_column(Text, nullable=True)
     archive_player_notes: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     finalization_source: Mapped[str | None] = mapped_column(String(24), nullable=True)

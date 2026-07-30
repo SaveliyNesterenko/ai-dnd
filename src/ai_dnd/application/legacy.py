@@ -492,14 +492,10 @@ class LegacyDataService:
             character.kind = _character_kind(meta.get("role"))
             character.role = str(meta.get("role") or character.role)
             character.global_chronicle = [
-                str(entry)
-                for entry in memory.get("global_chronicle", [])
-                if isinstance(entry, str)
+                str(entry) for entry in memory.get("global_chronicle", []) if isinstance(entry, str)
             ]
             character.private_notes = [
-                str(entry)
-                for entry in memory.get("private_notes", [])
-                if isinstance(entry, str)
+                str(entry) for entry in memory.get("private_notes", []) if isinstance(entry, str)
             ]
             sprite = meta.get("sprite_id")
             if sprite:

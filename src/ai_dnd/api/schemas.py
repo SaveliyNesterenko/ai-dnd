@@ -205,9 +205,7 @@ class UpdateCharacterRequest(BaseModel):
 
     @field_validator("attributes")
     @classmethod
-    def validate_attributes(
-        cls, value: dict[str, int] | None
-    ) -> dict[str, int] | None:
+    def validate_attributes(cls, value: dict[str, int] | None) -> dict[str, int] | None:
         if value is None:
             return None
         for name, score in value.items():

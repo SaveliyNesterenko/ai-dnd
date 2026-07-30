@@ -70,15 +70,6 @@ skip_covered = true
 target-version = "py311"
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = [
-  "archivist.py",
-  "orchestrator.py",
-  "prompt_builder.py",
-  "response_handler.py",
-  "run_dev.py",
-  "tts_service.py",
-  "utils",
-]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "SIM", "RUF"]

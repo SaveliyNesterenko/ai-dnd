@@ -13,18 +13,15 @@
 - React GM Console и Spectator с reconnect/error/degraded states.
 - Production build, native CLI launcher, тесты и CI-конфигурация.
 
-## Временный compatibility слой
+## Завершённый cutover
 
-Legacy Python и vanilla frontend пока оставлены в корне и `frontend/` только
-для characterization и ручного сравнения поведения. Новый launcher их не
-загружает и runtime JSON не изменяет.
+Legacy Python, Redis-контур, старый launcher, отдельный `requirements.txt` и
+vanilla frontend исключены из публичного репозитория. Локальная копия сохранена
+в игнорируемом архиве для справки и не участвует в сборке, тестах или runtime.
 
-## Следующий cutover
-
-Перед удалением legacy-кода необходимо вручную подтвердить функциональный
-паритет для музыки, STT/TTS, управления локациями и полного сценария
-Архивариуса. После подтверждения можно удалить старые endpoints, Redis-код,
-`requirements.txt`, старый launcher и vanilla UI отдельным reviewable commit.
+Поддерживаемый legacy-import остаётся частью новой архитектуры: он переносит
+пользовательские JSON и assets в SQLite и системное хранилище приложения, но не
+запускает старый код.
 
 Очистка Git history выполнена после отдельного подтверждения владельца; закрытый
 mirror backup сохранён вне checkout.

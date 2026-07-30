@@ -1,7 +1,6 @@
 # Структура проекта AI-DND
 
-Статус: актуально на 29 июля 2026 года, проверено по состоянию репозитория
-`c889ffc`.
+Статус: актуально на 30 июля 2026 года.
 
 Этот документ описывает фактическую структуру checkout. Архитектурные решения и
 границы ответственности подробнее разобраны в [architecture.md](architecture.md),
@@ -56,16 +55,6 @@ ai-dnd_V2/
 ├── scripts/                     # Проверка миграций и экспорт OpenAPI
 ├── .github/                     # CI, Dependabot и GitHub-шаблоны
 │
-├── frontend/                    # Legacy vanilla JS UI, не основной frontend
-├── utils/                       # Legacy Python utilities
-├── archivist.py                 # Legacy Python
-├── orchestrator.py              # Legacy Python
-├── prompt_builder.py            # Legacy Python
-├── response_handler.py          # Legacy Python
-├── run_dev.py                   # Legacy launcher
-├── tts_service.py               # Legacy voice service
-├── requirements.txt             # Legacy dependencies
-│
 ├── pyproject.toml               # Python package, зависимости и инструменты
 ├── uv.lock                      # Зафиксированные Python-зависимости
 ├── alembic.ini                  # Конфигурация Alembic
@@ -91,15 +80,12 @@ ai-dnd_V2/
 `data/` и `assets/`, если они присутствуют локально, относятся к старой кампании
 и исключены из Git. Версионируемые demo-материалы размещаются только в `demo/`.
 
-## Современный и legacy-код
+## Граница с legacy-версией
 
-Новый функционал следует добавлять в `src/ai_dnd/` и `web/`. Каталог
-`frontend/`, корневые Python-модули, `utils/` и `requirements.txt` сохранены
-временно для сверки поведения и импорта старых данных. Новый launcher их не
-загружает.
-
-Удалять legacy-контур следует отдельным изменением после подтверждения
-функционального паритета по [functional-parity.md](functional-parity.md).
+Код прототипа больше не входит в публичный репозиторий. Поддерживаемый
+`src/ai_dnd/application/legacy.py` — это изолированный импортёр старых JSON и
+assets, а не часть прежнего runtime-контура. Новый функционал добавляется только
+в `src/ai_dnd/` и `web/`.
 
 ## Фактические границы модулей
 
@@ -125,7 +111,7 @@ ai-dnd_V2/
 - добавлении или переименовании верхнеуровневого каталога;
 - изменении CLI, application factory или расположения frontend entry point;
 - смене источника истины или места хранения runtime-данных;
-- переносе кода между современным и legacy-контурами;
+- изменении границы или формата legacy-import;
 - изменении процесса генерации OpenAPI или миграций БД.
 
 При расхождении документа с кодом приоритет имеют `pyproject.toml`,

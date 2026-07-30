@@ -189,9 +189,7 @@ def test_scene_character_updates_are_public_and_revision_guarded(
     )
     assert response.status_code == 200
     updated = next(
-        item
-        for item in response.json()["characters"]
-        if item["character_id"] == character["id"]
+        item for item in response.json()["characters"] if item["character_id"] == character["id"]
     )
     assert updated["is_visible"] is False
     assert (updated["x"], updated["y"], updated["scale"]) == (
@@ -382,9 +380,7 @@ def test_archivist_outage_keeps_event_log_until_manual_confirmation(
 ) -> None:
     event = _start_event(authenticated_client, demo_campaign_id)
     before = _gm_snapshot(authenticated_client, demo_campaign_id)
-    players = [
-        character for character in before["characters"] if character["kind"] == "player"
-    ]
+    players = [character for character in before["characters"] if character["kind"] == "player"]
     _create_turn(
         authenticated_client,
         demo_campaign_id,
@@ -414,17 +410,12 @@ def test_archivist_outage_keeps_event_log_until_manual_confirmation(
     waiting = _gm_snapshot(authenticated_client, demo_campaign_id)
     assert waiting["active_event"]["status"] == "finalizing"
     assert len(waiting["active_event"]["turns"]) == 1
-    assert {
-        character["id"]: character["private_notes"] for character in waiting["characters"]
-    } == {
+    assert {character["id"]: character["private_notes"] for character in waiting["characters"]} == {
         character["id"]: character["private_notes"] for character in before["characters"]
     }
 
     confirm = authenticated_client.post(
-        (
-            f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}"
-            "/finalization/confirm"
-        ),
+        (f"/api/v1/campaigns/{demo_campaign_id}/events/{event['id']}/finalization/confirm"),
         json={
             "base_revision": waiting["active_event"]["revision"],
             "chronicle": "The party documented the first gear.",

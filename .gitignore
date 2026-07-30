@@ -24,6 +24,7 @@ logs/
 # --- IDE и редакторы кода ---
 .vscode/
 .idea/
+.idx/
 *.swp
 *.swo
 
@@ -39,6 +40,8 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.uv-cache/
+.tmp/
 .coverage
 htmlcov/
 
@@ -72,3 +75,6 @@ web/.playwright-runtime/
 
 # --- Local Codex instructions ---
 /AGENTS.md
+
+# --- Local pre-modernization archive ---
+/_archive_pre_modernization/

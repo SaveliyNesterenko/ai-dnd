@@ -297,11 +297,7 @@ async def test_scene_membership_tracks_event_participants_and_optional_d20(
     session = repository_session
     service = GameService(session)
     campaign = await session.scalar(select(CampaignModel))
-    characters = list(
-        await session.scalars(
-            select(CharacterModel).order_by(CharacterModel.name)
-        )
-    )
+    characters = list(await session.scalars(select(CharacterModel).order_by(CharacterModel.name)))
     assert campaign is not None
     assert len(characters) == 2
     first, second = characters
@@ -523,9 +519,7 @@ async def test_character_card_editors_update_resources_inventory_and_effects(
         ),
     )
     await session.commit()
-    assert [(item.name, item.quantity) for item in reduced.inventory] == [
-        ("Clockwork key", 3)
-    ]
+    assert [(item.name, item.quantity) for item in reduced.inventory] == [("Clockwork key", 3)]
 
     with pytest.raises(StaleRevisionError):
         await service.update_character(

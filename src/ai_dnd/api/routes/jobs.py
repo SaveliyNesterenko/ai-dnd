@@ -142,9 +142,7 @@ async def generate_event_finalization(
             )
             turns = list(current_event.turns)
             context_summary = current_event.context_summary
-            context_summary_through_sequence = (
-                current_event.context_summary_through_sequence
-            )
+            context_summary_through_sequence = current_event.context_summary_through_sequence
             participant_data: list[dict[str, Any]] = [
                 {
                     "id": character.id,
@@ -187,9 +185,7 @@ async def generate_event_finalization(
                 if character["kind"] != "player":
                     continue
                 recollection = await llm.generate_player_recollection(
-                    profile=ModelProfile(
-                        model_id=character["model_id"] or settings.default_model
-                    ),
+                    profile=ModelProfile(model_id=character["model_id"] or settings.default_model),
                     system_prompt=(
                         "Ты — актёр, исполняющий роль своего персонажа. Веди личный "
                         "дневник только от его лица."
@@ -204,9 +200,7 @@ async def generate_event_finalization(
                         event_history=_effective_event_history(
                             turns,
                             context_summary=context_summary,
-                            context_summary_through_sequence=(
-                                context_summary_through_sequence
-                            ),
+                            context_summary_through_sequence=(context_summary_through_sequence),
                             own_thought_character_id=str(character["id"]),
                         ),
                     ),
@@ -288,9 +282,7 @@ async def generate_context_compression(
                 raise NotFoundError("Game event not found.")
             through_sequence = current_event.context_summary_through_sequence or 0
             uncompressed_turns = [
-                turn
-                for turn in current_event.turns
-                if turn.sequence > through_sequence
+                turn for turn in current_event.turns if turn.sequence > through_sequence
             ]
             if len(uncompressed_turns) <= 10:
                 return {
@@ -302,9 +294,7 @@ async def generate_context_compression(
             compression_history = _effective_event_history(
                 turns_to_compress,
                 context_summary=current_event.context_summary,
-                context_summary_through_sequence=(
-                    current_event.context_summary_through_sequence
-                ),
+                context_summary_through_sequence=(current_event.context_summary_through_sequence),
             )
             compressed_through_sequence = turns_to_compress[-1].sequence
         try:
@@ -313,9 +303,7 @@ async def generate_context_compression(
                 system_prompt=(
                     "Ты — Синтезатор Хроники. Сжимай старую часть текущего игрового лога."
                 ),
-                prompt=build_context_compression_prompt(
-                    event_history=compression_history
-                ),
+                prompt=build_context_compression_prompt(event_history=compression_history),
             )
         except LLMUnavailableError as error:
             raise DegradedJobError(
@@ -513,8 +501,7 @@ async def generate_observer_proposal(
                 "mp": {"current": character.mp_current, "max": character.mp_max},
                 "attributes": character.attributes,
                 "status_effects": [
-                    {"id": effect.id, "name": effect.name}
-                    for effect in character.status_effects
+                    {"id": effect.id, "name": effect.name} for effect in character.status_effects
                 ],
             },
             "inventory": [

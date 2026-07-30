@@ -217,11 +217,7 @@ class GameService:
                     else None
                 ),
                 "flip_x": next(
-                    (
-                        item.flip_x
-                        for item in scene_characters
-                        if item.character_id == character.id
-                    ),
+                    (item.flip_x for item in scene_characters if item.character_id == character.id),
                     character.flip_x,
                 ),
                 "is_active": next(
@@ -274,9 +270,7 @@ class GameService:
                 ],
                 finalization_job_id=active_event.finalization_job_id if gm_view else None,
                 context_summary=active_event.context_summary,
-                context_summary_through_sequence=(
-                    active_event.context_summary_through_sequence
-                ),
+                context_summary_through_sequence=(active_event.context_summary_through_sequence),
                 turns=[
                     TurnView(
                         id=turn.id,
@@ -708,9 +702,7 @@ class GameService:
         await self.session.flush()
         return proposal
 
-    async def get_proposal(
-        self, campaign_id: str, proposal_id: str
-    ) -> ObserverProposalModel:
+    async def get_proposal(self, campaign_id: str, proposal_id: str) -> ObserverProposalModel:
         proposal = await self.session.get(ObserverProposalModel, proposal_id)
         if not proposal or proposal.campaign_id != campaign_id:
             raise NotFoundError("Observer proposal not found.")
@@ -849,9 +841,7 @@ class GameService:
         elif isinstance(operation, RemoveStatusEffectOperation):
             effect = None
             if operation.status_effect_id is not None:
-                effect = await self.session.get(
-                    StatusEffectModel, operation.status_effect_id
-                )
+                effect = await self.session.get(StatusEffectModel, operation.status_effect_id)
             elif operation.name is not None:
                 effect = await self.session.scalar(
                     select(StatusEffectModel).where(
@@ -969,9 +959,7 @@ class GameService:
         )
         if len(participants) != len(participant_ids):
             raise ValidationError("One or more event participants no longer exist.")
-        player_ids = {
-            character.id for character in participants if character.kind == "player"
-        }
+        player_ids = {character.id for character in participants if character.kind == "player"}
         supplied_player_ids = set(request.player_notes)
         if supplied_player_ids != player_ids:
             missing = sorted(player_ids - supplied_player_ids)
