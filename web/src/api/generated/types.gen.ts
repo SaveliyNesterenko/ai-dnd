@@ -220,6 +220,10 @@ export type CharacterGm = {
      */
     biography: string;
     /**
+     * Model Id
+     */
+    model_id?: string | null;
+    /**
      * Portrait Url
      */
     portrait_url?: string | null;
@@ -274,10 +278,6 @@ export type CharacterGm = {
      */
     revision: number;
     /**
-     * Model Id
-     */
-    model_id?: string | null;
-    /**
      * Voice Asset Id
      */
     voice_asset_id?: string | null;
@@ -319,6 +319,10 @@ export type CharacterPublic = {
      * Biography
      */
     biography: string;
+    /**
+     * Model Id
+     */
+    model_id?: string | null;
     /**
      * Portrait Url
      */

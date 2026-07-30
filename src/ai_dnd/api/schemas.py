@@ -30,6 +30,7 @@ class CharacterPublic(BaseModel):
     kind: Literal["player", "npc", "enemy"]
     role: str
     biography: str
+    model_id: str | None = None
     portrait_url: str | None = None
     avatar_url: str | None = None
     sprite_url: str | None = None
@@ -46,7 +47,6 @@ class CharacterPublic(BaseModel):
 
 
 class CharacterGM(CharacterPublic):
-    model_id: str | None = None
     voice_asset_id: str | None = None
     global_chronicle: list[str]
     private_notes: list[str]

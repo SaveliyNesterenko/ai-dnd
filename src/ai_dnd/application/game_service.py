@@ -201,6 +201,7 @@ class GameService:
                 "kind": character.kind,
                 "role": character.role,
                 "biography": character.biography,
+                "model_id": character.model_id,
                 "portrait_url": (
                     f"/api/v1/assets/{character.portrait_asset_id}"
                     if character.portrait_asset_id
@@ -249,7 +250,6 @@ class GameService:
                 character_views.append(
                     CharacterGM(
                         **common,
-                        model_id=character.model_id,
                         voice_asset_id=character.voice_asset_id,
                         global_chronicle=character.global_chronicle,
                         private_notes=character.private_notes,

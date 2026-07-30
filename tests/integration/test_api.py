@@ -98,9 +98,12 @@ def test_public_projection_hides_private_fields(
     assert public_response.status_code == 200
     public = public_response.json()
     assert "private_notes" in gm["characters"][0]
-    assert "model_id" in gm["characters"][0]
+    assert "voice_asset_id" in gm["characters"][0]
     assert "private_notes" not in public["characters"][0]
-    assert "model_id" not in public["characters"][0]
+    assert "global_chronicle" not in public["characters"][0]
+    assert "voice_asset_id" not in public["characters"][0]
+    # Имя модели показывается на зрительской карточке, как в legacy-версии.
+    assert "model_id" in public["characters"][0]
     assert public["global_chronicle"] is None
 
 

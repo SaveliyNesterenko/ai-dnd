@@ -1887,6 +1887,17 @@
             "type": "string",
             "title": "Biography"
           },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
           "portrait_url": {
             "anyOf": [
               {
@@ -1969,17 +1980,6 @@
             "type": "integer",
             "title": "Revision"
           },
-          "model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Id"
-          },
           "voice_asset_id": {
             "anyOf": [
               {
@@ -2059,6 +2059,17 @@
           "biography": {
             "type": "string",
             "title": "Biography"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           },
           "portrait_url": {
             "anyOf": [

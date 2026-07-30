@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RealtimeEvent } from "../api/types";
 import { CharacterCard } from "../components/CharacterCard";
+import { CharacterDetailsModal } from "../components/CharacterDetailsModal";
 import { ConnectionBadge } from "../components/ConnectionBadge";
 import { DraggableSpectatorAvatar } from "../components/DraggableSpectatorAvatar";
 import type { SpectatorAvatarPosition } from "../components/DraggableSpectatorAvatar";
@@ -17,6 +18,7 @@ export default function SpectatorPage() {
   const [draftCode, setDraftCode] = useState("");
   const [joinCode, setJoinCode] = useState(() => sessionStorage.getItem("ai-dnd-join-code") ?? "");
   const [positionError, setPositionError] = useState<unknown>(null);
+  const [openCharacterId, setOpenCharacterId] = useState<string | null>(null);
   const gmSession = useQuery({
     queryKey: ["gm-session"],
     queryFn: api.gmSession,
@@ -154,6 +156,7 @@ export default function SpectatorPage() {
     (item) => item.id === snapshot.data.scene.music_track_id,
   );
   const activeCharacters = snapshot.data.characters.filter((character) => character.is_active);
+  const openCharacter = activeCharacters.find((character) => character.id === openCharacterId);
 
   return (
     <main
@@ -172,10 +175,19 @@ export default function SpectatorPage() {
         volume={snapshot.data.scene.music_volume}
       />
       <header className="spectator__header">
-        <div>
+        <div className="spectator__title">
           <span className="eyebrow">Сейчас в игре</span>
           <h1>{location?.name ?? snapshot.data.campaign.name}</h1>
         </div>
+        <section className="spectator__characters" aria-label="Активные персонажи">
+          {activeCharacters.map((character) => (
+            <CharacterCard
+              key={character.id}
+              character={character}
+              onOpen={(selected) => setOpenCharacterId(selected.id)}
+            />
+          ))}
+        </section>
         <ConnectionBadge state={connection} />
       </header>
 
@@ -236,11 +248,12 @@ export default function SpectatorPage() {
         ) : null}
       </section>
 
-      <section className="spectator__characters" aria-label="Активные персонажи">
-        {activeCharacters.map((character) => (
-          <CharacterCard key={character.id} character={character} compact />
-        ))}
-      </section>
+      {openCharacter && (
+        <CharacterDetailsModal
+          character={openCharacter}
+          onClose={() => setOpenCharacterId(null)}
+        />
+      )}
     </main>
   );
 }
