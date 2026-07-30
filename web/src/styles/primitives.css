@@ -49,6 +49,139 @@
   box-shadow: none;
 }
 
+/* ── .btn ────────────────────────────────────────────────────────────────
+   Кнопки редизайна. Прежний .button остаётся до тех пор, пока на него
+   опираются непереехавшие панели (Наблюдатель, карточки), и уходит вместе
+   с последней из них. */
+
+.btn {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: var(--s2);
+  border: 1px solid var(--edge-strong);
+  border-radius: 9px;
+  color: var(--text);
+  background: rgb(255 255 255 / 4%);
+  padding: 0 var(--s4);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    filter var(--t-fast) ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 8%);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.btn kbd {
+  border: 0;
+  background: none;
+  padding: 0;
+  opacity: 0.65;
+}
+
+.btn--gm {
+  border-color: #f1b05f;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  font-weight: 700;
+}
+
+.btn--gm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  filter: brightness(1.08);
+}
+
+.btn--model {
+  border-color: rgb(127 179 213 / 50%);
+  color: #0c1720;
+  background: linear-gradient(135deg, #9ec8e4, #6fa5c9);
+  font-weight: 700;
+}
+
+.btn--model:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9ec8e4, #6fa5c9);
+  filter: brightness(1.06);
+}
+
+.btn--observer {
+  border-color: rgb(154 135 216 / 50%);
+  color: #140f22;
+  background: linear-gradient(135deg, #b7a6ea, #8e79d0);
+  font-weight: 700;
+}
+
+.btn--observer:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b7a6ea, #8e79d0);
+  filter: brightness(1.06);
+}
+
+.btn--ghost {
+  border-color: transparent;
+  color: var(--muted);
+  background: none;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.btn--large {
+  height: 46px;
+  border-radius: 10px;
+  padding: 0 26px;
+  font-size: 14px;
+}
+
+.btn--compact {
+  height: 26px;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.mini-button {
+  height: 22px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 6px;
+  color: var(--muted);
+  background: none;
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+  transition:
+    color var(--t-fast) ease,
+    background var(--t-fast) ease;
+}
+
+.mini-button:hover:not(:disabled) {
+  color: var(--text);
+  background: rgb(255 255 255 / 5%);
+}
+
+.mini-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mini-button--archivist {
+  border-color: rgb(121 195 154 / 35%);
+  color: var(--role-archivist);
+  background: var(--role-archivist-dim);
+}
+
 .icon-button {
   display: grid;
   width: 26px;
@@ -135,6 +268,304 @@
     opacity: 1;
     transform: none;
   }
+}
+
+.popover__title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.popover__title:not(:first-child) {
+  margin-top: var(--s3);
+}
+
+.popover__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.popover__row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: none;
+  padding: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.popover__row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 5%);
+}
+
+.popover__row:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.popover__row.is-selected {
+  background: var(--role-gm-dim);
+}
+
+.popover__row-mark {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.popover__row.is-selected .popover__row-mark {
+  background: var(--role-gm);
+}
+
+.popover__row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover__rule {
+  border: 0;
+  border-top: 1px solid var(--edge);
+  margin: 10px 0;
+}
+
+.popover__field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.popover__field select,
+.popover__search {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: var(--inset);
+  padding: 0 9px;
+}
+
+.popover__search {
+  margin-bottom: 10px;
+}
+
+.popover__field input[type="range"] {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  accent-color: var(--role-gm);
+}
+
+.popover__music {
+  display: grid;
+  align-items: center;
+  gap: var(--s2);
+  grid-template-columns: 1fr auto auto;
+}
+
+.popover__music .mini-button {
+  height: 32px;
+  padding: 0 10px;
+  line-height: 0;
+}
+
+.popover__code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: 0 8px;
+}
+
+.popover__code strong {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 17px;
+  letter-spacing: 0.18em;
+}
+
+.popover__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  padding: 0 8px;
+  font-size: 11.5px;
+}
+
+.popover__status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4a4553;
+}
+
+.popover__status.is-online > span {
+  background: var(--role-archivist);
+}
+
+.popover__empty {
+  margin: 0;
+  color: var(--muted);
+  padding: 8px;
+  font-size: 12px;
+}
+
+.popover__scale-preview {
+  display: flex;
+  height: 44px;
+  align-items: flex-end;
+  gap: var(--s2);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-s);
+  background: var(--inset);
+  padding: 6px;
+}
+
+.popover__scale-preview i {
+  width: 18px;
+  min-height: 4px;
+  max-height: 32px;
+  border-radius: 2px;
+  background: linear-gradient(#8d6a4a, #4a3628);
+}
+
+.popover__scale-preview span {
+  margin-left: auto;
+  color: #5f5a6a;
+  font-size: 11px;
+}
+
+.picker-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: none;
+  padding: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.picker-row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 5%);
+}
+
+.picker-row:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.picker-row__portrait {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  color: var(--muted);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-family: Georgia, serif;
+  font-size: 13px;
+}
+
+.picker-row__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.picker-row__text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.picker-row__name {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.picker-row__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.picker-row__kind--player {
+  color: var(--success);
+}
+
+.picker-row__kind--npc {
+  color: #d3c4a8;
+}
+
+.picker-row__kind--enemy {
+  color: var(--danger);
+}
+
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  margin-left: auto;
+  background: rgb(255 255 255 / 10%);
+  transition: background var(--t-fast) ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8a8397;
+  transition:
+    left var(--t-fast) ease,
+    background var(--t-fast) ease;
+}
+
+.picker-row[aria-checked="true"] .switch {
+  background: var(--role-gm-dim);
+}
+
+.picker-row[aria-checked="true"] .switch::after {
+  left: 16px;
+  background: var(--role-gm);
 }
 
 /* ── Dialog ──────────────────────────────────────────────────────────────

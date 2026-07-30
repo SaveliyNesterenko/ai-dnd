@@ -2,13 +2,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { VoiceWorkspace } from "./VoiceWorkspace";
+import { ToastProvider } from "../ui/ToastProvider";
+import { VoiceDock } from "./VoiceDock";
 
 const transcribeVoice = vi.fn();
 const getVoiceJob = vi.fn();
 const createTurn = vi.fn();
 
-vi.mock("../api/client", () => ({
+vi.mock("../../api/client", () => ({
   api: {
     transcribeVoice: (file: File) => transcribeVoice(file) as unknown,
     getVoiceJob: (jobId: string) => getVoiceJob(jobId) as unknown,
@@ -54,14 +55,16 @@ function stubMediaDevices(getUserMedia: () => Promise<MediaStream>) {
   });
 }
 
-function renderWorkspace(eventId?: string) {
+function renderDock(eventId?: string) {
   const onChanged = vi.fn();
   const client = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
   const result = render(
     <QueryClientProvider client={client}>
-      <VoiceWorkspace campaignId="camp-1" eventId={eventId} onChanged={onChanged} />
+      <ToastProvider>
+        <VoiceDock campaignId="camp-1" eventId={eventId} onChanged={onChanged} />
+      </ToastProvider>
     </QueryClientProvider>,
   );
   return { onChanged, ...result };
@@ -87,9 +90,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("VoiceWorkspace", () => {
+describe("VoiceDock", () => {
   it("records, transcribes and publishes the text as a GM turn", async () => {
-    const { onChanged } = renderWorkspace("event-1");
+    const { onChanged } = renderDock("event-1");
     const record = screen.getByRole("button", { name: "Запись голоса" });
 
     fireEvent.click(record);
@@ -98,17 +101,15 @@ describe("VoiceWorkspace", () => {
 
     fireEvent.click(stop);
 
-    const textarea = await screen.findByLabelText<HTMLTextAreaElement>(
-      "Распознанный текст GM",
-    );
+    const field = await screen.findByLabelText<HTMLTextAreaElement>("Распознанный текст GM");
     await waitFor(() => {
-      expect(textarea.value).toBe("Гоблины окружают отряд.");
+      expect(field.value).toBe("Гоблины окружают отряд.");
     });
     const uploaded = transcribeVoice.mock.calls[0]![0] as File;
     expect(uploaded.name).toBe("gm-speech.webm");
     expect(uploaded.type).toBe("audio/webm");
 
-    fireEvent.change(textarea, { target: { value: "Гоблины окружают отряд!" } });
+    fireEvent.change(field, { target: { value: "Гоблины окружают отряд!" } });
     fireEvent.click(screen.getByRole("button", { name: "Отправить в лог" }));
 
     await waitFor(() => {
@@ -123,21 +124,35 @@ describe("VoiceWorkspace", () => {
     await waitFor(() => {
       expect(onChanged).toHaveBeenCalled();
     });
-    expect(textarea.value).toBe("");
+    expect(field.value).toBe("");
+  });
+
+  it("publishes with Ctrl+Enter without reaching for the button", async () => {
+    renderDock("event-1");
+    const field = screen.getByLabelText<HTMLTextAreaElement>("Распознанный текст GM");
+
+    fireEvent.change(field, { target: { value: "Тропа сужается." } });
+    fireEvent.keyDown(field, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(createTurn).toHaveBeenCalledWith(
+        "camp-1",
+        "event-1",
+        expect.objectContaining({ action: "Тропа сужается." }),
+      );
+    });
   });
 
   it("explains a denied microphone instead of crashing", async () => {
     const denied = new Error("Permission denied");
     denied.name = "NotAllowedError";
     stubMediaDevices(() => Promise.reject(denied));
-    renderWorkspace("event-1");
+    renderDock("event-1");
 
     fireEvent.click(screen.getByRole("button", { name: "Запись голоса" }));
 
     expect(await screen.findByText("Микрофон недоступен")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Разрешите запись звука для этой страницы/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Разрешите запись звука для этой страницы/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Запись голоса" })).toHaveAttribute(
       "aria-pressed",
       "false",
@@ -146,7 +161,7 @@ describe("VoiceWorkspace", () => {
   });
 
   it("keeps the log button disabled without an active event", () => {
-    renderWorkspace();
+    renderDock();
 
     expect(screen.getByRole("button", { name: "Отправить в лог" })).toBeDisabled();
     expect(
@@ -154,15 +169,15 @@ describe("VoiceWorkspace", () => {
     ).toBeInTheDocument();
   });
 
-  it("reports a failed transcription job", async () => {
+  it("reports a failed transcription job as a toast", async () => {
     getVoiceJob.mockResolvedValue({ id: "job-1", status: "degraded", error_code: "stt_disabled" });
-    renderWorkspace("event-1");
+    renderDock("event-1");
 
     fireEvent.click(screen.getByRole("button", { name: "Запись голоса" }));
     fireEvent.click(await screen.findByRole("button", { name: "Остановить запись" }));
 
-    expect(
-      await screen.findByText("Не удалось расшифровать запись: stt_disabled"),
-    ).toBeInTheDocument();
+    const toast = await screen.findByRole("alert");
+    expect(toast).toHaveTextContent("Расшифровка не удалась");
+    expect(toast).toHaveTextContent("Не удалось расшифровать запись: stt_disabled");
   });
 });

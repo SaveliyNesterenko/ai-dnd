@@ -68,15 +68,19 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
     await readFile(resolve(runtimeDirectory, "security.json"), "utf8"),
   ) as { bootstrap_token: string; spectator_code: string };
   await page.goto(`/api/v1/auth/gm/bootstrap?token=${security.bootstrap_token}`);
-  await expect(
-    page.getByLabel("Активная кампания").locator("option:checked"),
-  ).toHaveText("The Clockwork Crossroads");
+  const campaignChip = page.getByRole("button", { name: /^Кампания:/ });
+  await expect(campaignChip).toContainText("The Clockwork Crossroads");
 
+  // Состав сцены меняется переключателями в поповере «Персонажи».
+  const charactersChip = page.getByRole("button", { name: /^Персонажи на сцене:/ });
   await expect(page.locator(".gm-character-card")).toHaveCount(2);
-  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await charactersChip.click();
+  const ariaSwitch = page.getByRole("switch", { name: /Aria Vale/ });
+  await ariaSwitch.click();
   await expect(page.locator(".gm-character-card")).toHaveCount(1);
-  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await ariaSwitch.click();
   await expect(page.locator(".gm-character-card")).toHaveCount(2);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "HP / MP" }).first().click();
   await page.getByLabel("HP, текущее").fill("27");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
@@ -89,6 +93,7 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await expect(page.locator(".gm-character-card--flipped")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Запустить событие" }).click();
+  await page.getByRole("button", { name: "Написать ход вручную" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();
   const spectatorContext = await browser.newContext({
     baseURL: "http://127.0.0.1:8765/",
@@ -103,7 +108,7 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await page.getByLabel("Публичное действие").fill(action);
   const thought = "Aria notices a pattern visible to the audience.";
   await page.getByLabel("Мысль модели").fill(thought);
-  await page.getByRole("button", { name: "Отправить с dice roll" }).click();
+  await page.getByRole("button", { name: "Отправить с броском d20" }).click();
   await expect(page.getByText(action, { exact: true })).toBeVisible();
   await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
   await expect(spectator.locator(".speech-bubble.thought")).toBeVisible();

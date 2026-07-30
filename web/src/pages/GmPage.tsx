@@ -1,43 +1,53 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { api, ApiError } from "../api/client";
 import type {
   CharacterGM,
-  CharacterPublic,
   GameStateSnapshot,
   ObserverOperation,
   ObserverProposal,
 } from "../api/types";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { GmCharacterCard } from "../components/GmCharacterCard";
-import { GmTopControls } from "../components/GmTopControls";
-import { VoiceWorkspace } from "../components/VoiceWorkspace";
+import { ActorHeader } from "../components/gm/ActorHeader";
+import { ColumnResizer } from "../components/gm/ColumnResizer";
+import { CommandBar, type OpenPopover } from "../components/gm/CommandBar";
+import { EventLog } from "../components/gm/EventLog";
+import { TurnComposer } from "../components/gm/TurnComposer";
+import { TurnFlowStrip, type TurnStage } from "../components/gm/TurnFlowStrip";
+import { VoiceDock } from "../components/gm/VoiceDock";
+import { ChevronDown, ChevronUp } from "../components/gm/icons";
 import { useJobRunner } from "../hooks/useJobPolling";
 import { useRealtime } from "../hooks/useRealtime";
+import { useToast } from "../hooks/useToast";
+import { useFlowStore } from "../store/flow";
 import { useUiStore } from "../store/ui";
-
-const turnSchema = z.object({
-  action: z.string().trim().min(1).max(30_000),
-  thought: z.string().max(30_000).optional(),
-});
-type TurnForm = z.infer<typeof turnSchema>;
+import { describeError } from "../utils/errors";
 
 export default function GmPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [proposal, setProposal] = useState<ObserverProposal | null>(null);
   const [observerTurnId, setObserverTurnId] = useState<string>();
+  const [appliedForTurnId, setAppliedForTurnId] = useState<string>();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>();
+  const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
+
   const selectedCharacterId = useUiStore((state) => state.selectedCharacterId);
   const selectCharacter = useUiStore((state) => state.selectCharacter);
+  const leftWidth = useUiStore((state) => state.leftWidth);
+  const rightWidth = useUiStore((state) => state.rightWidth);
+  const stripCollapsed = useUiStore((state) => state.stripCollapsed);
+  const setColumnWidth = useUiStore((state) => state.setColumnWidth);
+  const toggleStrip = useUiStore((state) => state.toggleStrip);
+
   const session = useQuery({ queryKey: ["gm-session"], queryFn: api.gmSession, retry: false });
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
   const defaultCampaignId =
     campaigns.data?.find((campaign) => campaign.is_active)?.id ?? campaigns.data?.[0]?.id;
   const campaignId = selectedCampaignId ?? defaultCampaignId;
+
   const activateCampaign = useMutation({
     mutationFn: (nextCampaignId: string) => api.activateCampaign(nextCampaignId),
     onSuccess: (campaign) => {
@@ -46,17 +56,23 @@ export default function GmPage() {
       setSelectedCampaignId(campaign.id);
       void queryClient.invalidateQueries({ queryKey: ["campaigns"] });
     },
+    onError: (error) =>
+      toast.push({
+        tone: "error",
+        title: "Кампания не переключилась",
+        description: describeError(error),
+      }),
   });
+
   const snapshot = useQuery({
     queryKey: ["gm-snapshot", campaignId],
     queryFn: () => api.gmSnapshot(campaignId!),
     enabled: Boolean(campaignId) && session.isSuccess,
   });
+
   const toggleCharacterVisibility = useMutation({
     mutationFn: async (characterId: string) => {
-      if (!campaignId || !snapshot.data) {
-        throw new Error("Кампания ещё не загружена.");
-      }
+      if (!campaignId || !snapshot.data) throw new Error("Кампания ещё не загружена.");
       const states = snapshot.data.scene.characters;
       const state = states.find((item) => item.character_id === characterId);
       const visibleStates = states.filter((item) => item.is_visible);
@@ -76,20 +92,18 @@ export default function GmPage() {
       }
       void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
     },
+    onError: (error) =>
+      toast.push({
+        tone: "error",
+        title: "Состав сцены не изменился",
+        description: describeError(error),
+      }),
   });
 
-  const handleRealtime = useCallback(
-    () => {
-      void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
-    },
-    [campaignId, queryClient],
-  );
-  useRealtime(
-    campaignId,
-    snapshot.data?.last_sequence ?? 0,
-    undefined,
-    handleRealtime,
-  );
+  const handleRealtime = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
+  }, [campaignId, queryClient]);
+  useRealtime(campaignId, snapshot.data?.last_sequence ?? 0, undefined, handleRealtime);
 
   if (session.error instanceof ApiError && session.error.status === 401) {
     return (
@@ -115,112 +129,186 @@ export default function GmPage() {
   }
 
   const characters = snapshot.data.characters as CharacterGM[];
+  const activeEvent = snapshot.data.active_event;
+  const lastTurn = activeEvent?.turns.at(-1);
   const displayedCharacterIds = snapshot.data.scene.characters
     .filter((state) => state.is_visible)
     .sort((left, right) => left.order - right.order)
     .map((state) => state.character_id);
-  const selectedCharacter = characters.find(
-    (character) => character.id === selectedCharacterId,
-  );
+  const selectedCharacter = characters.find((character) => character.id === selectedCharacterId);
   const refreshSnapshot = () => {
     void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
   };
 
+  /* Шаг цикла выводится из снапшота, а не хранится отдельно: любое обновление
+     состояния кампании сразу отражается на полосе. */
+  const stage: TurnStage =
+    appliedForTurnId && appliedForTurnId === lastTurn?.id
+      ? 4
+      : proposal
+        ? 3
+        : lastTurn?.character_id
+          ? 3
+          : lastTurn
+            ? 2
+            : 1;
+
   return (
     <main className="gm-shell">
-      <header className="topbar">
-        <GmTopControls
-          key={campaignId}
-          campaignId={campaignId}
-          campaigns={campaigns.data ?? []}
-          campaignSelectionPending={activateCampaign.isPending}
-          campaignSelectionError={activateCampaign.error}
-          onSelectCampaign={(nextCampaignId) =>
-            activateCampaign.mutate(nextCampaignId)
-          }
-          snapshot={snapshot.data}
-          characters={characters}
-          spectatorCode={session.data?.spectator_code}
-          onToggleCharacter={(characterId) =>
-            toggleCharacterVisibility.mutate(characterId)
-          }
-          characterSelectionPending={toggleCharacterVisibility.isPending}
-          characterSelectionError={toggleCharacterVisibility.error}
-          onChanged={refreshSnapshot}
-        />
-      </header>
+      <CommandBar
+        key={campaignId}
+        campaignId={campaignId}
+        campaigns={campaigns.data ?? []}
+        campaignSelectionPending={activateCampaign.isPending}
+        onSelectCampaign={(nextCampaignId) => activateCampaign.mutate(nextCampaignId)}
+        snapshot={snapshot.data}
+        characters={characters}
+        spectatorCode={session.data?.spectator_code}
+        onToggleCharacter={(characterId) => toggleCharacterVisibility.mutate(characterId)}
+        characterSelectionPending={toggleCharacterVisibility.isPending}
+        onChanged={refreshSnapshot}
+        openPopover={openPopover}
+        onOpenPopover={setOpenPopover}
+      />
 
-      <section className="gm-grid">
-        <aside className="panel panel--voice-log" aria-label="Голос и лог события">
-          <VoiceWorkspace
-            campaignId={campaignId}
-            eventId={
-              snapshot.data.active_event?.status === "active"
-                ? snapshot.data.active_event.id
-                : undefined
-            }
-            onChanged={refreshSnapshot}
-          />
-          <EventTimeline
+      <FlowStripBinding stage={stage} idle={!activeEvent} />
+
+      <section
+        className="gm-work"
+        style={{
+          gridTemplateColumns: `${leftWidth}px auto minmax(360px, 1fr) auto ${rightWidth}px`,
+        }}
+      >
+        <section className="slab gm-column" aria-label="Лог события и запись речи">
+          <EventLogColumn
             campaignId={campaignId}
             snapshot={snapshot.data}
+            characters={characters}
             onChanged={refreshSnapshot}
           />
-        </aside>
+        </section>
 
-        <section className="panel panel--stage">
-          {snapshot.data.active_event?.status === "active" ? (
+        <ColumnResizer
+          side="left"
+          width={leftWidth}
+          onResize={(width) => setColumnWidth("left", width)}
+        />
+
+        <section className="slab gm-column" aria-label="Ответ модели-игрока">
+          {activeEvent?.status === "active" ? (
             <TurnComposer
-              key={`${snapshot.data.active_event.id}:${selectedCharacter?.id ?? "none"}`}
+              key={`${activeEvent.id}:${selectedCharacter?.id ?? "none"}`}
               campaignId={campaignId}
-              eventId={snapshot.data.active_event.id}
+              eventId={activeEvent.id}
               character={selectedCharacter}
               onTurnPublished={(turnId) => {
                 setProposal(null);
                 setObserverTurnId(turnId);
               }}
               onChanged={refreshSnapshot}
+              onPickCharacter={() => setOpenPopover("characters")}
             />
           ) : (
-            <div className="model-response-empty">
-              <span className="eyebrow">Ответ модели-игрока</span>
-              <h2>
-                {snapshot.data.active_event?.status === "finalizing"
-                  ? "Событие завершается"
-                  : "Запустите игровое событие"}
-              </h2>
-              <p>
-                Выбор персонажей и управление игровым событием находятся на верхней
-                панели.
-              </p>
-            </div>
+            <>
+              <div className="panel-head">
+                <h2 className="panel-head__title panel-head__title--model">
+                  Ответ модели-игрока
+                </h2>
+              </div>
+              <ActorHeader
+                character={selectedCharacter}
+                onPick={() => setOpenPopover("characters")}
+              />
+              <div className="composer">
+                <div className="composer__idle">
+                  <h3>
+                    {activeEvent?.status === "finalizing"
+                      ? "Архивариус завершает событие"
+                      : "Событие не запущено"}
+                  </h3>
+                  <p>
+                    {activeEvent?.status === "finalizing"
+                      ? "Пока итог не сохранён, новые ходы не принимаются."
+                      : "Соберите персонажей на сцене и запустите событие в правой части верхней панели."}
+                  </p>
+                </div>
+              </div>
+            </>
           )}
         </section>
 
-        <aside className="panel panel--observer">
+        <ColumnResizer
+          side="right"
+          width={rightWidth}
+          onResize={(width) => setColumnWidth("right", width)}
+        />
+
+        <aside className="slab gm-column" aria-label="Наблюдатель">
           <ObserverPanel
-            key={snapshot.data.active_event?.id ?? "no-event"}
+            key={activeEvent?.id ?? "no-event"}
             campaignId={campaignId}
             snapshot={snapshot.data}
             requestedTurnId={observerTurnId}
             proposal={proposal}
             setProposal={setProposal}
+            onApplied={setAppliedForTurnId}
             onChanged={refreshSnapshot}
           />
         </aside>
+      </section>
 
-        <section className="panel panel--character-strip">
-          <div className="panel__header">
-            <div>
-              <span className="eyebrow">Карточки персонажей</span>
-              <h2>Выбранные персонажи</h2>
-            </div>
-            <span>{displayedCharacterIds.length} показано</span>
+      <section
+        className={`slab character-strip-panel${stripCollapsed ? " is-collapsed" : ""}`}
+        aria-label="Карточки персонажей"
+      >
+        <div className="strip-head">
+          <h2 className="strip-head__title">Персонажи</h2>
+          <span className="count-pill">{displayedCharacterIds.length}</span>
+          <button
+            type="button"
+            className="mini-button strip-head__add"
+            onClick={() => setOpenPopover("characters")}
+          >
+            + Добавить
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={stripCollapsed ? "Развернуть ленту персонажей" : "Свернуть ленту персонажей"}
+            aria-expanded={!stripCollapsed}
+            onClick={toggleStrip}
+          >
+            {stripCollapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          </button>
+        </div>
+
+        {stripCollapsed ? (
+          <div className="strip-rail">
+            {displayedCharacterIds.length === 0 && (
+              <span className="strip-rail__empty">Никого на сцене</span>
+            )}
+            {displayedCharacterIds.map((characterId) => {
+              const character = characters.find((item) => item.id === characterId);
+              if (!character) return null;
+              return (
+                <button
+                  key={character.id}
+                  type="button"
+                  className={`strip-rail__chip${
+                    character.id === selectedCharacterId ? " is-selected" : ""
+                  }`}
+                  onClick={() => selectCharacter(character.id)}
+                >
+                  {character.name}
+                </button>
+              );
+            })}
           </div>
+        ) : (
           <div className="gm-character-strip">
             {displayedCharacterIds.length === 0 && (
               <div className="gm-character-strip__empty">
-                Выберите персонажей в выпадающем списке сверху. Здесь появятся их карточки.
+                Никого на сцене. Добавьте персонажей — здесь появятся их карточки.
               </div>
             )}
             {displayedCharacterIds.map((characterId) => {
@@ -242,223 +330,16 @@ export default function GmPage() {
               );
             })}
           </div>
-        </section>
+        )}
       </section>
     </main>
   );
 }
 
-function EventTimeline({
-  campaignId,
-  snapshot,
-  onChanged,
-}: {
-  campaignId: string;
-  snapshot: GameStateSnapshot;
-  onChanged: () => void;
-}) {
-  const [compressionMessage, setCompressionMessage] = useState<string>();
-  const activeEvent = snapshot.active_event;
-  const throughSequence = activeEvent?.context_summary_through_sequence ?? 0;
-  const visibleTurns =
-    activeEvent?.turns.filter((turn) => turn.sequence > throughSequence) ?? [];
-  const compress = useJobRunner({
-    start: () => {
-      if (!activeEvent) throw new Error("Нет активного события.");
-      return api.generateContextCompression(campaignId, activeEvent.id, activeEvent.revision);
-    },
-    fetchJob: (jobId) => api.getJob(campaignId, jobId),
-    parse: (job) => job.output_data,
-    describeFailure: (job) =>
-      `Не удалось сжать контекст: ${job.error_code ?? job.status}`,
-    timeoutMessage: "Архивариус не ответил вовремя.",
-    onSuccess: (output) => {
-      setCompressionMessage(
-        output?.status === "skipped"
-          ? String(output.message)
-          : "Старая часть контекста сжата.",
-      );
-      onChanged();
-    },
-  });
-  return (
-    <section className="event-log-workspace">
-      <div className="panel__header">
-        <div>
-          <span className="eyebrow">Event log</span>
-          <h2>{snapshot.active_event?.title ?? "Нет активного события"}</h2>
-        </div>
-        <div className="event-log-workspace__actions">
-          <span>
-            {(activeEvent?.context_summary ? 1 : 0) + visibleTurns.length}
-          </span>
-          {activeEvent?.status === "active" && (
-            <button
-              className="button button--quiet"
-              type="button"
-              disabled={compress.isPending}
-              onClick={() => compress.run()}
-            >
-              {compress.isPending ? "Сжимаем…" : "Сжать контекст"}
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="timeline" aria-live="polite">
-        {activeEvent?.context_summary && (
-          <article className="turn turn--summary">
-            <span className="turn__sequence">1–{throughSequence}</span>
-            <div>
-              <strong>Game Master · сжатый контекст</strong>
-              <p>{activeEvent.context_summary}</p>
-            </div>
-          </article>
-        )}
-        {visibleTurns.map((turn) => (
-          <article className="turn" key={turn.id}>
-            <span className="turn__sequence">{String(turn.sequence).padStart(2, "0")}</span>
-            <div>
-              <strong>{turn.actor_name}</strong>
-              {turn.thought && <p className="turn__thought">{turn.thought}</p>}
-              <p>{turn.action}</p>
-            </div>
-            {turn.dice_roll && <span className="die">d20 · {turn.dice_roll}</span>}
-          </article>
-        ))}
-        {!snapshot.active_event && (
-          <div className="event-log-workspace__empty">Лог появится после запуска события.</div>
-        )}
-      </div>
-      {compressionMessage && <p className="compression-message">{compressionMessage}</p>}
-      {compress.error && <ErrorNotice error={compress.error} />}
-    </section>
-  );
-}
-
-function TurnComposer({
-  campaignId,
-  eventId,
-  character,
-  onTurnPublished,
-  onChanged,
-}: {
-  campaignId: string;
-  eventId: string;
-  character: CharacterPublic | undefined;
-  onTurnPublished: (turnId: string) => void;
-  onChanged: () => void;
-}) {
-  const [draftReady, setDraftReady] = useState(false);
-  const form = useForm<TurnForm>({
-    resolver: zodResolver(turnSchema),
-    defaultValues: { action: "", thought: "" },
-  });
-  const createTurn = useMutation({
-    mutationFn: ({
-      value,
-      rollDice,
-    }: {
-      value: TurnForm;
-      rollDice: boolean;
-    }) =>
-      api.createTurn(campaignId, eventId, {
-        character_id: character?.id ?? null,
-        actor_name: character?.name ?? "Game Master",
-        actor_role: character?.role ?? "gm",
-        thought: value.thought || undefined,
-        action: value.action,
-        roll_dice: rollDice,
-      }),
-    onSuccess: (turn) => {
-      form.reset();
-      setDraftReady(false);
-      onTurnPublished(turn.id);
-      void onChanged();
-    },
-  });
-  const generateTurn = useJobRunner({
-    start: () => {
-      if (!character) throw new Error("Сначала выберите персонажа.");
-      return api.generatePlayerTurn(campaignId, eventId, character.id);
-    },
-    fetchJob: (jobId) => api.getJob(campaignId, jobId),
-    parse: (job) => {
-      const output = job.output_data;
-      if (!output || typeof output.thought !== "string" || typeof output.action !== "string") {
-        throw new Error("Модель вернула неполный черновик.");
-      }
-      return { thought: output.thought, action: output.action };
-    },
-    describeFailure: (job) =>
-      `Не удалось создать черновик: ${job.error_code ?? job.status}`,
-    timeoutMessage: "Модель не ответила вовремя.",
-    onSuccess: (draft) => {
-      form.setValue("thought", draft.thought, { shouldDirty: true });
-      form.setValue("action", draft.action, { shouldDirty: true });
-      setDraftReady(true);
-    },
-  });
-  const publish = (rollDice: boolean) => {
-    void form.handleSubmit((value) => createTurn.mutate({ value, rollDice }))();
-  };
-  return (
-    <form
-      className="composer"
-      onSubmit={(event) => event.preventDefault()}
-    >
-      <div className="composer__heading">
-        <div>
-          <span className="eyebrow">Игровое событие</span>
-          <h2>Ответ модели-игрока</h2>
-        </div>
-      </div>
-      <div className="composer__actor">
-        <span>Активный персонаж</span>
-        <strong>{character?.name ?? "Не выбран"}</strong>
-      </div>
-      <div className="composer__draft-actions">
-        <button
-          className="button button--secondary"
-          type="button"
-          disabled={!character || generateTurn.isPending}
-          onClick={() => generateTurn.run()}
-        >
-          {generateTurn.isPending ? "Модель отвечает…" : "Сгенерировать ответ"}
-        </button>
-        {draftReady && (
-          <span>Проверьте и при необходимости отредактируйте мысль и действие.</span>
-        )}
-      </div>
-      <label htmlFor="thought">Мысль модели</label>
-      <textarea id="thought" rows={3} {...form.register("thought")} />
-      <label htmlFor="action">Публичное действие</label>
-      <textarea id="action" rows={7} {...form.register("action")} />
-      <div className="composer__actions">
-        <button
-          className="button button--quiet"
-          type="button"
-          disabled={!character || createTurn.isPending}
-          onClick={() => publish(false)}
-        >
-          Отправить
-        </button>
-        <button
-          className="button"
-          type="button"
-          disabled={!character || createTurn.isPending}
-          onClick={() => publish(true)}
-        >
-          Отправить с dice roll
-        </button>
-      </div>
-      {form.formState.errors.action && (
-        <span className="field-error">{form.formState.errors.action.message}</span>
-      )}
-      {(createTurn.error || generateTurn.error) && (
-        <ErrorNotice error={createTurn.error ?? generateTurn.error} />
-      )}
-    </form>
-  );
+/** Полоса подписана на стор занятости, чтобы тик секунд не трогал всю консоль. */
+function FlowStripBinding({ stage, idle }: { stage: TurnStage; idle: boolean }) {
+  const busy = useFlowStore((state) => state.busy);
+  return <TurnFlowStrip stage={stage} busy={busy ?? undefined} idle={idle} />;
 }
 
 function ObserverPanel({
@@ -467,6 +348,7 @@ function ObserverPanel({
   requestedTurnId,
   proposal,
   setProposal,
+  onApplied,
   onChanged,
 }: {
   campaignId: string;
@@ -474,6 +356,7 @@ function ObserverPanel({
   requestedTurnId: string | undefined;
   proposal: ObserverProposal | null;
   setProposal: (proposal: ObserverProposal | null) => void;
+  onApplied: (turnId: string) => void;
   onChanged: () => void;
 }) {
   const [brief, setBrief] = useState("");
@@ -485,9 +368,7 @@ function ObserverPanel({
   );
   const parseOperations = () => {
     const parsed: unknown = JSON.parse(operationsText);
-    if (!Array.isArray(parsed)) {
-      throw new Error("Operations должны быть JSON-массивом.");
-    }
+    if (!Array.isArray(parsed)) throw new Error("Operations должны быть JSON-массивом.");
     return parsed as ObserverOperation[];
   };
   const useProposal = (nextProposal: ObserverProposal) => {
@@ -501,9 +382,7 @@ function ObserverPanel({
     fetchJob: (jobId) => api.getJob(campaignId, jobId),
     parse: (job) => {
       const proposalId = job.output_data?.proposal_id;
-      if (typeof proposalId !== "string") {
-        throw new Error("Наблюдатель не вернул предложение.");
-      }
+      if (typeof proposalId !== "string") throw new Error("Наблюдатель не вернул предложение.");
       return api.getProposal(campaignId, proposalId);
     },
     describeFailure: (job) => `Наблюдатель недоступен: ${job.error_code ?? job.status}`,
@@ -522,17 +401,13 @@ function ObserverPanel({
   });
   const apply = useMutation({
     mutationFn: () =>
-      api.applyProposal(
-        campaignId,
-        proposal!.id,
-        brief.trim(),
-        parseOperations(),
-      ),
+      api.applyProposal(campaignId, proposal!.id, brief.trim(), parseOperations()),
     onSuccess: () => {
+      if (proposal) onApplied(proposal.turn_id);
       setProposal(null);
       setBrief("");
       setOperationsText("[]");
-      void onChanged();
+      onChanged();
     },
   });
   const automaticTurnRef = useRef<string | undefined>(undefined);
@@ -548,13 +423,7 @@ function ObserverPanel({
       automaticTurnRef.current = requestedTurnId;
       generate.run(requestedTurnId);
     }
-  }, [
-    eventAcceptsChanges,
-    generate,
-    proposal?.turn_id,
-    requestedTurnExists,
-    requestedTurnId,
-  ]);
+  }, [eventAcceptsChanges, generate, proposal?.turn_id, requestedTurnExists, requestedTurnId]);
   const reset = () => {
     setProposal(null);
     setBrief("");
@@ -563,85 +432,148 @@ function ObserverPanel({
 
   return (
     <>
-      <div className="panel__header">
-        <div>
-          <span className="eyebrow">Observer</span>
-          <h2>Механика хода</h2>
-        </div>
-        <span className="revision">rev {snapshot.campaign.revision}</span>
+      <div className="panel-head">
+        <h2 className="panel-head__title panel-head__title--observer">Наблюдатель</h2>
+        <span className="panel-head__aside mono">rev {snapshot.campaign.revision}</span>
       </div>
-      {!eventAcceptsChanges || !lastTurn ? (
-        <div className="empty-state empty-state--small">
-          <p>
-            {snapshot.active_event?.status === "finalizing"
-              ? "Изменения механики отключены, пока Архивариус завершает событие."
-              : "Сначала зафиксируйте ход."}
-          </p>
-        </div>
-      ) : (
-        <div className="observer-form">
-          <label htmlFor="gm-brief">GM Brief</label>
-          <textarea id="gm-brief" rows={7} value={brief} onChange={(e) => setBrief(e.target.value)} />
-          <label htmlFor="observer-operations">Typed operations · JSON</label>
-          <textarea
-            id="observer-operations"
-            rows={12}
-            value={operationsText}
-            spellCheck={false}
-            onChange={(event) => setOperationsText(event.target.value)}
-          />
-          {proposal ? (
-            <div className="proposal-preview">
-              <span className="eyebrow">Ожидает подтверждения</span>
+      <div className="gm-column__scroll">
+        {!eventAcceptsChanges || !lastTurn ? (
+          <div className="empty-state empty-state--small">
+            <p>
+              {snapshot.active_event?.status === "finalizing"
+                ? "Изменения механики отключены, пока Архивариус завершает событие."
+                : "Сначала зафиксируйте ход."}
+            </p>
+          </div>
+        ) : (
+          <div className="observer-form">
+            <label htmlFor="gm-brief">GM Brief</label>
+            <textarea
+              id="gm-brief"
+              rows={7}
+              value={brief}
+              onChange={(event) => setBrief(event.target.value)}
+            />
+            <label htmlFor="observer-operations">Typed operations · JSON</label>
+            <textarea
+              id="observer-operations"
+              rows={12}
+              value={operationsText}
+              spellCheck={false}
+              onChange={(event) => setOperationsText(event.target.value)}
+            />
+            {proposal ? (
+              <div className="proposal-preview">
+                <span className="eyebrow">Ожидает подтверждения</span>
+                <div className="observer-buttons">
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={apply.isPending || !brief.trim()}
+                    onClick={() => apply.mutate()}
+                  >
+                    Применить изменения
+                  </button>
+                  <button
+                    className="button button--secondary"
+                    type="button"
+                    disabled={generate.isPending}
+                    onClick={() => generate.run(lastTurn.id)}
+                  >
+                    {generate.isPending ? "Повторяем…" : "Повторить"}
+                  </button>
+                  <button className="button button--quiet" type="button" onClick={reset}>
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+            ) : (
               <div className="observer-buttons">
-                <button
-                  className="button"
-                  type="button"
-                  disabled={apply.isPending || !brief.trim()}
-                  onClick={() => apply.mutate()}
-                >
-                  Применить изменения
-                </button>
                 <button
                   className="button button--secondary"
                   type="button"
                   disabled={generate.isPending}
                   onClick={() => generate.run(lastTurn.id)}
                 >
-                  {generate.isPending ? "Повторяем…" : "Повторить"}
+                  {generate.isPending ? "Наблюдатель анализирует…" : "Запустить Наблюдателя"}
                 </button>
-                <button className="button button--quiet" type="button" onClick={reset}>
-                  Сбросить
+                <button
+                  className="button button--quiet"
+                  type="button"
+                  disabled={createManual.isPending}
+                  onClick={() => createManual.mutate()}
+                >
+                  Создать вручную
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="observer-buttons">
-              <button
-                className="button button--secondary"
-                type="button"
-                disabled={generate.isPending}
-                onClick={() => generate.run(lastTurn.id)}
-              >
-                {generate.isPending ? "Наблюдатель анализирует…" : "Запустить Наблюдателя"}
-              </button>
-              <button
-                className="button button--quiet"
-                type="button"
-                disabled={createManual.isPending}
-                onClick={() => createManual.mutate()}
-              >
-                Создать вручную
-              </button>
-            </div>
-          )}
-          {(generate.error || createManual.error || apply.error) && (
-            <ErrorNotice
-              error={generate.error ?? createManual.error ?? apply.error}
-            />
-          )}
-        </div>
-      )}
+            )}
+            {(generate.error || createManual.error || apply.error) && (
+              <ErrorNotice error={generate.error ?? createManual.error ?? apply.error} />
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function EventLogColumn({
+  campaignId,
+  snapshot,
+  characters,
+  onChanged,
+}: {
+  campaignId: string;
+  snapshot: GameStateSnapshot;
+  characters: CharacterGM[];
+  onChanged: () => void;
+}) {
+  const toast = useToast();
+  const activeEvent = snapshot.active_event;
+  const compress = useJobRunner({
+    start: () => {
+      if (!activeEvent) throw new Error("Нет активного события.");
+      return api.generateContextCompression(campaignId, activeEvent.id, activeEvent.revision);
+    },
+    fetchJob: (jobId) => api.getJob(campaignId, jobId),
+    parse: (job) => job.output_data,
+    describeFailure: (job) => `Не удалось сжать контекст: ${job.error_code ?? job.status}`,
+    timeoutMessage: "Архивариус не ответил вовремя.",
+    onSuccess: (output) => {
+      toast.push({
+        tone: "archivist",
+        title: "Архивариус",
+        description:
+          output?.status === "skipped"
+            ? String(output.message)
+            : "Старая часть контекста свёрнута в сводку.",
+      });
+      onChanged();
+    },
+  });
+
+  useEffect(() => {
+    if (!compress.error) return;
+    toast.push({
+      tone: "error",
+      title: "Контекст не сжат",
+      description: describeError(compress.error),
+    });
+  }, [compress.error, toast]);
+
+  return (
+    <>
+      <EventLog
+        snapshot={snapshot}
+        characters={characters}
+        compressing={compress.isPending}
+        onCompress={() => compress.run()}
+      />
+      <VoiceDock
+        campaignId={campaignId}
+        eventId={activeEvent?.status === "active" ? activeEvent.id : undefined}
+        onChanged={onChanged}
+      />
     </>
   );
 }

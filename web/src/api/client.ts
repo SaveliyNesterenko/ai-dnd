@@ -1,6 +1,7 @@
 import {
   activateCampaignApiV1CampaignsCampaignIdActivatePost,
   applyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPost,
+  capabilitiesApiV1CapabilitiesGet,
   confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
   createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost,
@@ -63,6 +64,7 @@ const requestOptions = {
 };
 
 export const api = {
+  capabilities: () => execute(capabilitiesApiV1CapabilitiesGet(requestOptions)),
   campaigns: () => execute(listCampaignsApiV1CampaignsGet(requestOptions)),
   activateCampaign: (campaignId: string) =>
     execute(

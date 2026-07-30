@@ -1,9 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { api } from "../api/client";
-import { useJobRunner } from "../hooks/useJobPolling";
-import { ErrorNotice } from "./ErrorNotice";
+import { api } from "../../api/client";
+import { useJobRunner } from "../../hooks/useJobPolling";
+import { useToast } from "../../hooks/useToast";
+import { describeError } from "../../utils/errors";
+import { ErrorNotice } from "../ErrorNotice";
+import { MicGlyph, SendGlyph } from "./icons";
 
 // Порядок важен: opus в ogg распознаётся лучше, webm остаётся запасным вариантом.
 const PREFERRED_MIME_TYPES = [
@@ -12,6 +15,9 @@ const PREFERRED_MIME_TYPES = [
   "audio/webm;codecs=opus",
   "audio/webm",
 ];
+
+const MAX_FIELD_HEIGHT = 150;
+const LEVEL_BARS = 14;
 
 function pickMimeType(): string {
   if (typeof MediaRecorder === "undefined") return "";
@@ -34,7 +40,7 @@ function describeMicError(error: unknown): string {
   return "Не удалось получить доступ к микрофону.";
 }
 
-export function VoiceWorkspace({
+export function VoiceDock({
   campaignId,
   eventId,
   onChanged,
@@ -43,17 +49,25 @@ export function VoiceWorkspace({
   eventId: string | undefined;
   onChanged: () => void;
 }) {
+  const toast = useToast();
   const [text, setText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [micError, setMicError] = useState<string>();
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+
+  /* Поле растёт под текст, но не съедает лог: дальше появляется прокрутка. */
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(MAX_FIELD_HEIGHT, field.scrollHeight)}px`;
+  }, [text]);
 
   const transcribe = useJobRunner({
     start: (blob: Blob) => {
       const mediaType = (blob.type || "audio/webm").split(";", 1)[0]!;
-      const file = new File([blob], `gm-speech.${extensionFor(mediaType)}`, {
-        type: mediaType,
-      });
+      const file = new File([blob], `gm-speech.${extensionFor(mediaType)}`, { type: mediaType });
       return api.transcribeVoice(file);
     },
     fetchJob: (jobId) => api.getVoiceJob(jobId),
@@ -64,12 +78,10 @@ export function VoiceWorkspace({
       }
       return transcript.trim();
     },
-    describeFailure: (job) =>
-      `Не удалось расшифровать запись: ${job.error_code ?? job.status}`,
+    describeFailure: (job) => `Не удалось расшифровать запись: ${job.error_code ?? job.status}`,
     timeoutMessage: "Расшифровка не завершилась вовремя.",
-    onSuccess: (transcript) => {
-      setText((previous) => (previous.trim() ? `${previous.trim()} ${transcript}` : transcript));
-    },
+    onSuccess: (transcript) =>
+      setText((previous) => (previous.trim() ? `${previous.trim()} ${transcript}` : transcript)),
   });
 
   const sendToLog = useMutation({
@@ -88,6 +100,24 @@ export function VoiceWorkspace({
       onChanged();
     },
   });
+
+  useEffect(() => {
+    if (!transcribe.error) return;
+    toast.push({
+      tone: "error",
+      title: "Расшифровка не удалась",
+      description: describeError(transcribe.error),
+    });
+  }, [toast, transcribe.error]);
+
+  useEffect(() => {
+    if (!sendToLog.error) return;
+    toast.push({
+      tone: "error",
+      title: "Реплика не отправлена",
+      description: describeError(sendToLog.error),
+    });
+  }, [sendToLog.error, toast]);
 
   useEffect(
     () => () => {
@@ -123,16 +153,12 @@ export function VoiceWorkspace({
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
     };
-    recorder.onerror = () => {
-      setMicError("Запись прервалась из-за ошибки микрофона.");
-    };
+    recorder.onerror = () => setMicError("Запись прервалась из-за ошибки микрофона.");
     recorder.onstop = () => {
       stream.getTracks().forEach((track) => track.stop());
       recorderRef.current = null;
       setIsRecording(false);
-      const blob = new Blob(chunks, {
-        type: recorder.mimeType || mimeType || "audio/webm",
-      });
+      const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" });
       if (blob.size === 0) {
         setMicError("Запись оказалась пустой. Попробуйте ещё раз.");
         return;
@@ -150,64 +176,71 @@ export function VoiceWorkspace({
     recorder.stop();
   };
 
-  const status = isRecording
-    ? "Идёт запись"
+  const hint = isRecording
+    ? "Идёт запись — нажмите ещё раз, чтобы остановить и расшифровать"
     : transcribe.isPending
       ? "Расшифровка…"
-      : "Готово к записи";
+      : eventId
+        ? "Ctrl+Enter — отправить в лог"
+        : "Запустите игровое событие, чтобы отправлять реплики в лог.";
+
+  const canSend = Boolean(eventId) && !isRecording && Boolean(text.trim()) && !sendToLog.isPending;
 
   return (
-    <section className="voice-workspace">
-      <div className="panel__header">
-        <div>
-          <span className="eyebrow">Голос GM</span>
-          <h2>Запись речи</h2>
-        </div>
-        <span aria-live="polite">{status}</span>
-      </div>
-      <div className="voice-workspace__body">
+    <section className="voice-dock" aria-label="Запись речи ГМ">
+      <div className="voice-dock__row">
+        <button
+          type="button"
+          className={`record-button${isRecording ? " is-recording" : ""}`}
+          aria-label={isRecording ? "Остановить запись" : "Запись голоса"}
+          aria-pressed={isRecording}
+          disabled={transcribe.isPending}
+          onClick={() => (isRecording ? stopRecording() : void startRecording())}
+        >
+          <MicGlyph size={16} />
+        </button>
+
+        {isRecording && (
+          <span className="level-meter" aria-hidden="true">
+            {Array.from({ length: LEVEL_BARS }, (_, index) => (
+              <i key={index} style={{ animationDelay: `${index * 70}ms` }} />
+            ))}
+          </span>
+        )}
+
         <textarea
+          ref={fieldRef}
+          className="voice-dock__field"
+          rows={1}
           aria-label="Распознанный текст GM"
-          placeholder="Нажмите «Запись голоса» и говорите — распознанный текст появится здесь."
+          placeholder="Реплика ГМ — говорите или печатайте…"
           value={text}
           disabled={isRecording || transcribe.isPending}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && canSend) {
+              event.preventDefault();
+              sendToLog.mutate();
+            }
+          }}
         />
-        <div className="voice-workspace__actions">
-          <button
-            className={`button button--quiet${isRecording ? " button--recording" : ""}`}
-            type="button"
-            aria-pressed={isRecording}
-            disabled={transcribe.isPending}
-            onClick={() => {
-              if (isRecording) {
-                stopRecording();
-              } else {
-                void startRecording();
-              }
-            }}
-          >
-            {isRecording ? "Остановить запись" : "Запись голоса"}
-          </button>
-          <button
-            className="button"
-            type="button"
-            disabled={!eventId || isRecording || !text.trim() || sendToLog.isPending}
-            onClick={() => sendToLog.mutate()}
-          >
-            {sendToLog.isPending ? "Отправляем…" : "Отправить в лог"}
-          </button>
-        </div>
-        {!eventId && (
-          <span className="voice-workspace__hint">
-            Запустите игровое событие, чтобы отправлять реплики в лог.
-          </span>
-        )}
-        {micError && <ErrorNotice error={new Error(micError)} title="Микрофон недоступен" />}
-        {(transcribe.error ?? sendToLog.error) && (
-          <ErrorNotice error={transcribe.error ?? sendToLog.error} />
-        )}
+
+        <button
+          type="button"
+          className="send-button"
+          aria-label="Отправить в лог"
+          title="Отправить в лог · Ctrl+Enter"
+          disabled={!canSend}
+          onClick={() => sendToLog.mutate()}
+        >
+          <SendGlyph size={16} />
+        </button>
       </div>
+
+      <p className="voice-dock__hint" aria-live="polite">
+        {hint}
+      </p>
+      {micError && <ErrorNotice error={new Error(micError)} title="Микрофон недоступен" />}
     </section>
   );
 }
