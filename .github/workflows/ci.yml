@@ -93,7 +93,7 @@ jobs:
         run: npm ci
       - working-directory: web
         run: npx @cyclonedx/cyclonedx-npm --output-file ../node-sbom.json
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: |
