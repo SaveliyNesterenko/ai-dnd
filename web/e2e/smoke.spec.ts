@@ -74,7 +74,13 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await page.getByRole("button", { name: "HP / MP" }).first().click();
   await page.getByLabel("HP, текущее").fill("27");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.locator(".gm-character-card").getByText(/27 \//)).toBeVisible();
+  // Карточка возвращается на лицевую сторону, а сохранённое значение видно
+  // в редакторе HP/MP: с лицевой стороны показатели убраны.
+  await expect(page.locator(".gm-character-card--flipped")).toHaveCount(0);
+  await page.getByRole("button", { name: "HP / MP" }).first().click();
+  await expect(page.getByLabel("HP, текущее")).toHaveValue("27");
+  await page.locator(".gm-character-card--flipped .gm-character-card__hint").click();
+  await expect(page.locator(".gm-character-card--flipped")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Запустить событие" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();

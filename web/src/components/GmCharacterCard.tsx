@@ -101,22 +101,32 @@ export function GmCharacterCard({
             )}
             <div className="gm-character-card__veil" />
             <div className="gm-character-card__content">
-              <button
-                className="gm-character-card__flip"
-                type="button"
-                aria-label={`Отразить аватар ${character.name} по горизонтали. Сейчас смотрит ${
-                  flipped ? "вправо" : "влево"
-                }`}
-                aria-pressed={flipped}
-                title="Отразить аватар по горизонтали"
-                disabled={!sceneState || flip.isPending}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  flip.mutate();
-                }}
-              >
-                <FlipIcon />
-              </button>
+              <div className="gm-character-card__corner">
+                <button
+                  className="gm-character-card__flip"
+                  type="button"
+                  aria-label={`Отразить аватар ${character.name} по горизонтали. Сейчас смотрит ${
+                    flipped ? "вправо" : "влево"
+                  }`}
+                  aria-pressed={flipped}
+                  title="Отразить аватар по горизонтали"
+                  disabled={!sceneState || flip.isPending}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    flip.mutate();
+                  }}
+                >
+                  <FlipIcon />
+                </button>
+                <span
+                  className={`gm-character-card__kind gm-character-card__kind--${character.kind}`}
+                  role="img"
+                  aria-label={categoryLabel(character.kind)}
+                  title={categoryLabel(character.kind)}
+                >
+                  <KindIcon kind={character.kind} />
+                </span>
+              </div>
               <button
                 className="gm-character-card__remove"
                 type="button"
@@ -127,22 +137,9 @@ export function GmCharacterCard({
                   onRemove();
                 }}
               >
-                ×
+                <CloseIcon />
               </button>
-              <div>
-                <h3>{character.name}</h3>
-                <p>{character.role}</p>
-              </div>
-              <div className="gm-character-card__stats">
-                <span>HP</span>
-                <strong>
-                  {character.hp_current} / {character.hp_max}
-                </strong>
-                <span>MP</span>
-                <strong>
-                  {character.mp_current} / {character.mp_max}
-                </strong>
-              </div>
+              <h3>{character.name}</h3>
               <div className="gm-character-card__buttons">
                 <CardButton label="HP / MP" symbol="E" onClick={openResources} />
                 <CardButton
@@ -158,15 +155,12 @@ export function GmCharacterCard({
           </section>
           <section
             className="gm-character-card__face gm-character-card__back"
-            onClick={(event) => event.stopPropagation()}
+            title="Нажмите на карточку, чтобы вернуться"
+            onClick={(event) => {
+              event.stopPropagation();
+              setBack(null);
+            }}
           >
-            <button
-              className="gm-character-card__back-close"
-              type="button"
-              onClick={() => setBack(null)}
-            >
-              ← Назад
-            </button>
             {back === "attributes" && (
               <>
                 <h3>Характеристики</h3>
@@ -183,6 +177,7 @@ export function GmCharacterCard({
             {back === "resources" && (
               <form
                 className="gm-character-card__resource-form"
+                onClick={(event) => event.stopPropagation()}
                 onSubmit={(event) => {
                   event.preventDefault();
                   update.mutate({
@@ -194,7 +189,6 @@ export function GmCharacterCard({
                   });
                 }}
               >
-                <h3>HP / MP</h3>
                 <ResourceInputs
                   label="HP"
                   current={resources.hpCurrent}
@@ -231,6 +225,7 @@ export function GmCharacterCard({
                 {update.error && <ErrorNotice error={update.error} />}
               </form>
             )}
+            <p className="gm-character-card__hint">клик — назад</p>
           </section>
         </div>
       </article>
@@ -422,6 +417,66 @@ function FlipIcon() {
       <path d="M7 12l-3 3 3 3" />
     </svg>
   );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5 5l14 14" />
+      <path d="M19 5L5 19" />
+    </svg>
+  );
+}
+
+/** Категория персонажа значком: щит — игрок, силуэт — NPC, череп — враг. */
+function KindIcon({ kind }: { kind: CharacterGM["kind"] }) {
+  const paths = {
+    player: <path d="M12 3l7 3v5.5c0 4.4-2.9 7.4-7 8.5-4.1-1.1-7-4.1-7-8.5V6z" />,
+    npc: (
+      <>
+        <circle cx="12" cy="8" r="3.2" />
+        <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
+      </>
+    ),
+    enemy: (
+      <>
+        <path d="M12 3.4c-3.9 0-6.6 2.6-6.6 6.2 0 1.9.8 3.4 2.1 4.4v2c0 .8.7 1.5 1.5 1.5h6c.8 0 1.5-.7 1.5-1.5v-2c1.3-1 2.1-2.5 2.1-4.4 0-3.6-2.7-6.2-6.6-6.2Z" />
+        <circle cx="9.6" cy="10" r="1.4" fill="currentColor" stroke="none" />
+        <circle cx="14.4" cy="10" r="1.4" fill="currentColor" stroke="none" />
+        <path d="M12 13.2v1.6" />
+      </>
+    ),
+  };
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {paths[kind]}
+    </svg>
+  );
+}
+
+function categoryLabel(kind: CharacterGM["kind"]) {
+  return { player: "Игрок", npc: "NPC", enemy: "Враг" }[kind];
 }
 
 function CardButton({
