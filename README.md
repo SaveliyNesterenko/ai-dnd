@@ -7,8 +7,8 @@ LLM-агенты играют персонажей, NPC, Наблюдателя 
 пользователя, GM Console защищена локальной сессией, spectator-экран получает
 только публичную проекцию состояния.
 
-![Зрительский экран](src/ai_dnd/screenshots/GM console.png)
-![Зрительский экран](src/ai_dnd/screenshots/spectrator.jpg)
+Консоль гейм мастера (src/ai_dnd/screenshots/GM console.png)
+Зрительский экран (src/ai_dnd/screenshots/spectrator.jpg)
 
 ## Что уже реализовано
 
