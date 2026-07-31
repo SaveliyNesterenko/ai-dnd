@@ -19,7 +19,14 @@ export interface PollableJob {
 /** Статусы, после которых опрашивать джобу бессмысленно. */
 const FAILED_STATUSES = new Set(["failed", "degraded", "cancelled"]);
 const DEFAULT_INTERVAL_MS = 500;
-const DEFAULT_TIMEOUT_MS = 90_000;
+
+/**
+ * Пять минут — это страховка от зависшей джобы, а не мера терпения ГМ-а: ждать
+ * или отменить, он решает сам по таймеру в полосе состояния. Прежние 90 секунд
+ * рвали сжатие контекста на deepseek (замеряно 150 с) — ГМ получал ошибку про
+ * операцию, которая на самом деле заканчивалась успешно.
+ */
+const DEFAULT_TIMEOUT_MS = 300_000;
 
 export class JobCancelledError extends Error {
   constructor() {
