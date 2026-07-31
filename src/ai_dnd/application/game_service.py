@@ -464,6 +464,25 @@ class GameService:
             raise ConflictError("A concurrent turn was created; retry the command.") from error
         return turn
 
+    async def delete_turn(self, campaign_id: str, turn_id: str) -> TurnModel:
+        """Убрать ход из лога активного события.
+
+        Номера ходов не пересчитываются: на них ссылаются сводка Архивариуса и
+        заявки Наблюдателя, поэтому дырка в нумерации честнее тихого сдвига.
+        """
+        turn = await self.session.get(TurnModel, turn_id)
+        event = await self.session.get(GameEventModel, turn.event_id) if turn else None
+        if not turn or not event or event.campaign_id != campaign_id:
+            raise NotFoundError("Turn not found in campaign.")
+        if event.status != EventStatus.ACTIVE.value:
+            raise ConflictError("Turns can only be deleted from an active event.")
+        if turn.sequence <= (event.context_summary_through_sequence or 0):
+            raise ConflictError("Turn is already folded into the context summary.")
+        await self.session.delete(turn)
+        event.revision += 1
+        await self.session.flush()
+        return turn
+
     async def update_scene(
         self,
         campaign_id: str,

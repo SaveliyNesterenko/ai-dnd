@@ -4,7 +4,14 @@ import type { CharacterGM, GameStateSnapshot } from "../../api/types";
 import type { TurnView } from "../../api/generated/types.gen";
 import type { SpeechCueKind, SpeechQueue } from "../../hooks/useSpeechQueue";
 import { formatClock, pluralTurns } from "../../utils/format";
-import { KindGlyph, RetryGlyph, SpeakerGlyph, SpeakerOffGlyph, ThoughtGlyph } from "./icons";
+import {
+  KindGlyph,
+  RetryGlyph,
+  SpeakerGlyph,
+  SpeakerOffGlyph,
+  ThoughtGlyph,
+  TrashGlyph,
+} from "./icons";
 
 /** Ниже этого расстояния от низа считаем, что ГМ читает свежие ходы. */
 const STICK_TO_BOTTOM_PX = 80;
@@ -16,6 +23,8 @@ export function EventLog({
   onCompress,
   speech,
   onRevoice,
+  onDelete,
+  deletingTurnId,
 }: {
   snapshot: GameStateSnapshot;
   characters: CharacterGM[];
@@ -23,6 +32,8 @@ export function EventLog({
   onCompress: () => void;
   speech: SpeechQueue;
   onRevoice: (turnId: string) => void;
+  onDelete: (turnId: string) => void;
+  deletingTurnId?: string;
 }) {
   const activeEvent = snapshot.active_event;
   const throughSequence = activeEvent?.context_summary_through_sequence ?? 0;
@@ -101,6 +112,10 @@ export function EventLog({
             character={characters.find((item) => item.id === turn.character_id)}
             speech={speech}
             onRevoice={onRevoice}
+            /* Удалять можно только из живого события: свёрнутое в сводку и
+               заархивированное уже прочитано моделями. */
+            onDelete={activeEvent?.status === "active" ? onDelete : undefined}
+            deleting={deletingTurnId === turn.id}
           />
         ))}
 
@@ -119,17 +134,36 @@ function LogEntry({
   character,
   speech,
   onRevoice,
+  onDelete,
+  deleting,
 }: {
   turn: TurnView;
   character: CharacterGM | undefined;
   speech: SpeechQueue;
   onRevoice: (turnId: string) => void;
+  onDelete?: (turnId: string) => void;
+  deleting: boolean;
 }) {
   const isGm = turn.character_id === null;
   /* Реплики ГМ-а не озвучиваются вовсе — значок там был бы шумом. */
   const voiced = !isGm;
+  /* Удаление необратимо и его видят зрители, поэтому спрашиваем прямо в
+     ленте: модалка ради одной строки лога — лишний шаг. */
+  const [confirming, setConfirming] = useState(false);
+  const confirmRef = useRef<HTMLParagraphElement>(null);
+
+  /* Вопрос вырастает под ходом, а свежий ход стоит у нижнего края ленты:
+     без подкрутки кнопки остаются за кадром. */
+  useEffect(() => {
+    if (confirming) confirmRef.current?.scrollIntoView({ block: "nearest" });
+  }, [confirming]);
+
   return (
-    <article className={`log-entry log-entry--${isGm ? "gm" : "model"}`}>
+    <article
+      className={`log-entry log-entry--${isGm ? "gm" : "model"}${
+        confirming || deleting ? " is-doomed" : ""
+      }`}
+    >
       <header className="log-entry__meta">
         <span className="log-entry__seq mono">{pad(turn.sequence)}</span>
         <span className="log-entry__who">
@@ -143,21 +177,35 @@ function LogEntry({
           )}
           {turn.actor_name}
         </span>
-        {voiced && (
-          <span className="log-entry__speech">
-            {turn.thought && <SpeechBadge turn={turn} kind="thought" speech={speech} />}
-            <SpeechBadge turn={turn} kind="action" speech={speech} />
+        <span className="log-entry__tools">
+          {voiced && (
+            <>
+              {turn.thought && <SpeechBadge turn={turn} kind="thought" speech={speech} />}
+              <SpeechBadge turn={turn} kind="action" speech={speech} />
+              <button
+                type="button"
+                className="speech-badge speech-badge--revoice"
+                title="Переозвучить ход"
+                aria-label={`Переозвучить ход ${turn.sequence}`}
+                onClick={() => onRevoice(turn.id)}
+              >
+                <RetryGlyph size={11} />
+              </button>
+            </>
+          )}
+          {onDelete && !confirming && (
             <button
               type="button"
-              className="speech-badge speech-badge--revoice"
-              title="Переозвучить ход"
-              aria-label={`Переозвучить ход ${turn.sequence}`}
-              onClick={() => onRevoice(turn.id)}
+              className="speech-badge speech-badge--danger"
+              title="Удалить ход из лога"
+              aria-label={`Удалить ход ${turn.sequence}`}
+              disabled={deleting}
+              onClick={() => setConfirming(true)}
             >
-              <RetryGlyph size={11} />
+              <TrashGlyph size={11} />
             </button>
-          </span>
-        )}
+          )}
+        </span>
         <time className="log-entry__time mono" dateTime={turn.created_at}>
           {formatClock(turn.created_at)}
         </time>
@@ -175,6 +223,28 @@ function LogEntry({
       {turn.dice_roll !== null && (
         <p className="log-entry__foot">
           <span className="die-token mono">d20 · {turn.dice_roll}</span>
+        </p>
+      )}
+
+      {confirming && onDelete && (
+        <p className="log-entry__confirm" ref={confirmRef}>
+          <span>Удалить ход без возврата? Он исчезнет и у зрителей.</span>
+          <button
+            type="button"
+            className="mini-button mini-button--danger"
+            disabled={deleting}
+            onClick={() => onDelete(turn.id)}
+          >
+            {deleting ? "Удаляем…" : "Удалить"}
+          </button>
+          <button
+            type="button"
+            className="mini-button"
+            disabled={deleting}
+            onClick={() => setConfirming(false)}
+          >
+            Отмена
+          </button>
         </p>
       )}
     </article>

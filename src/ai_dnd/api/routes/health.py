@@ -4,7 +4,7 @@ from sqlalchemy import text
 from ai_dnd import __version__
 from ai_dnd.api.dependencies import SessionDep, SettingsDep
 from ai_dnd.api.schemas import CapabilityView, TTSCapabilityView
-from ai_dnd.integrations.voice import describe_tts_capability
+from ai_dnd.integrations.voice import probe_tts_capability
 
 router = APIRouter(tags=["system"])
 
@@ -27,7 +27,7 @@ async def version() -> dict[str, str]:
 
 @router.get("/capabilities", response_model=CapabilityView)
 async def capabilities(settings: SettingsDep) -> CapabilityView:
-    tts = describe_tts_capability(settings)
+    tts = await probe_tts_capability(settings)
     return CapabilityView(
         llm_enabled=bool(settings.openai_api_key),
         stt_enabled=bool(settings.stt_api_key),

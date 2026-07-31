@@ -5,6 +5,7 @@ import json
 import os
 from asyncio import Lock, to_thread
 from dataclasses import dataclass
+from functools import lru_cache
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
@@ -36,12 +37,33 @@ class VoiceCapability:
     detail: str | None = None
 
 
+@lru_cache(maxsize=1)
+def probe_voice_runtime() -> str | None:
+    """Импортировать движок по-настоящему и вернуть текст ошибки или None.
+
+    find_spec видит только верхний пакет: он молчал, когда у torch развалилась
+    его собственная зависимость (обрезанный sympy), и консоль сутки показывала
+    зелёный индикатор при полностью мёртвом синтезе. Импорт стоит несколько
+    секунд, поэтому результат кэшируется — окружение внутри процесса всё равно
+    не чинится на ходу, а после починки сервер перезапускают.
+    """
+    try:
+        import_module("torch")
+        import_module("TTS.api")
+    except Exception as error:
+        return f"{type(error).__name__}: {error}"[:200]
+    return None
+
+
 def describe_tts_capability(settings: Settings) -> VoiceCapability:
     """Почему озвучка недоступна — вопрос ГМ-а, а не разработчика.
 
     Причин ровно три, и лечатся они по-разному: настройкой, установкой пакетов
     или ничем. Консоль показывает эту строку в подсказке индикатора, поэтому
     она на русском, как и остальной текст, доходящий до экрана.
+
+    Здесь только дешёвые проверки: настоящий импорт добавляет
+    ``probe_tts_capability``.
     """
     if not settings.tts_enabled:
         return VoiceCapability(
@@ -65,6 +87,28 @@ def describe_tts_capability(settings: Settings) -> VoiceCapability:
             detail="Пакеты не установлены: uv sync --locked --extra voice",
         )
     return VoiceCapability(enabled=True, status="ready")
+
+
+async def probe_tts_capability(settings: Settings) -> VoiceCapability:
+    """То же самое, но с честной проверкой импорта — для индикатора консоли.
+
+    Импорт уходит в поток: первый вызов занимает секунды и не должен
+    останавливать цикл событий вместе со всем сервером.
+    """
+    capability = describe_tts_capability(settings)
+    if not capability.enabled:
+        return capability
+    error = await to_thread(probe_voice_runtime)
+    if error is None:
+        return capability
+    return VoiceCapability(
+        enabled=False,
+        status="unavailable",
+        detail=(
+            f"Пакеты установлены, но не импортируются ({error}). "
+            "Почините окружение: uv sync --locked --extra voice"
+        ),
+    )
 
 
 class DisabledSTTProvider:
@@ -131,7 +175,7 @@ class CoquiTTSWorker:
         return output_path
 
     async def health(self) -> bool:
-        return find_spec("TTS") is not None and find_spec("torch") is not None
+        return await to_thread(probe_voice_runtime) is None
 
 
 class NexaraSTTProvider:

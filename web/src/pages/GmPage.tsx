@@ -222,6 +222,13 @@ export default function GmPage() {
             characters={characters}
             speech={speech}
             onRevoice={(turnId) => revoice.mutate(turnId)}
+            onTurnDeleted={(turnId) => {
+              /* Заявка Наблюдателя живёт на удалённом ходе: держать её в
+                 панели значит предлагать применить то, чего в логе нет. */
+              if (observerTurnId === turnId) setObserverTurnId(undefined);
+              if (proposal?.turn_id === turnId) setProposal(null);
+              if (appliedForTurnId === turnId) setAppliedForTurnId(undefined);
+            }}
             onChanged={refreshSnapshot}
           />
         </section>
@@ -365,6 +372,7 @@ function EventLogColumn({
   characters,
   speech,
   onRevoice,
+  onTurnDeleted,
   onChanged,
 }: {
   campaignId: string;
@@ -372,10 +380,24 @@ function EventLogColumn({
   characters: CharacterGM[];
   speech: SpeechQueue;
   onRevoice: (turnId: string) => void;
+  onTurnDeleted: (turnId: string) => void;
   onChanged: () => void;
 }) {
   const toast = useToast();
   const activeEvent = snapshot.active_event;
+  const deleteTurn = useMutation({
+    mutationFn: (turnId: string) => api.deleteTurn(campaignId, turnId),
+    onSuccess: (_deleted, turnId) => {
+      onTurnDeleted(turnId);
+      onChanged();
+    },
+    onError: (error) =>
+      toast.push({
+        tone: "error",
+        title: "Ход не удалён",
+        description: describeError(error),
+      }),
+  });
   const compress = useJobRunner({
     start: () => {
       if (!activeEvent) throw new Error("Нет активного события.");
@@ -416,6 +438,8 @@ function EventLogColumn({
         onCompress={() => compress.run()}
         speech={speech}
         onRevoice={onRevoice}
+        onDelete={(turnId) => deleteTurn.mutate(turnId)}
+        deletingTurnId={deleteTurn.isPending ? deleteTurn.variables : undefined}
       />
       <VoiceDock
         campaignId={campaignId}

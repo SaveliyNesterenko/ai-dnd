@@ -118,6 +118,27 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await expect(spectator.locator(".speech-bubble.action")).toBeVisible();
   await expect(spectator.getByText(thought, { exact: true })).toBeHidden();
 
+  // Ошибочный ход убирается из лога: удаление спрашивает подтверждение прямо
+  // в ленте и не трогает соседние ходы.
+  await page.getByRole("button", { name: "Написать ход вручную" }).click();
+  const mistake = "Мастер оговорился, и этот ход надо убрать.";
+  await page.getByLabel("Публичное действие").fill(mistake);
+  // Разбирать заведомо ошибочный ход Наблюдателю незачем.
+  await page.getByRole("switch", { name: "Отправлять ход Наблюдателю" }).click();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeVisible();
+  await expect(page.locator(".log-entry")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "Удалить ход 2" }).click();
+  await page.locator(".gm-column").first().screenshot({ path: "../.scratch-delete-turn.png" });
+  await page.getByRole("button", { name: "Отмена" }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Удалить ход 2" }).click();
+  await page.getByRole("button", { name: "Удалить", exact: true }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeHidden();
+  await expect(page.locator(".log-entry")).toHaveCount(1);
+  await expect(page.getByText(action, { exact: true })).toBeVisible();
+
   // Предложение Наблюдателя: строки изменений вместо сырого JSON, применение
   // возвращает панель к исходному состоянию.
   await page.getByRole("button", { name: "Создать вручную" }).click();

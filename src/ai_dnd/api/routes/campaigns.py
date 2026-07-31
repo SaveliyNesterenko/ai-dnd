@@ -238,6 +238,32 @@ async def create_turn(
     return body
 
 
+@router.delete("/{campaign_id}/turns/{turn_id}")
+async def delete_turn(
+    campaign_id: str,
+    turn_id: str,
+    session: SessionDep,
+    broker: BrokerDep,
+    gm: GMDep,
+) -> dict[str, Any]:
+    """Убрать ход из лога.
+
+    Сорвавшийся ответ модели или случайная реплика ГМ-а иначе остаются в
+    контексте навсегда: правки хода нет, а переписывать историю задним числом
+    ГМ должен уметь до того, как её прочитают другие модели.
+    """
+    del gm
+    turn = await GameService(session).delete_turn(campaign_id, turn_id)
+    body = {"id": turn.id, "sequence": turn.sequence}
+    await session.commit()
+    await broker.publish(
+        campaign_id=campaign_id,
+        event_type="turn.deleted",
+        payload=body,
+    )
+    return body
+
+
 @router.post(
     "/{campaign_id}/turns/{turn_id}/speech",
     response_model=BackgroundJobView,

@@ -1638,6 +1638,44 @@ export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses = 
 
 export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponse = CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses[keyof CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses];
 
+export type DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Turn Id
+         */
+        turn_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/turns/{turn_id}';
+};
+
+export type DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteError = DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteErrors[keyof DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteErrors];
+
+export type DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteResponses = {
+    /**
+     * Response Delete Turn Api V1 Campaigns  Campaign Id  Turns  Turn Id  Delete
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteResponse = DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteResponses[keyof DeleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDeleteResponses];
+
 export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostData = {
     body?: never;
     path: {

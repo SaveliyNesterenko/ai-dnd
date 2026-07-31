@@ -159,10 +159,13 @@ def main() -> None:
             f"http://127.0.0.1:{settings.port}/api/v1/auth/gm/bootstrap"
             f"?token={security.bootstrap_token}"
         )
+        spectator_url = f"http://127.0.0.1:{settings.port}/spectator"
         print(f"GM URL: {gm_url}")
+        print(f"Spectator URL: {spectator_url}")
         print(f"Spectator code: {security.spectator_code}")
         if args.open_browser:
             webbrowser.open(gm_url)
+            webbrowser.open_new_tab(spectator_url)
         uvicorn.run(
             "ai_dnd.main:app",
             host=settings.host,

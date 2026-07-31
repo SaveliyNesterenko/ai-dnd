@@ -181,6 +181,16 @@
   background: var(--role-archivist-dim);
 }
 
+.mini-button--danger {
+  border-color: rgb(239 131 122 / 45%);
+  color: var(--danger);
+}
+
+.mini-button--danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgb(239 131 122 / 12%);
+}
+
 .icon-button {
   display: grid;
   width: 26px;

@@ -51,6 +51,7 @@ def test_cli_serve_is_local_and_opens_bootstrap(
     monkeypatch.setattr(cli, "Settings", lambda: settings)
     monkeypatch.setattr(cli, "run_migrations", lambda _settings: None)
     monkeypatch.setattr(cli.webbrowser, "open", lambda url: opened.append(url))
+    monkeypatch.setattr(cli.webbrowser, "open_new_tab", lambda url: opened.append(url))
     monkeypatch.setattr(
         cli.uvicorn,
         "run",
@@ -60,7 +61,8 @@ def test_cli_serve_is_local_and_opens_bootstrap(
 
     cli.main()
 
-    assert opened and opened[0].startswith("http://127.0.0.1:8000/")
+    assert opened[0].startswith("http://127.0.0.1:8000/api/v1/auth/gm/bootstrap")
+    assert opened[1] == "http://127.0.0.1:8000/spectator"
     assert uvicorn_calls[0]["host"] == "127.0.0.1"
     assert uvicorn_calls[0]["reload"] is False
     assert uvicorn_calls[0]["access_log"] is False

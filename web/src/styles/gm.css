@@ -547,10 +547,10 @@
   color: var(--danger);
 }
 
-/* Состояние озвучки реплики. Значки проявляются на наведении: в спокойном
-   логе они не должны спорить с текстом, но при поиске «почему молчит» видны
-   сразу все. */
-.log-entry__speech {
+/* Состояние озвучки реплики и удаление хода. Значки проявляются на наведении:
+   в спокойном логе они не должны спорить с текстом, но при поиске «почему
+   молчит» видны сразу все. */
+.log-entry__tools {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -558,8 +558,8 @@
   transition: opacity var(--t-fast) ease;
 }
 
-.log-entry:hover .log-entry__speech,
-.log-entry__speech:focus-within {
+.log-entry:hover .log-entry__tools,
+.log-entry__tools:focus-within {
   opacity: 1;
 }
 
@@ -591,6 +591,11 @@ button.speech-badge:hover {
 .speech-badge--pending {
   color: var(--role-gm);
   animation: speech-pending 1.2s ease-in-out infinite;
+}
+
+button.speech-badge--danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgb(239 131 122 / 14%);
 }
 
 @keyframes speech-pending {
@@ -641,6 +646,27 @@ button.speech-badge:hover {
 
 .log-entry__foot {
   margin: 7px 0 0;
+}
+
+/* Ход, который вот-вот исчезнет: приглушаем текст, чтобы вопрос о удалении
+   читался раньше самой реплики. */
+.log-entry.is-doomed {
+  background: rgb(239 131 122 / 6%);
+}
+
+.log-entry.is-doomed .log-entry__action,
+.log-entry.is-doomed .log-entry__thought {
+  opacity: 0.5;
+}
+
+.log-entry__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 11.5px;
 }
 
 .die-token {

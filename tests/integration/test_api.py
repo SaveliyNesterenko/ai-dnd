@@ -205,6 +205,51 @@ def test_speech_queue_is_visible_and_turns_can_be_revoiced(
     assert missing.status_code == 404
 
 
+def test_gm_can_delete_a_turn_from_the_log(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = str(snapshot["characters"][0]["id"])
+    first, second, third = (
+        _create_turn(authenticated_client, demo_campaign_id, str(event["id"]), character_id)
+        for _ in range(3)
+    )
+
+    deleted = authenticated_client.delete(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{second['id']}",
+    )
+    assert deleted.status_code == 200
+    assert deleted.json() == {"id": second["id"], "sequence": 2}
+
+    remaining = _gm_snapshot(authenticated_client, demo_campaign_id)["active_event"]["turns"]
+    assert [turn["id"] for turn in remaining] == [first["id"], third["id"]]
+
+    # Оставшиеся ходы не перенумеровываются: на номера ссылается сводка.
+    assert [turn["sequence"] for turn in remaining] == [1, 3]
+    fourth = _create_turn(authenticated_client, demo_campaign_id, str(event["id"]), character_id)
+    assert fourth["sequence"] == 4
+
+    repeated = authenticated_client.delete(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{second['id']}",
+    )
+    assert repeated.status_code == 404
+    assert (
+        authenticated_client.delete(
+            f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}",
+        ).status_code
+        == 404
+    )
+
+
+def test_turn_deletion_requires_gm(
+    client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    assert client.delete(f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}").status_code == 401
+
+
 def test_speech_skip_reaches_spectators(
     authenticated_client: TestClient,
     demo_campaign_id: str,

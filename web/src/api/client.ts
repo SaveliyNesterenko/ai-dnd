@@ -5,6 +5,7 @@ import {
   confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
   createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost,
+  deleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDelete,
   generateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPost,
   generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost,
   generateObserverProposalApiV1CampaignsCampaignIdJobsObserverPost,
@@ -120,6 +121,13 @@ export const api = {
         body: input,
       }),
     ) as Promise<{ id: string }>,
+  deleteTurn: (campaignId: string, turnId: string) =>
+    execute(
+      deleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDelete({
+        ...requestOptions,
+        path: { campaign_id: campaignId, turn_id: turnId },
+      }),
+    ),
   generatePlayerTurn: (campaignId: string, eventId: string, characterId: string) =>
     execute(
       generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost({

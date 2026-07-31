@@ -506,6 +506,60 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/turns/{turn_id}": {
+      "delete": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Delete Turn",
+        "description": "Убрать ход из лога.\n\nСорвавшийся ответ модели или случайная реплика ГМ-а иначе остаются в\nконтексте навсегда: правки хода нет, а переписывать историю задним числом\nГМ должен уметь до того, как её прочитают другие модели.",
+        "operationId": "delete_turn_api_v1_campaigns__campaign_id__turns__turn_id__delete",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "turn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Turn Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Turn Api V1 Campaigns  Campaign Id  Turns  Turn Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/turns/{turn_id}/speech": {
       "post": {
         "tags": [

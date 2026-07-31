@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +100,73 @@ def test_generated_speech_audio_is_served_from_runtime_storage(
     assert response.content == audio_path.read_bytes()
     assert client.get("/api/v1/assets/generated-audio/not-a-wave.mp3").status_code == 404
     assert client.get("/api/v1/assets/generated-audio/missing.wav").status_code == 404
+
+
+@pytest.fixture
+def _forget_voice_runtime_probe() -> Iterator[None]:
+    voice.probe_voice_runtime.cache_clear()
+    yield
+    voice.probe_voice_runtime.cache_clear()
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_forget_voice_runtime_probe")
+async def test_broken_engine_import_is_not_reported_as_ready(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Пакеты на месте, но torch тянет сломанную зависимость: индикатор обязан
+    гореть красным, иначе ГМ ищет причину молчания в настройках кампании."""
+
+    def broken_import(module: str) -> Any:
+        raise ImportError(f"cannot import name 'S' from 'sympy' (for {module})")
+
+    monkeypatch.setattr(voice, "find_spec", lambda _module: object())
+    monkeypatch.setattr(voice, "import_module", broken_import)
+    settings = Settings(environment="development", data_dir=tmp_path)
+
+    capability = await voice.probe_tts_capability(settings)
+
+    assert capability.enabled is False
+    assert capability.status == "unavailable"
+    assert capability.detail is not None
+    assert "sympy" in capability.detail
+    assert "uv sync" in capability.detail
+    # Дешёвая проверка по-прежнему обманывается — потому и нужна честная.
+    assert voice.describe_tts_capability(settings).status == "ready"
+    assert await CoquiTTSWorker(settings).health() is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_forget_voice_runtime_probe")
+async def test_importable_engine_is_probed_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    imported: list[str] = []
+    monkeypatch.setattr(voice, "find_spec", lambda _module: object())
+    monkeypatch.setattr(voice, "import_module", lambda module: imported.append(module))
+    settings = Settings(environment="development", data_dir=tmp_path)
+
+    capability = await voice.probe_tts_capability(settings)
+
+    assert capability == voice.VoiceCapability(enabled=True, status="ready")
+    assert await CoquiTTSWorker(settings).health() is True
+    assert imported == ["torch", "TTS.api"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("_forget_voice_runtime_probe")
+async def test_disabled_engine_is_not_probed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Выключенная настройкой озвучка не должна тащить torch в память."""
+    monkeypatch.setattr(voice, "import_module", lambda module: pytest.fail(f"import {module}"))
+
+    capability = await voice.probe_tts_capability(Settings(tts_enabled=False, data_dir=tmp_path))
+
+    assert capability.status == "off"
 
 
 def test_tts_factory_enables_lazy_coqui_worker(
