@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -576,6 +576,32 @@ async def generate_observer_proposal(
         input_data={"event_id": request.event_id, "turn_id": request.turn_id},
         runner=runner,
     )
+
+
+@router.get("", response_model=list[BackgroundJobView])
+async def list_jobs(
+    campaign_id: str,
+    session: SessionDep,
+    gm: GMDep,
+    kind: str | None = Query(default=None, max_length=64),
+    job_status: str | None = Query(default=None, alias="status", max_length=128),
+    limit: int = Query(default=20, ge=1, le=200),
+) -> list[BackgroundJobModel]:
+    """Свежие задачи кампании, новыми вперёд.
+
+    Консоль читает отсюда очередь озвучки: `?kind=speech_synthesis`. Статусы
+    перечисляются через запятую — очередь и недавние сбои нужны одним запросом.
+    """
+    del gm
+    query = select(BackgroundJobModel).where(BackgroundJobModel.campaign_id == campaign_id)
+    if kind:
+        query = query.where(BackgroundJobModel.kind == kind)
+    if job_status:
+        statuses = [item.strip() for item in job_status.split(",") if item.strip()]
+        if statuses:
+            query = query.where(BackgroundJobModel.status.in_(statuses))
+    query = query.order_by(BackgroundJobModel.created_at.desc(), BackgroundJobModel.id.desc())
+    return list(await session.scalars(query.limit(limit)))
 
 
 @router.get("/{job_id}", response_model=BackgroundJobView)

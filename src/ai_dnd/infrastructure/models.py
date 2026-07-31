@@ -1,3 +1,4 @@
+# ruff: noqa: RUF003
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -41,6 +42,12 @@ class CampaignModel(Base):
     global_chronicle: Mapped[list[str]] = mapped_column(JSON, default=list)
     world_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Озвучка выключается на живой сессии, поэтому это состояние кампании, а не
+    # настройка процесса: правка .env потребовала бы перезапуска сервера.
+    speech_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("1"))
+    speech_speak_thoughts: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("1")
+    )
     created_at: Mapped[datetime] = mapped_column(default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
 

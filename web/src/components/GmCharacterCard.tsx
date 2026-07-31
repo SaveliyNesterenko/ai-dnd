@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { CharacterGM, InventoryItem } from "../api/types";
 import type { SceneCharacterView } from "../api/generated/types.gen";
 import { ErrorNotice } from "./ErrorNotice";
+import { SpeakerOffGlyph } from "./gm/icons";
 import { Dialog } from "./ui/Dialog";
 
 type CardBack = "attributes" | "resources" | null;
@@ -119,6 +120,18 @@ export function GmCharacterCard({
                 >
                   <FlipIcon />
                 </button>
+                {/* Нет образца голоса — реплики этого персонажа уйдут к
+                    зрителю текстом, и узнать об этом лучше заранее. */}
+                {!character.voice_asset_id && (
+                  <span
+                    className="gm-character-card__voiceless"
+                    role="img"
+                    aria-label={`${character.name}: нет образца голоса`}
+                    title="Нет образца голоса — реплики уйдут без озвучки"
+                  >
+                    <SpeakerOffGlyph size={13} />
+                  </span>
+                )}
                 <span
                   className={`gm-character-card__kind gm-character-card__kind--${character.kind}`}
                   role="img"

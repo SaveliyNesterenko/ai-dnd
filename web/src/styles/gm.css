@@ -157,6 +157,13 @@
   background: var(--faint);
 }
 
+/* Движок работает, но ГМ приглушил озвучку на кампании: это не поломка, и
+   красным «недоступен» помечать её нельзя. */
+.capability--muted > span {
+  background: var(--role-gm);
+  opacity: 0.45;
+}
+
 .event-cta {
   display: flex;
   height: 32px;
@@ -540,6 +547,58 @@
   color: var(--danger);
 }
 
+/* Состояние озвучки реплики. Значки проявляются на наведении: в спокойном
+   логе они не должны спорить с текстом, но при поиске «почему молчит» видны
+   сразу все. */
+.log-entry__speech {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.45;
+  transition: opacity var(--t-fast) ease;
+}
+
+.log-entry:hover .log-entry__speech,
+.log-entry__speech:focus-within {
+  opacity: 1;
+}
+
+.speech-badge {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--faint);
+  background: none;
+  padding: 0;
+  line-height: 0;
+}
+
+button.speech-badge {
+  cursor: pointer;
+}
+
+button.speech-badge:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.speech-badge--voiced {
+  color: var(--role-model);
+}
+
+.speech-badge--pending {
+  color: var(--role-gm);
+  animation: speech-pending 1.2s ease-in-out infinite;
+}
+
+@keyframes speech-pending {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .log-entry__time {
   margin-left: auto;
   color: var(--faint);
@@ -744,6 +803,98 @@
 
 .voice-dock .notice {
   margin-top: var(--s2);
+}
+
+/* ── озвучка ──────────────────────────────────────────────────────────────
+   Выход консоли под входом: VoiceDock принимает речь ГМ-а, эта полоса
+   показывает и регулирует речь моделей. */
+
+.speech-dock {
+  border-top: 1px solid var(--edge);
+  padding: var(--s2) var(--s3);
+}
+
+.speech-dock__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.speech-dock__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.speech-dock__state--ready {
+  color: var(--role-model);
+}
+
+.speech-dock__state--muted {
+  color: var(--warning);
+}
+
+.speech-dock__state--off {
+  color: var(--faint);
+}
+
+.speech-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.speech-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.speech-toggle .switch {
+  width: 26px;
+  height: 15px;
+  flex: 0 0 26px;
+  margin-left: 0;
+}
+
+.speech-toggle .switch::after {
+  width: 11px;
+  height: 11px;
+}
+
+.speech-toggle.is-on {
+  color: var(--text);
+}
+
+.speech-toggle.is-on .switch {
+  background: var(--role-gm-dim);
+}
+
+.speech-toggle.is-on .switch::after {
+  left: 13px;
+  background: var(--role-gm);
+}
+
+.speech-dock__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.speech-dock__hint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 11px;
 }
 
 /* ── композер ─────────────────────────────────────────────────────────── */
@@ -1053,9 +1204,50 @@ kbd {
 .composer__actions {
   display: flex;
   align-items: center;
+  /* Узкая центральная колонка не держит две кнопки и тумблер в строку —
+     тогда тумблер уезжает на вторую строку, оставаясь прижатым вправо. */
+  flex-wrap: wrap;
   gap: var(--s2);
   border-top: 1px solid var(--edge);
   padding: var(--s3);
+}
+
+.composer__observer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 0;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.composer__observer-toggle .switch {
+  width: 26px;
+  height: 15px;
+  flex: 0 0 26px;
+  margin-left: 0;
+}
+
+.composer__observer-toggle .switch::after {
+  width: 11px;
+  height: 11px;
+}
+
+.composer__observer-toggle.is-on {
+  color: var(--text);
+}
+
+.composer__observer-toggle.is-on .switch {
+  background: var(--role-observer-dim);
+}
+
+.composer__observer-toggle.is-on .switch::after {
+  left: 13px;
+  background: var(--role-observer);
 }
 
 /* ── лента персонажей ─────────────────────────────────────────────────── */

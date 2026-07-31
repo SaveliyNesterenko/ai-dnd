@@ -49,6 +49,8 @@ async def _create_turn(
     settings: Settings,
     *,
     with_voice: bool,
+    speech_enabled: bool = True,
+    speak_thoughts: bool = True,
 ) -> tuple[AsyncEngine, str, str]:
     settings.ensure_directories()
     engine = create_engine(settings)
@@ -74,6 +76,8 @@ async def _create_turn(
             await session.flush()
             character.voice_asset_id = asset.id
         character.is_active = True
+        campaign.speech_enabled = speech_enabled
+        campaign.speech_speak_thoughts = speak_thoughts
         await session.commit()
 
         service = GameService(session)
@@ -113,6 +117,85 @@ async def test_speech_falls_back_to_text_when_tts_is_unavailable(settings: Setti
     assert result["generated_audio"] == []
     assert [event["payload"]["kind"] for event in broker.events] == ["thought", "action"]
     assert all(event["payload"]["audio_url"] is None for event in broker.events)
+    # Без образца голоса движок даже не спрашивают: чинить надо персонажа.
+    assert result["reasons"] == {"thought": "no_voice_sample", "action": "no_voice_sample"}
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_speech_reports_why_a_cue_stayed_silent(settings: Settings) -> None:
+    engine, campaign_id, turn_id = await _create_turn(settings, with_voice=True)
+    factory = create_session_factory(engine)
+    broker = FakeBroker()
+
+    result = await synthesize_turn_speech(
+        session_factory=factory,
+        broker=cast(RealtimeBroker, broker),
+        tts=FakeTTS(available=False),
+        settings=settings,
+        campaign_id=campaign_id,
+        turn_id=turn_id,
+    )
+
+    assert result["reasons"] == {"thought": "tts_unavailable", "action": "tts_unavailable"}
+    assert [event["payload"]["reason"] for event in broker.events] == [
+        "tts_unavailable",
+        "tts_unavailable",
+    ]
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_campaign_switch_keeps_text_but_drops_audio(settings: Settings) -> None:
+    engine, campaign_id, turn_id = await _create_turn(
+        settings,
+        with_voice=True,
+        speech_enabled=False,
+    )
+    factory = create_session_factory(engine)
+    broker = FakeBroker()
+    tts = FakeTTS(available=True)
+
+    result = await synthesize_turn_speech(
+        session_factory=factory,
+        broker=cast(RealtimeBroker, broker),
+        tts=tts,
+        settings=settings,
+        campaign_id=campaign_id,
+        turn_id=turn_id,
+    )
+
+    assert tts.calls == []
+    assert result["reasons"] == {"thought": "speech_disabled", "action": "speech_disabled"}
+    # Реплики всё равно доезжают до зрителя — просто текстом.
+    assert [event["payload"]["kind"] for event in broker.events] == ["thought", "action"]
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_muted_thoughts_still_reach_the_spectator_as_text(settings: Settings) -> None:
+    engine, campaign_id, turn_id = await _create_turn(
+        settings,
+        with_voice=True,
+        speak_thoughts=False,
+    )
+    factory = create_session_factory(engine)
+    broker = FakeBroker()
+    tts = FakeTTS(available=True)
+
+    result = await synthesize_turn_speech(
+        session_factory=factory,
+        broker=cast(RealtimeBroker, broker),
+        tts=tts,
+        settings=settings,
+        campaign_id=campaign_id,
+        turn_id=turn_id,
+    )
+
+    assert tts.calls == ["A public action."]
+    assert result["generated_audio"] == ["action"]
+    assert result["reasons"] == {"thought": "thoughts_muted"}
+    assert [event["payload"]["kind"] for event in broker.events] == ["thought", "action"]
     await engine.dispose()
 
 

@@ -145,7 +145,11 @@ export function CommandBar({
         <ul className="capabilities" aria-label="Доступность внешних сервисов">
           <Capability label="LLM" enabled={capabilities.data?.llm_enabled} />
           <Capability label="STT" enabled={capabilities.data?.stt_enabled} />
-          <Capability label="TTS" enabled={capabilities.data?.tts_enabled} />
+          <TTSCapability
+            status={capabilities.data?.tts.status}
+            detail={capabilities.data?.tts.detail}
+            campaignEnabled={snapshot.campaign.speech_enabled}
+          />
         </ul>
 
         {snapshot.active_event ? (
@@ -204,6 +208,39 @@ export function CommandBar({
         onToggle={onToggleCharacter}
       />
     </header>
+  );
+}
+
+/**
+ * У озвучки состояний больше двух, и лечатся они по-разному: выключена
+ * настройкой — правится в .env, движка нет — пересборкой, выключена на кампании
+ * — тумблером в панели озвучки. Бинарная лампочка все три случая сваливала в
+ * «недоступен».
+ */
+function TTSCapability({
+  status,
+  detail,
+  campaignEnabled,
+}: {
+  status: "ready" | "off" | "unavailable" | undefined;
+  detail: string | null | undefined;
+  campaignEnabled: boolean;
+}) {
+  if (status === undefined) {
+    return <Capability label="TTS" enabled={undefined} />;
+  }
+  const muted = status === "ready" && !campaignEnabled;
+  const state = muted ? "muted" : status === "ready" ? "on" : "off";
+  const description = muted
+    ? "выключена на кампании"
+    : status === "ready"
+      ? "работает"
+      : (detail ?? "недоступна");
+  return (
+    <li className={`capability capability--${state}`}>
+      <span aria-hidden="true" />
+      <abbr title={`Озвучка ${description}`}>TTS</abbr>
+    </li>
   );
 }
 

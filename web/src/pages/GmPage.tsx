@@ -6,6 +6,7 @@ import type {
   CharacterGM,
   GameStateSnapshot,
   ObserverProposal,
+  RealtimeEvent,
 } from "../api/types";
 import { ErrorNotice } from "../components/ErrorNotice";
 import { ActorHeader } from "../components/gm/ActorHeader";
@@ -16,11 +17,13 @@ import { EventLog } from "../components/gm/EventLog";
 import { ObserverPanel } from "../components/gm/ObserverPanel";
 import { ShortcutsDialog } from "../components/gm/ShortcutsDialog";
 import { TurnComposer } from "../components/gm/TurnComposer";
+import { SpeechDock } from "../components/gm/SpeechDock";
 import { TurnFlowStrip, type TurnStage } from "../components/gm/TurnFlowStrip";
 import { VoiceDock } from "../components/gm/VoiceDock";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { useJobRunner } from "../hooks/useJobPolling";
 import { useRealtime } from "../hooks/useRealtime";
+import { useSpeechQueue, type SpeechQueue } from "../hooks/useSpeechQueue";
 import { useToast } from "../hooks/useToast";
 import { useFlowStore } from "../store/flow";
 import { useUiStore } from "../store/ui";
@@ -102,9 +105,28 @@ export default function GmPage() {
       }),
   });
 
-  const handleRealtime = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
-  }, [campaignId, queryClient]);
+  const speech = useSpeechQueue(campaignId);
+  const revoice = useMutation({
+    mutationFn: (turnId: string) => api.resynthesizeTurnSpeech(campaignId!, turnId),
+    onSuccess: () => speech.refresh(),
+    onError: (error) =>
+      toast.push({
+        tone: "error",
+        title: "Переозвучка не запустилась",
+        description: describeError(error),
+      }),
+  });
+
+  const handleRealtime = useCallback(
+    (event: RealtimeEvent) => {
+      void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
+      /* Готовая реплика меняет и лог, и очередь: полагаться на один опрос
+         очереди значит показывать «синтезируется» уже после того, как звук
+         доиграл у зрителя. */
+      if (event.type === "speech.ready" || event.type === "turn.created") speech.refresh();
+    },
+    [campaignId, queryClient, speech],
+  );
   useRealtime(campaignId, snapshot.data?.last_sequence ?? 0, undefined, handleRealtime);
 
   if (session.error instanceof ApiError && session.error.status === 401) {
@@ -198,6 +220,8 @@ export default function GmPage() {
             campaignId={campaignId}
             snapshot={snapshot.data}
             characters={characters}
+            speech={speech}
+            onRevoice={(turnId) => revoice.mutate(turnId)}
             onChanged={refreshSnapshot}
           />
         </section>
@@ -215,9 +239,11 @@ export default function GmPage() {
               campaignId={campaignId}
               eventId={activeEvent.id}
               character={selectedCharacter}
-              onTurnPublished={(turnId) => {
+              onTurnPublished={(turnId, notifyObserver) => {
                 setProposal(null);
-                setObserverTurnId(turnId);
+                /* Тумблер выключен — ход идёт только в лог и зрителям, а
+                   Наблюдателя ГМ при желании позовёт вручную. */
+                setObserverTurnId(notifyObserver ? turnId : undefined);
               }}
               onChanged={refreshSnapshot}
               onPickCharacter={() => setOpenPopover("characters")}
@@ -337,11 +363,15 @@ function EventLogColumn({
   campaignId,
   snapshot,
   characters,
+  speech,
+  onRevoice,
   onChanged,
 }: {
   campaignId: string;
   snapshot: GameStateSnapshot;
   characters: CharacterGM[];
+  speech: SpeechQueue;
+  onRevoice: (turnId: string) => void;
   onChanged: () => void;
 }) {
   const toast = useToast();
@@ -384,10 +414,18 @@ function EventLogColumn({
         characters={characters}
         compressing={compress.isPending}
         onCompress={() => compress.run()}
+        speech={speech}
+        onRevoice={onRevoice}
       />
       <VoiceDock
         campaignId={campaignId}
         eventId={activeEvent?.status === "active" ? activeEvent.id : undefined}
+        onChanged={onChanged}
+      />
+      <SpeechDock
+        campaignId={campaignId}
+        campaign={snapshot.campaign}
+        queue={speech}
         onChanged={onChanged}
       />
     </>

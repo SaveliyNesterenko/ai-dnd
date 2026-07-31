@@ -533,6 +533,13 @@
   color: var(--danger);
 }
 
+.picker-row__voiceless {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--faint);
+}
+
 .switch {
   position: relative;
   width: 32px;

@@ -7,6 +7,7 @@ import { useHotkeys } from "../../hooks/useHotkeys";
 import { useJobRunner } from "../../hooks/useJobPolling";
 import { useToast } from "../../hooks/useToast";
 import { useFlowStore } from "../../store/flow";
+import { useUiStore } from "../../store/ui";
 import { describeError } from "../../utils/errors";
 import { formatElapsed } from "../../utils/format";
 import { IconButton } from "../ui/IconButton";
@@ -28,12 +29,15 @@ export function TurnComposer({
   campaignId: string;
   eventId: string;
   character: CharacterGM | undefined;
-  onTurnPublished: (turnId: string) => void;
+  /** `notifyObserver` — отдавать ли ход Наблюдателю на разбор. */
+  onTurnPublished: (turnId: string, notifyObserver: boolean) => void;
   onChanged: () => void;
   onPickCharacter: () => void;
 }) {
   const toast = useToast();
   const setBusy = useFlowStore((state) => state.setBusy);
+  const notifyObserver = useUiStore((state) => state.notifyObserver);
+  const setNotifyObserver = useUiStore((state) => state.setNotifyObserver);
   const [thought, setThought] = useState("");
   const [action, setAction] = useState("");
   const [emptyAction, setEmptyAction] = useState(false);
@@ -56,7 +60,7 @@ export function TurnComposer({
       setAction("");
       setEmptyAction(false);
       setManual(false);
-      onTurnPublished(turn.id);
+      onTurnPublished(turn.id, notifyObserver);
       onChanged();
     },
     onError: (error) =>
@@ -262,6 +266,22 @@ export function TurnComposer({
           >
             <DieGlyph size={14} />
             Бросок d20 <kbd>⇧Ctrl+⏎</kbd>
+          </button>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={notifyObserver}
+            aria-label="Отправлять ход Наблюдателю"
+            title={
+              notifyObserver
+                ? "Наблюдатель разберёт ход сразу после публикации"
+                : "Ход уйдёт только в лог и на зрительский экран"
+            }
+            className={`composer__observer-toggle${notifyObserver ? " is-on" : ""}`}
+            onClick={() => setNotifyObserver(!notifyObserver)}
+          >
+            <span>Наблюдателю</span>
+            <span className="switch" aria-hidden="true" />
           </button>
         </div>
       )}

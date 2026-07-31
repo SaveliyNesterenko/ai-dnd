@@ -114,6 +114,12 @@ export type BackgroundJobView = {
      */
     status: string;
     /**
+     * Input Data
+     */
+    input_data: {
+        [key: string]: unknown;
+    } | null;
+    /**
      * Output Data
      */
     output_data: {
@@ -171,6 +177,14 @@ export type CampaignSummary = {
      * Is Active
      */
     is_active: boolean;
+    /**
+     * Speech Enabled
+     */
+    speech_enabled: boolean;
+    /**
+     * Speech Speak Thoughts
+     */
+    speech_speak_thoughts: boolean;
 };
 
 /**
@@ -189,6 +203,7 @@ export type CapabilityView = {
      * Tts Enabled
      */
     tts_enabled: boolean;
+    tts: TtsCapabilityView;
 };
 
 /**
@@ -1015,6 +1030,16 @@ export type SetResourceOperation = {
 };
 
 /**
+ * SkipSpeechRequest
+ */
+export type SkipSpeechRequest = {
+    /**
+     * Turn Id
+     */
+    turn_id?: string | null;
+};
+
+/**
  * StartEventRequest
  */
 export type StartEventRequest = {
@@ -1022,6 +1047,23 @@ export type StartEventRequest = {
      * Title
      */
     title?: string;
+};
+
+/**
+ * TTSCapabilityView
+ *
+ * `ready` — синтез работает, `off` — выключен настройкой, `unavailable` —
+ * движка нет в сборке. Отличать их важно: лечатся они по-разному.
+ */
+export type TtsCapabilityView = {
+    /**
+     * Status
+     */
+    status: 'ready' | 'off' | 'unavailable';
+    /**
+     * Detail
+     */
+    detail?: string | null;
 };
 
 /**
@@ -1214,6 +1256,20 @@ export type UpdateSceneRequest = {
      * Base Revision
      */
     base_revision: number;
+};
+
+/**
+ * UpdateSpeechSettingsRequest
+ */
+export type UpdateSpeechSettingsRequest = {
+    /**
+     * Speech Enabled
+     */
+    speech_enabled?: boolean | null;
+    /**
+     * Speech Speak Thoughts
+     */
+    speech_speak_thoughts?: boolean | null;
 };
 
 /**
@@ -1581,6 +1637,104 @@ export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses = 
 };
 
 export type CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponse = CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses[keyof CreateTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPostResponses];
+
+export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostData = {
+    body?: never;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+        /**
+         * Turn Id
+         */
+        turn_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/turns/{turn_id}/speech';
+};
+
+export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostError = ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostErrors[keyof ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostErrors];
+
+export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: BackgroundJobView;
+};
+
+export type ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostResponse = ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostResponses[keyof ResynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPostResponses];
+
+export type SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostData = {
+    body: SkipSpeechRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/speech/skip';
+};
+
+export type SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostError = SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostErrors[keyof SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostErrors];
+
+export type SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostResponses = {
+    /**
+     * Response Skip Speech Api V1 Campaigns  Campaign Id  Speech Skip Post
+     *
+     * Successful Response
+     */
+    202: {
+        [key: string]: unknown;
+    };
+};
+
+export type SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostResponse = SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostResponses[keyof SkipSpeechApiV1CampaignsCampaignIdSpeechSkipPostResponses];
+
+export type UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchData = {
+    body: UpdateSpeechSettingsRequest;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: never;
+    url: '/api/v1/campaigns/{campaign_id}/speech';
+};
+
+export type UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchError = UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchErrors[keyof UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchErrors];
+
+export type UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: CampaignSummary;
+};
+
+export type UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchResponse = UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchResponses[keyof UpdateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatchResponses];
 
 export type UpdateSceneApiV1CampaignsCampaignIdScenePatchData = {
     body: UpdateSceneRequest;
@@ -1995,6 +2149,51 @@ export type GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResp
 };
 
 export type GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResponse = GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResponses[keyof GenerateObserverProposalApiV1CampaignsCampaignIdJobsObserverPostResponses];
+
+export type ListJobsApiV1CampaignsCampaignIdJobsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Campaign Id
+         */
+        campaign_id: string;
+    };
+    query?: {
+        /**
+         * Kind
+         */
+        kind?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/campaigns/{campaign_id}/jobs';
+};
+
+export type ListJobsApiV1CampaignsCampaignIdJobsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListJobsApiV1CampaignsCampaignIdJobsGetError = ListJobsApiV1CampaignsCampaignIdJobsGetErrors[keyof ListJobsApiV1CampaignsCampaignIdJobsGetErrors];
+
+export type ListJobsApiV1CampaignsCampaignIdJobsGetResponses = {
+    /**
+     * Response List Jobs Api V1 Campaigns  Campaign Id  Jobs Get
+     *
+     * Successful Response
+     */
+    200: Array<BackgroundJobView>;
+};
+
+export type ListJobsApiV1CampaignsCampaignIdJobsGetResponse = ListJobsApiV1CampaignsCampaignIdJobsGetResponses[keyof ListJobsApiV1CampaignsCampaignIdJobsGetResponses];
 
 export type GetJobApiV1CampaignsCampaignIdJobsJobIdGetData = {
     body?: never;

@@ -3,7 +3,7 @@ import { useMemo, useState, type RefObject } from "react";
 import type { CharacterGM, GameStateSnapshot } from "../../api/types";
 import { Popover } from "../ui/Popover";
 import { kindLabel } from "../../utils/format";
-import { KindGlyph } from "./icons";
+import { KindGlyph, SpeakerOffGlyph } from "./icons";
 
 export function CharacterPicker({
   anchorRef,
@@ -114,6 +114,14 @@ function PickerGroup({
                     {kindLabel(character.kind)}
                   </span>
                   {character.model_id && <span className="mono">{character.model_id}</span>}
+                  {/* Персонаж без образца молчит всегда — и до сих пор без
+                      единого сигнала. Видно до начала сессии, а не после. */}
+                  {!character.voice_asset_id && (
+                    <span className="picker-row__voiceless" title="Реплики уйдут без озвучки">
+                      <SpeakerOffGlyph size={11} />
+                      без голоса
+                    </span>
+                  )}
                 </span>
               </span>
               <span className="switch" aria-hidden="true" />

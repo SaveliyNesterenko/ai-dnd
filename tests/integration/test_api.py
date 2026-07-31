@@ -1,3 +1,4 @@
+# ruff: noqa: RUF003
 from __future__ import annotations
 
 import time
@@ -47,11 +48,14 @@ def _create_turn(
 def test_health_and_capabilities(client: TestClient) -> None:
     assert client.get("/api/v1/health/live").json() == {"status": "ok"}
     assert client.get("/api/v1/health/ready").json() == {"status": "ready"}
-    assert client.get("/api/v1/capabilities").json() == {
-        "llm_enabled": False,
-        "stt_enabled": False,
-        "tts_enabled": False,
-    }
+    capabilities = client.get("/api/v1/capabilities").json()
+    assert capabilities["llm_enabled"] is False
+    assert capabilities["stt_enabled"] is False
+    assert capabilities["tts_enabled"] is False
+    # Причина обязана быть машиночитаемой: консоль различает выключенный
+    # движок и отсутствующий, а под тестами он именно выключен.
+    assert capabilities["tts"]["status"] == "off"
+    assert capabilities["tts"]["detail"]
 
 
 def test_gm_bootstrap_token_is_single_use(client: TestClient) -> None:
@@ -135,6 +139,89 @@ def test_event_turn_and_idempotency(
         character_id,
     )
     assert turn["action"] == "<script>alert('xss')</script>"
+
+
+def test_speech_settings_are_campaign_state(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    response = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/speech",
+        json={"speech_enabled": False, "speech_speak_thoughts": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["speech_enabled"] is False
+
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    campaign = snapshot["campaign"]
+    assert isinstance(campaign, dict)
+    assert campaign["speech_enabled"] is False
+    assert campaign["speech_speak_thoughts"] is False
+
+    # Пустой запрос — это не «сбросить всё», а ошибка ввода.
+    assert (
+        authenticated_client.patch(
+            f"/api/v1/campaigns/{demo_campaign_id}/speech",
+            json={},
+        ).status_code
+        == 422
+    )
+
+
+def test_speech_queue_is_visible_and_turns_can_be_revoiced(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = str(snapshot["characters"][0]["id"])
+    turn = _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        str(event["id"]),
+        character_id,
+    )
+
+    jobs = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs",
+        params={"kind": "speech_synthesis"},
+    )
+    assert jobs.status_code == 200
+    queued = jobs.json()
+    assert len(queued) == 1
+    # Имя персонажа лежит в самой задаче: очередь читается одним запросом.
+    assert queued[0]["input_data"]["turn_id"] == turn["id"]
+    assert queued[0]["input_data"]["actor_name"] == "<img src=x onerror=alert(1)>"
+
+    revoiced = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{turn['id']}/speech",
+    )
+    assert revoiced.status_code == 202
+    assert revoiced.json()["kind"] == "speech_synthesis"
+
+    missing = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}/speech",
+    )
+    assert missing.status_code == 404
+
+
+def test_speech_skip_reaches_spectators(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    response = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/speech/skip",
+        json={"turn_id": "turn-1"},
+    )
+    assert response.status_code == 202
+
+    with authenticated_client.websocket_connect(
+        f"/api/v1/realtime?campaign_id={demo_campaign_id}&last_sequence=0&join_code={code}"
+    ) as websocket:
+        event = websocket.receive_json()
+        assert event["type"] == "speech.skip"
+        assert event["payload"] == {"turn_id": "turn-1"}
 
 
 def test_public_turn_projection_includes_spectator_thought(

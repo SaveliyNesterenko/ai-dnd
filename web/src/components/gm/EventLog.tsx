@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 import type { CharacterGM, GameStateSnapshot } from "../../api/types";
 import type { TurnView } from "../../api/generated/types.gen";
+import type { SpeechCueKind, SpeechQueue } from "../../hooks/useSpeechQueue";
 import { formatClock, pluralTurns } from "../../utils/format";
-import { KindGlyph, ThoughtGlyph } from "./icons";
+import { KindGlyph, RetryGlyph, SpeakerGlyph, SpeakerOffGlyph, ThoughtGlyph } from "./icons";
 
 /** Ниже этого расстояния от низа считаем, что ГМ читает свежие ходы. */
 const STICK_TO_BOTTOM_PX = 80;
@@ -13,11 +14,15 @@ export function EventLog({
   characters,
   compressing,
   onCompress,
+  speech,
+  onRevoice,
 }: {
   snapshot: GameStateSnapshot;
   characters: CharacterGM[];
   compressing: boolean;
   onCompress: () => void;
+  speech: SpeechQueue;
+  onRevoice: (turnId: string) => void;
 }) {
   const activeEvent = snapshot.active_event;
   const throughSequence = activeEvent?.context_summary_through_sequence ?? 0;
@@ -94,6 +99,8 @@ export function EventLog({
             key={turn.id}
             turn={turn}
             character={characters.find((item) => item.id === turn.character_id)}
+            speech={speech}
+            onRevoice={onRevoice}
           />
         ))}
 
@@ -107,8 +114,20 @@ export function EventLog({
   );
 }
 
-function LogEntry({ turn, character }: { turn: TurnView; character: CharacterGM | undefined }) {
+function LogEntry({
+  turn,
+  character,
+  speech,
+  onRevoice,
+}: {
+  turn: TurnView;
+  character: CharacterGM | undefined;
+  speech: SpeechQueue;
+  onRevoice: (turnId: string) => void;
+}) {
   const isGm = turn.character_id === null;
+  /* Реплики ГМ-а не озвучиваются вовсе — значок там был бы шумом. */
+  const voiced = !isGm;
   return (
     <article className={`log-entry log-entry--${isGm ? "gm" : "model"}`}>
       <header className="log-entry__meta">
@@ -124,6 +143,21 @@ function LogEntry({ turn, character }: { turn: TurnView; character: CharacterGM 
           )}
           {turn.actor_name}
         </span>
+        {voiced && (
+          <span className="log-entry__speech">
+            {turn.thought && <SpeechBadge turn={turn} kind="thought" speech={speech} />}
+            <SpeechBadge turn={turn} kind="action" speech={speech} />
+            <button
+              type="button"
+              className="speech-badge speech-badge--revoice"
+              title="Переозвучить ход"
+              aria-label={`Переозвучить ход ${turn.sequence}`}
+              onClick={() => onRevoice(turn.id)}
+            >
+              <RetryGlyph size={11} />
+            </button>
+          </span>
+        )}
         <time className="log-entry__time mono" dateTime={turn.created_at}>
           {formatClock(turn.created_at)}
         </time>
@@ -144,6 +178,62 @@ function LogEntry({ turn, character }: { turn: TurnView; character: CharacterGM 
         </p>
       )}
     </article>
+  );
+}
+
+/**
+ * Состояние озвучки реплики — и кнопка прослушки, когда звук есть: ГМ слышит
+ * ровно то, что услышали зрители, не переспрашивая их.
+ */
+function SpeechBadge({
+  turn,
+  kind,
+  speech,
+}: {
+  turn: TurnView;
+  kind: SpeechCueKind;
+  speech: SpeechQueue;
+}) {
+  const status = speech.cueStatus(turn, kind);
+  const cueName = kind === "thought" ? "мысль" : "реплика";
+  const cueAccusative = kind === "thought" ? "мысль" : "реплику";
+
+  if (status.state === "pending") {
+    return (
+      <span
+        className="speech-badge speech-badge--pending"
+        title={`Синтезируется ${cueName}`}
+        aria-label={`Синтезируется ${cueName} хода ${turn.sequence}`}
+      >
+        <SpeakerGlyph size={11} />
+      </span>
+    );
+  }
+
+  if (status.state === "voiced" && status.audioUrl) {
+    const audioUrl = status.audioUrl;
+    return (
+      <button
+        type="button"
+        className="speech-badge speech-badge--voiced"
+        title={`Прослушать: ${cueName}`}
+        aria-label={`Прослушать ${cueAccusative} хода ${turn.sequence}`}
+        onClick={() => void new Audio(audioUrl).play().catch(() => undefined)}
+      >
+        <SpeakerGlyph size={11} />
+      </button>
+    );
+  }
+
+  const reason = status.reason ?? "Озвучки нет";
+  return (
+    <span
+      className="speech-badge speech-badge--silent"
+      title={`${cueName}: ${reason.toLowerCase()}`}
+      aria-label={`${cueName} без звука: ${reason}`}
+    >
+      <SpeakerOffGlyph size={11} />
+    </span>
   );
 }
 

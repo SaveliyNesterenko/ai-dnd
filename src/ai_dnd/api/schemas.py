@@ -58,6 +58,8 @@ class CampaignSummary(BaseModel):
     name: str
     revision: int
     is_active: bool
+    speech_enabled: bool
+    speech_speak_thoughts: bool
 
 
 class TurnView(BaseModel):
@@ -173,6 +175,25 @@ class UpdateSceneRequest(BaseModel):
         if all(value is None for value in fields):
             raise ValueError("at least one scene field must be provided")
         return self
+
+
+class UpdateSpeechSettingsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    speech_enabled: bool | None = None
+    speech_speak_thoughts: bool | None = None
+
+    @model_validator(mode="after")
+    def contains_change(self) -> UpdateSpeechSettingsRequest:
+        if self.speech_enabled is None and self.speech_speak_thoughts is None:
+            raise ValueError("at least one speech setting must be provided")
+        return self
+
+
+class SkipSpeechRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    turn_id: str | None = None
 
 
 class UpdateSceneCharacterRequest(BaseModel):
@@ -418,6 +439,7 @@ class BackgroundJobView(BaseModel):
     campaign_id: str | None
     kind: str
     status: str
+    input_data: dict[str, Any] | None
     output_data: dict[str, Any] | None
     error_code: str | None
     created_at: datetime
@@ -479,10 +501,19 @@ class ConfirmEventFinalizationRequest(BaseModel):
         return cleaned
 
 
+class TTSCapabilityView(BaseModel):
+    """`ready` — синтез работает, `off` — выключен настройкой, `unavailable` —
+    движка нет в сборке. Отличать их важно: лечатся они по-разному."""
+
+    status: Literal["ready", "off", "unavailable"]
+    detail: str | None = None
+
+
 class CapabilityView(BaseModel):
     llm_enabled: bool
     stt_enabled: bool
     tts_enabled: bool
+    tts: TTSCapabilityView
 
 
 class LegacyImportRequest(BaseModel):

@@ -147,6 +147,7 @@
 
 .gm-character-card__flip,
 .gm-character-card__kind,
+.gm-character-card__voiceless,
 .gm-character-card__remove {
   display: grid;
   width: 25px;
@@ -189,6 +190,11 @@
   border-color: var(--danger);
   color: #ffe2de;
   background: rgb(239 131 122 / 42%);
+}
+
+/* Отсутствие образца голоса — не ошибка, а факт: приглушённо, но постоянно. */
+.gm-character-card__voiceless {
+  color: #b8b0c2;
 }
 
 .gm-character-card__kind--player {

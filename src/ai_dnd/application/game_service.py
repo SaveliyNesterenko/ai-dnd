@@ -69,6 +69,18 @@ def _character_query() -> Select[tuple[CharacterModel]]:
     )
 
 
+def _campaign_summary(campaign: CampaignModel) -> CampaignSummary:
+    return CampaignSummary(
+        id=campaign.id,
+        slug=campaign.slug,
+        name=campaign.name,
+        revision=campaign.revision,
+        is_active=campaign.is_active,
+        speech_enabled=campaign.speech_enabled,
+        speech_speak_thoughts=campaign.speech_speak_thoughts,
+    )
+
+
 class GameService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -77,16 +89,7 @@ class GameService:
         rows = await self.session.scalars(
             select(CampaignModel).order_by(CampaignModel.is_active.desc(), CampaignModel.name)
         )
-        return [
-            CampaignSummary(
-                id=row.id,
-                slug=row.slug,
-                name=row.name,
-                revision=row.revision,
-                is_active=row.is_active,
-            )
-            for row in rows
-        ]
+        return [_campaign_summary(row) for row in rows]
 
     async def activate_campaign(self, campaign_id: str) -> CampaignSummary:
         campaign = await self.session.get(CampaignModel, campaign_id)
@@ -101,13 +104,7 @@ class GameService:
             campaign.is_active = True
             campaign.revision += 1
         await self.session.flush()
-        return CampaignSummary(
-            id=campaign.id,
-            slug=campaign.slug,
-            name=campaign.name,
-            revision=campaign.revision,
-            is_active=campaign.is_active,
-        )
+        return _campaign_summary(campaign)
 
     async def create_campaign(self, slug: str, name: str) -> CampaignSummary:
         existing = await self.session.scalar(
@@ -122,19 +119,28 @@ class GameService:
         except IntegrityError as error:
             await self.session.rollback()
             raise ConflictError(f"Campaign slug '{slug}' already exists.") from error
-        return CampaignSummary(
-            id=campaign.id,
-            slug=campaign.slug,
-            name=campaign.name,
-            revision=campaign.revision,
-            is_active=campaign.is_active,
-        )
+        return _campaign_summary(campaign)
 
     async def get_campaign(self, campaign_id: str) -> CampaignModel:
         campaign = await self.session.get(CampaignModel, campaign_id)
         if not campaign:
             raise NotFoundError("Campaign not found.")
         return campaign
+
+    async def update_speech_settings(
+        self,
+        campaign_id: str,
+        *,
+        speech_enabled: bool | None,
+        speech_speak_thoughts: bool | None,
+    ) -> CampaignSummary:
+        campaign = await self.get_campaign(campaign_id)
+        if speech_enabled is not None:
+            campaign.speech_enabled = speech_enabled
+        if speech_speak_thoughts is not None:
+            campaign.speech_speak_thoughts = speech_speak_thoughts
+        await self.session.flush()
+        return _campaign_summary(campaign)
 
     async def get_snapshot(self, campaign_id: str, *, gm_view: bool) -> GameStateSnapshot:
         campaign = await self.get_campaign(campaign_id)
@@ -291,13 +297,7 @@ class GameService:
             )
 
         return GameStateSnapshot(
-            campaign=CampaignSummary(
-                id=campaign.id,
-                slug=campaign.slug,
-                name=campaign.name,
-                revision=campaign.revision,
-                is_active=campaign.is_active,
-            ),
+            campaign=_campaign_summary(campaign),
             world_state=campaign.world_state,
             global_chronicle=campaign.global_chronicle if gm_view else None,
             scene=SceneView(

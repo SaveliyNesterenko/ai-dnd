@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001, RUF002
 from __future__ import annotations
 
 import json
@@ -7,7 +8,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Literal, Protocol
 from uuid import uuid4
 
 import httpx
@@ -25,11 +26,45 @@ class TTSWorker(Protocol):
     async def health(self) -> bool: ...
 
 
+TTSStatus = Literal["ready", "off", "unavailable"]
+
+
 @dataclass(frozen=True, slots=True)
 class VoiceCapability:
     enabled: bool
-    status: str
+    status: TTSStatus
     detail: str | None = None
+
+
+def describe_tts_capability(settings: Settings) -> VoiceCapability:
+    """Почему озвучка недоступна — вопрос ГМ-а, а не разработчика.
+
+    Причин ровно три, и лечатся они по-разному: настройкой, установкой пакетов
+    или ничем. Консоль показывает эту строку в подсказке индикатора, поэтому
+    она на русском, как и остальной текст, доходящий до экрана.
+    """
+    if not settings.tts_enabled:
+        return VoiceCapability(
+            enabled=False,
+            status="off",
+            detail="Выключена настройкой tts_enabled.",
+        )
+    if settings.environment == "test":
+        return VoiceCapability(
+            enabled=False,
+            status="off",
+            detail="В тестовом окружении синтез не запускается.",
+        )
+    if find_spec("TTS") is None or find_spec("torch") is None:
+        # Команда в подсказке не для красоты: обычный `uv run` пересобирает
+        # окружение без extra и молча выносит озвучку, так что чаще всего этот
+        # статус означает именно «поставьте пакеты обратно».
+        return VoiceCapability(
+            enabled=False,
+            status="unavailable",
+            detail="Пакеты не установлены: uv sync --locked --extra voice",
+        )
+    return VoiceCapability(enabled=True, status="ready")
 
 
 class DisabledSTTProvider:
@@ -146,11 +181,6 @@ def create_stt_provider(settings: Settings) -> STTProvider:
 
 
 def create_tts_worker(settings: Settings) -> TTSWorker:
-    if (
-        not settings.tts_enabled
-        or settings.environment == "test"
-        or find_spec("TTS") is None
-        or find_spec("torch") is None
-    ):
+    if not describe_tts_capability(settings).enabled:
         return DisabledTTSWorker()
     return CoquiTTSWorker(settings)

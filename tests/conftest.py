@@ -1,5 +1,7 @@
+# ruff: noqa: RUF002
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
@@ -15,6 +17,22 @@ from ai_dnd.infrastructure.models import Base
 from ai_dnd.main import create_app
 
 
+@pytest.fixture(autouse=True)
+def isolated_settings_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Отвязывает Settings от окружения разработчика.
+
+    Settings читает `.env` из корня проекта и переменные `AI_DND_*`, поэтому
+    без изоляции результат тестов зависит от того, какие ключи прописаны на
+    конкретной машине: с заполненным `.env` провайдеры LLM и STT включаются и
+    проверки отключённых возможностей падают. Тесты должны видеть только те
+    значения, которые задают сами.
+    """
+    for name in list(os.environ):
+        if name.upper().startswith("AI_DND_"):
+            monkeypatch.delenv(name, raising=False)
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(
@@ -22,7 +40,6 @@ def settings(tmp_path: Path) -> Settings:
         data_dir=tmp_path / "runtime",
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}",
         web_dist_dir=tmp_path / "missing-web-dist",
-        openai_api_key=None,
     )
 
 

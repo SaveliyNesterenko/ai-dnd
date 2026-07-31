@@ -11,10 +11,13 @@ interface UiState {
   leftWidth: number;
   rightWidth: number;
   stripCollapsed: boolean;
+  /** Уходит ли опубликованный ход Наблюдателю на разбор. */
+  notifyObserver: boolean;
   selectCharacter: (id: string | null) => void;
   setAudioEnabled: (enabled: boolean) => void;
   setColumnWidth: (side: "left" | "right", width: number) => void;
   toggleStrip: () => void;
+  setNotifyObserver: (enabled: boolean) => void;
 }
 
 const clampWidth = (width: number) =>
@@ -28,21 +31,25 @@ export const useUiStore = create<UiState>()(
       leftWidth: 380,
       rightWidth: 380,
       stripCollapsed: false,
+      notifyObserver: true,
       selectCharacter: (selectedCharacterId) => set({ selectedCharacterId }),
       setAudioEnabled: (audioEnabled) => set({ audioEnabled }),
       setColumnWidth: (side, width) =>
         set(side === "left" ? { leftWidth: clampWidth(width) } : { rightWidth: clampWidth(width) }),
       toggleStrip: () => set((state) => ({ stripCollapsed: !state.stripCollapsed })),
+      setNotifyObserver: (notifyObserver) => set({ notifyObserver }),
     }),
     {
       name: "ai-dnd-gm-ui",
-      /* Переживают перезагрузку только настройки раскладки. Выбранный
-         персонаж относится к текущей сцене, а разблокировка звука у зрителя
-         обязана запрашиваться заново — это требование автоплея в браузере. */
+      /* Переживают перезагрузку настройки раскладки и режим работы ГМ.
+         Выбранный персонаж относится к текущей сцене, а разблокировка звука у
+         зрителя обязана запрашиваться заново — это требование автоплея в
+         браузере. */
       partialize: (state) => ({
         leftWidth: state.leftWidth,
         rightWidth: state.rightWidth,
         stripCollapsed: state.stripCollapsed,
+        notifyObserver: state.notifyObserver,
       }),
     },
   ),

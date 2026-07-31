@@ -113,6 +113,24 @@ export const ThoughtGlyph = ({ size }: { size?: number }) => (
   </Glyph>
 );
 
+/** Динамик со звуковыми волнами: реплика озвучена. */
+export const SpeakerGlyph = ({ size }: { size?: number }) => (
+  <Glyph size={size}>
+    <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+    <path d="M15.5 9.2a4 4 0 0 1 0 5.6" />
+    <path d="M18 6.7a7.5 7.5 0 0 1 0 10.6" />
+  </Glyph>
+);
+
+/** Перечёркнутый динамик: реплика ушла к зрителю только текстом. */
+export const SpeakerOffGlyph = ({ size }: { size?: number }) => (
+  <Glyph size={size}>
+    <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+    <path d="M16 10l5 4" />
+    <path d="M21 10l-5 4" />
+  </Glyph>
+);
+
 export const KindGlyph = ({
   kind,
   size = 13,
