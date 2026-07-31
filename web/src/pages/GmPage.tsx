@@ -8,16 +8,15 @@ import type {
   ObserverProposal,
 } from "../api/types";
 import { ErrorNotice } from "../components/ErrorNotice";
-import { GmCharacterCard } from "../components/GmCharacterCard";
 import { ActorHeader } from "../components/gm/ActorHeader";
 import { ColumnResizer } from "../components/gm/ColumnResizer";
+import { CharacterStrip } from "../components/gm/CharacterStrip";
 import { CommandBar, type OpenPopover } from "../components/gm/CommandBar";
 import { EventLog } from "../components/gm/EventLog";
 import { ObserverPanel } from "../components/gm/ObserverPanel";
 import { TurnComposer } from "../components/gm/TurnComposer";
 import { TurnFlowStrip, type TurnStage } from "../components/gm/TurnFlowStrip";
 import { VoiceDock } from "../components/gm/VoiceDock";
-import { ChevronDown, ChevronUp } from "../components/gm/icons";
 import { useJobRunner } from "../hooks/useJobPolling";
 import { useRealtime } from "../hooks/useRealtime";
 import { useToast } from "../hooks/useToast";
@@ -38,9 +37,7 @@ export default function GmPage() {
   const selectCharacter = useUiStore((state) => state.selectCharacter);
   const leftWidth = useUiStore((state) => state.leftWidth);
   const rightWidth = useUiStore((state) => state.rightWidth);
-  const stripCollapsed = useUiStore((state) => state.stripCollapsed);
   const setColumnWidth = useUiStore((state) => state.setColumnWidth);
-  const toggleStrip = useUiStore((state) => state.toggleStrip);
 
   const session = useQuery({ queryKey: ["gm-session"], queryFn: api.gmSession, retry: false });
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
@@ -131,10 +128,6 @@ export default function GmPage() {
   const characters = snapshot.data.characters as CharacterGM[];
   const activeEvent = snapshot.data.active_event;
   const lastTurn = activeEvent?.turns.at(-1);
-  const displayedCharacterIds = snapshot.data.scene.characters
-    .filter((state) => state.is_visible)
-    .sort((left, right) => left.order - right.order)
-    .map((state) => state.character_id);
   const selectedCharacter = characters.find((character) => character.id === selectedCharacterId);
   const refreshSnapshot = () => {
     void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
@@ -258,81 +251,14 @@ export default function GmPage() {
         </aside>
       </section>
 
-      <section
-        className={`slab character-strip-panel${stripCollapsed ? " is-collapsed" : ""}`}
-        aria-label="Карточки персонажей"
-      >
-        <div className="strip-head">
-          <h2 className="strip-head__title">Персонажи</h2>
-          <span className="count-pill">{displayedCharacterIds.length}</span>
-          <button
-            type="button"
-            className="mini-button strip-head__add"
-            onClick={() => setOpenPopover("characters")}
-          >
-            + Добавить
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={stripCollapsed ? "Развернуть ленту персонажей" : "Свернуть ленту персонажей"}
-            aria-expanded={!stripCollapsed}
-            onClick={toggleStrip}
-          >
-            {stripCollapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </button>
-        </div>
-
-        {stripCollapsed ? (
-          <div className="strip-rail">
-            {displayedCharacterIds.length === 0 && (
-              <span className="strip-rail__empty">Никого на сцене</span>
-            )}
-            {displayedCharacterIds.map((characterId) => {
-              const character = characters.find((item) => item.id === characterId);
-              if (!character) return null;
-              return (
-                <button
-                  key={character.id}
-                  type="button"
-                  className={`strip-rail__chip${
-                    character.id === selectedCharacterId ? " is-selected" : ""
-                  }`}
-                  onClick={() => selectCharacter(character.id)}
-                >
-                  {character.name}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="gm-character-strip">
-            {displayedCharacterIds.length === 0 && (
-              <div className="gm-character-strip__empty">
-                Никого на сцене. Добавьте персонажей — здесь появятся их карточки.
-              </div>
-            )}
-            {displayedCharacterIds.map((characterId) => {
-              const character = characters.find((item) => item.id === characterId);
-              if (!character) return null;
-              return (
-                <GmCharacterCard
-                  key={character.id}
-                  campaignId={campaignId}
-                  character={character}
-                  sceneState={snapshot.data.scene.characters.find(
-                    (state) => state.character_id === character.id,
-                  )}
-                  selected={character.id === selectedCharacterId}
-                  onSelect={() => selectCharacter(character.id)}
-                  onRemove={() => toggleCharacterVisibility.mutate(character.id)}
-                  onChanged={refreshSnapshot}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <CharacterStrip
+        campaignId={campaignId}
+        snapshot={snapshot.data}
+        characters={characters}
+        onAddCharacter={() => setOpenPopover("characters")}
+        onRemoveCharacter={(characterId) => toggleCharacterVisibility.mutate(characterId)}
+        onChanged={refreshSnapshot}
+      />
     </main>
   );
 }

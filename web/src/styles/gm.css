@@ -1073,6 +1073,11 @@ kbd {
   padding: 0 var(--s3);
 }
 
+.strip-head__hint + .strip-head__add,
+.strip-head__title + .count-pill + .strip-head__add {
+  margin-left: auto;
+}
+
 .strip-head__title {
   margin: 0;
   color: var(--muted);
@@ -1118,19 +1123,78 @@ kbd {
   color: var(--role-gm);
 }
 
+.strip-viewport {
+  position: relative;
+}
+
+/* Кромки гасят карточки вместо видимой полосы прокрутки. */
+.strip-viewport::before,
+.strip-viewport::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  pointer-events: none;
+}
+
+.strip-viewport::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--slab), transparent);
+}
+
+.strip-viewport::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--slab), transparent);
+}
+
 .gm-character-strip {
   display: flex;
   height: 226px;
   align-items: stretch;
   gap: 10px;
+  margin: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  list-style: none;
   padding: 10px var(--s3);
   scroll-snap-type: x proximity;
+  scrollbar-width: none;
 }
 
-.gm-character-strip .gm-character-card {
+.gm-character-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.strip-item {
+  position: relative;
+  height: 100%;
+  flex: 0 0 auto;
+  border-radius: 12px;
   scroll-snap-align: start;
+}
+
+.strip-item:focus-visible {
+  outline: 2px solid var(--role-gm);
+  outline-offset: 3px;
+}
+
+.strip-item.is-dragging {
+  opacity: 0.4;
+}
+
+/* Место, куда встанет карточка. */
+.strip-item.is-drop-target::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--role-gm);
 }
 
 .gm-character-strip__empty {
@@ -1140,6 +1204,11 @@ kbd {
   color: var(--muted);
   font-size: 12px;
   text-align: center;
+}
+
+.strip-head__hint {
+  color: var(--faint);
+  font-size: 11px;
 }
 
 /* ── Наблюдатель ──────────────────────────────────────────────────────── */
@@ -1441,57 +1510,135 @@ kbd {
 
 /* ── завершение события ───────────────────────────────────────────────── */
 
+.finalization__safe {
+  flex: 0 0 auto;
+  color: var(--role-archivist);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.finalization__lead,
+.finalization__working {
+  margin: 0 0 var(--s4);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.finalization__working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--role-archivist);
+}
+
+.spinner--archivist {
+  flex: 0 0 auto;
+  border-color: rgb(121 195 154 / 25%);
+  border-top-color: var(--role-archivist);
+}
+
 .finalization__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-}
-
-.finalization__safe {
-  flex: 0 0 auto;
-  color: var(--success);
-  font-size: 0.84rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  gap: var(--s2);
 }
 
 .finalization__notice {
   border-left: 3px solid var(--warning);
-  margin: 14px 0;
+  margin: 0 0 var(--s4);
   background: rgb(0 0 0 / 18%);
   padding: 14px;
 }
 
 .finalization__notice p {
-  margin-bottom: 0;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
-.finalization__draft {
+/* Хроника слева, личные воспоминания стопкой справа: их надо сверять между
+   собой, а не переключать. */
+.finalization__grid {
   display: grid;
-  gap: 10px;
+  gap: var(--s4);
+  grid-template-columns: 1fr 1fr;
 }
 
-.finalization__draft textarea {
-  width: 100%;
-  resize: vertical;
+.finalization__notes {
+  display: grid;
+  align-content: start;
+  gap: var(--s3);
 }
 
+.finalization__chronicle,
 .finalization__player-note {
   display: grid;
   gap: 6px;
 }
 
-/* Поле для ручного хода в пустом состоянии: ГМ может не звать модель вообще. */
-.composer__seed {
-  width: min(46ch, 100%);
-  min-height: 74px;
+.finalization__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.filled-mark {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 50%;
+  background: none;
+}
+
+.filled-mark.is-filled {
+  border-color: var(--role-archivist);
+  background: var(--role-archivist);
+}
+
+.finalization__chronicle textarea {
+  height: 320px;
+}
+
+.finalization__player-note textarea {
+  height: 148px;
+}
+
+.finalization__grid textarea {
+  width: 100%;
   border: 1px solid var(--edge-strong);
   border-radius: 10px;
   background: var(--inset);
   padding: 10px 12px;
-  resize: none;
+  resize: vertical;
   font-family: Georgia, "Times New Roman", serif;
+  font-size: 13.5px;
   line-height: 1.6;
-  text-align: left;
+}
+
+.finalization__progress {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+@media (max-width: 1280px) {
+  .finalization__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .finalization__chronicle textarea {
+    height: 200px;
+  }
 }

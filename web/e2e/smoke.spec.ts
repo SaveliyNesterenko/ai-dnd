@@ -109,9 +109,11 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   const thought = "Aria notices a pattern visible to the audience.";
   await page.getByLabel("Мысль модели").fill(thought);
   await page.getByRole("button", { name: "Отправить с броском d20" }).click();
-  await expect(page.getByText(action, { exact: true })).toBeVisible();
-  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
+  // Мысль у зрителя показывается недолго и сменяется репликой, поэтому её
+  // проверяем сразу после публикации — до обращения к логу ГМ.
   await expect(spectator.locator(".speech-bubble.thought")).toBeVisible();
+  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
+  await expect(page.getByText(action, { exact: true })).toBeVisible();
   await expect(spectator.getByText(action, { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(spectator.locator(".speech-bubble.action")).toBeVisible();
   await expect(spectator.getByText(thought, { exact: true })).toBeHidden();
