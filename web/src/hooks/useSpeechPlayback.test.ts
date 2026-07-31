@@ -79,6 +79,52 @@ describe("useSpeechPlayback", () => {
     expect(result.current.diceRoll).toBeNull();
   });
 
+  it("drops the whole turn when the GM skips the playing cue", async () => {
+    const { result } = renderHook(() => useSpeechPlayback("campaign-1"));
+
+    act(() => {
+      result.current.enqueueRealtimeEvent(speechReady("thought"));
+      result.current.enqueueRealtimeEvent(speechReady("action"));
+      result.current.enqueueRealtimeEvent({
+        event_id: "skip-1",
+        campaign_id: "campaign-1",
+        sequence: 4,
+        type: "speech.skip",
+        occurred_at: "2026-07-30T10:00:05Z",
+        payload: { turn_id: "turn-1" },
+      });
+    });
+    await act(async () => {});
+
+    /* Обрывать мысль, чтобы следом зазвучало действие того же хода, — не то,
+       что ГМ просил кнопкой «Прервать». */
+    expect(result.current.activeCue).toBeNull();
+  });
+
+  it("keeps other turns queued when a skip names a turn", async () => {
+    const { result } = renderHook(() => useSpeechPlayback("campaign-1"));
+
+    act(() => {
+      result.current.enqueueRealtimeEvent(speechReady("thought"));
+      result.current.enqueueRealtimeEvent({
+        ...speechReady("action"),
+        event_id: "speech-other",
+        payload: { ...speechReady("action").payload, turn_id: "turn-2" },
+      });
+      result.current.enqueueRealtimeEvent({
+        event_id: "skip-2",
+        campaign_id: "campaign-1",
+        sequence: 5,
+        type: "speech.skip",
+        occurred_at: "2026-07-30T10:00:05Z",
+        payload: { turn_id: "turn-1" },
+      });
+    });
+    await act(async () => {});
+
+    expect(result.current.activeCue?.turnId).toBe("turn-2");
+  });
+
   it("deduplicates replayed realtime speech events", async () => {
     const { result } = renderHook(() => useSpeechPlayback("campaign-1"));
     const thought = speechReady("thought");

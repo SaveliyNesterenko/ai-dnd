@@ -1,3 +1,4 @@
+# ruff: noqa: RUF001
 from __future__ import annotations
 
 import time
@@ -29,7 +30,8 @@ class StubLLMProvider:
     ) -> PlayerTurnOutput:
         assert profile.model_id
         assert system_prompt
-        assert "event_history" in prompt
+        assert "--- КОНТЕКСТ ИГРЫ ---" in prompt
+        assert "--- УЧАСТНИКИ СЦЕНЫ ---" in prompt
         return PlayerTurnOutput(
             thought="The gears follow a repeating interval.",
             action="Aria marks the safe interval for Bram.",

@@ -82,6 +82,58 @@ describe("DraggableSpectatorAvatar", () => {
     });
   });
 
+  it("keeps the avatar fully inside the stage", async () => {
+    const sizes = new Map([
+      ["FIGURE", { width: 100, height: 80 }],
+      ["DIV", { width: 200, height: 100 }],
+    ]);
+    const rects = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        const size = sizes.get(this.tagName) ?? { width: 0, height: 0 };
+        return {
+          ...size,
+          top: 0,
+          left: 0,
+          right: size.width,
+          bottom: size.height,
+          x: 0,
+          y: 0,
+          toJSON: () => undefined,
+        };
+      });
+    const onPositionChange = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(
+      <div>
+        <DraggableSpectatorAvatar
+          canDrag
+          initialPosition={{ x: 50, y: 40 }}
+          isSpeaking={false}
+          name="Ария"
+          onPositionChange={onPositionChange}
+          width={100}
+          zIndex={2}
+        >
+          <img src="/aria.png" alt="Ария" />
+        </DraggableSpectatorAvatar>
+      </div>,
+    );
+    const avatar = container.querySelector("figure")!;
+
+    // Аватар занимает 80% высоты сцены, поэтому его опора не может быть выше 80%.
+    expect(avatar).toHaveStyle({ top: "80%" });
+
+    fireEvent.pointerDown(avatar, { button: 0, clientX: 100, clientY: 80, pointerId: 1 });
+    fireEvent.pointerMove(avatar, { clientX: 0, clientY: -200, pointerId: 1 });
+    expect(avatar).toHaveStyle({ left: "25%", top: "80%" });
+
+    fireEvent.pointerUp(avatar, { pointerId: 1 });
+    await waitFor(() => {
+      expect(onPositionChange).toHaveBeenCalledWith({ x: 25, y: 80 });
+    });
+    rects.mockRestore();
+  });
+
   it("ignores non-primary mouse buttons", () => {
     const { avatar, onPositionChange } = renderAvatar();
 

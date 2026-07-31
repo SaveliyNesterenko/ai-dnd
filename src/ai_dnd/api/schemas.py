@@ -30,6 +30,7 @@ class CharacterPublic(BaseModel):
     kind: Literal["player", "npc", "enemy"]
     role: str
     biography: str
+    model_id: str | None = None
     portrait_url: str | None = None
     avatar_url: str | None = None
     sprite_url: str | None = None
@@ -46,7 +47,6 @@ class CharacterPublic(BaseModel):
 
 
 class CharacterGM(CharacterPublic):
-    model_id: str | None = None
     voice_asset_id: str | None = None
     global_chronicle: list[str]
     private_notes: list[str]
@@ -58,6 +58,8 @@ class CampaignSummary(BaseModel):
     name: str
     revision: int
     is_active: bool
+    speech_enabled: bool
+    speech_speak_thoughts: bool
 
 
 class TurnView(BaseModel):
@@ -175,6 +177,25 @@ class UpdateSceneRequest(BaseModel):
         return self
 
 
+class UpdateSpeechSettingsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    speech_enabled: bool | None = None
+    speech_speak_thoughts: bool | None = None
+
+    @model_validator(mode="after")
+    def contains_change(self) -> UpdateSpeechSettingsRequest:
+        if self.speech_enabled is None and self.speech_speak_thoughts is None:
+            raise ValueError("at least one speech setting must be provided")
+        return self
+
+
+class SkipSpeechRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    turn_id: str | None = None
+
+
 class UpdateSceneCharacterRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -182,11 +203,12 @@ class UpdateSceneCharacterRequest(BaseModel):
     x: int | None = Field(default=None, ge=0, le=100)
     y: int | None = Field(default=None, ge=0, le=100)
     order: int | None = Field(default=None, ge=0, le=10_000)
+    flip_x: bool | None = None
     base_revision: int = Field(ge=1)
 
     @model_validator(mode="after")
     def contains_change(self) -> UpdateSceneCharacterRequest:
-        fields = (self.is_visible, self.x, self.y, self.order)
+        fields = (self.is_visible, self.x, self.y, self.order, self.flip_x)
         if all(value is None for value in fields):
             raise ValueError("at least one scene character field must be provided")
         return self
@@ -417,6 +439,7 @@ class BackgroundJobView(BaseModel):
     campaign_id: str | None
     kind: str
     status: str
+    input_data: dict[str, Any] | None
     output_data: dict[str, Any] | None
     error_code: str | None
     created_at: datetime
@@ -478,10 +501,19 @@ class ConfirmEventFinalizationRequest(BaseModel):
         return cleaned
 
 
+class TTSCapabilityView(BaseModel):
+    """`ready` — синтез работает, `off` — выключен настройкой, `unavailable` —
+    движка нет в сборке. Отличать их важно: лечатся они по-разному."""
+
+    status: Literal["ready", "off", "unavailable"]
+    detail: str | None = None
+
+
 class CapabilityView(BaseModel):
     llm_enabled: bool
     stt_enabled: bool
     tts_enabled: bool
+    tts: TTSCapabilityView
 
 
 class LegacyImportRequest(BaseModel):

@@ -1,0 +1,7 @@
+/* Порядок важен: токены → база → примитивы → экраны. */
+@import "./tokens.css";
+@import "./base.css";
+@import "./primitives.css";
+@import "./cards.css";
+@import "./gm.css";
+@import "./spectator.css";

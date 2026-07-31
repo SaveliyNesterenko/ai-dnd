@@ -506,6 +506,219 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/turns/{turn_id}": {
+      "delete": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Delete Turn",
+        "description": "Убрать ход из лога.\n\nСорвавшийся ответ модели или случайная реплика ГМ-а иначе остаются в\nконтексте навсегда: правки хода нет, а переписывать историю задним числом\nГМ должен уметь до того, как её прочитают другие модели.",
+        "operationId": "delete_turn_api_v1_campaigns__campaign_id__turns__turn_id__delete",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "turn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Turn Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Turn Api V1 Campaigns  Campaign Id  Turns  Turn Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/turns/{turn_id}/speech": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Resynthesize Turn Speech",
+        "description": "Переозвучить уже записанный ход.\n\nДо этого единственным способом получить звук для хода, у которого синтез\nупал, было создать ход заново.",
+        "operationId": "resynthesize_turn_speech_api_v1_campaigns__campaign_id__turns__turn_id__speech_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "turn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Turn Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundJobView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/speech/skip": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Skip Speech",
+        "description": "Оборвать реплику, играющую у зрителей.\n\nСобытие публичное: решение принимает ГМ, а исполняет его зрительский экран.",
+        "operationId": "skip_speech_api_v1_campaigns__campaign_id__speech_skip_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkipSpeechRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Skip Speech Api V1 Campaigns  Campaign Id  Speech Skip Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}/speech": {
+      "patch": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Update Speech Settings",
+        "operationId": "update_speech_settings_api_v1_campaigns__campaign_id__speech_patch",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpeechSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/scene": {
       "patch": {
         "tags": [
@@ -1227,6 +1440,99 @@
         }
       }
     },
+    "/api/v1/campaigns/{campaign_id}/jobs": {
+      "get": {
+        "tags": [
+          "background jobs"
+        ],
+        "summary": "List Jobs",
+        "description": "Свежие задачи кампании, новыми вперёд.\n\nКонсоль читает отсюда очередь озвучки: `?kind=speech_synthesis`. Статусы\nперечисляются через запятую — очередь и недавние сбои нужны одним запросом.",
+        "operationId": "list_jobs_api_v1_campaigns__campaign_id__jobs_get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackgroundJobView"
+                  },
+                  "title": "Response List Jobs Api V1 Campaigns  Campaign Id  Jobs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/campaigns/{campaign_id}/jobs/{job_id}": {
       "get": {
         "tags": [
@@ -1719,6 +2025,18 @@
             "type": "string",
             "title": "Status"
           },
+          "input_data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Data"
+          },
           "output_data": {
             "anyOf": [
               {
@@ -1778,6 +2096,7 @@
           "campaign_id",
           "kind",
           "status",
+          "input_data",
           "output_data",
           "error_code",
           "created_at",
@@ -1821,6 +2140,14 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "speech_enabled": {
+            "type": "boolean",
+            "title": "Speech Enabled"
+          },
+          "speech_speak_thoughts": {
+            "type": "boolean",
+            "title": "Speech Speak Thoughts"
           }
         },
         "type": "object",
@@ -1829,7 +2156,9 @@
           "slug",
           "name",
           "revision",
-          "is_active"
+          "is_active",
+          "speech_enabled",
+          "speech_speak_thoughts"
         ],
         "title": "CampaignSummary"
       },
@@ -1846,13 +2175,17 @@
           "tts_enabled": {
             "type": "boolean",
             "title": "Tts Enabled"
+          },
+          "tts": {
+            "$ref": "#/components/schemas/TTSCapabilityView"
           }
         },
         "type": "object",
         "required": [
           "llm_enabled",
           "stt_enabled",
-          "tts_enabled"
+          "tts_enabled",
+          "tts"
         ],
         "title": "CapabilityView"
       },
@@ -1886,6 +2219,17 @@
           "biography": {
             "type": "string",
             "title": "Biography"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           },
           "portrait_url": {
             "anyOf": [
@@ -1969,17 +2313,6 @@
             "type": "integer",
             "title": "Revision"
           },
-          "model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Model Id"
-          },
           "voice_asset_id": {
             "anyOf": [
               {
@@ -2059,6 +2392,17 @@
           "biography": {
             "type": "string",
             "title": "Biography"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           },
           "portrait_url": {
             "anyOf": [
@@ -3234,6 +3578,24 @@
         ],
         "title": "SetResourceOperation"
       },
+      "SkipSpeechRequest": {
+        "properties": {
+          "turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SkipSpeechRequest"
+      },
       "StartEventRequest": {
         "properties": {
           "title": {
@@ -3246,6 +3608,36 @@
         },
         "type": "object",
         "title": "StartEventRequest"
+      },
+      "TTSCapabilityView": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "off",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "TTSCapabilityView",
+        "description": "`ready` — синтез работает, `off` — выключен настройкой, `unavailable` —\nдвижка нет в сборке. Отличать их важно: лечатся они по-разному."
       },
       "TurnView": {
         "properties": {
@@ -3613,6 +4005,17 @@
             ],
             "title": "Order"
           },
+          "flip_x": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flip X"
+          },
           "base_revision": {
             "type": "integer",
             "minimum": 1.0,
@@ -3698,6 +4101,35 @@
           "base_revision"
         ],
         "title": "UpdateSceneRequest"
+      },
+      "UpdateSpeechSettingsRequest": {
+        "properties": {
+          "speech_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech Enabled"
+          },
+          "speech_speak_thoughts": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech Speak Thoughts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpdateSpeechSettingsRequest"
       },
       "ValidationError": {
         "properties": {

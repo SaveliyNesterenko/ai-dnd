@@ -1,0 +1,75 @@
+/* Единственный источник значений дизайна. Панели переезжают на
+   семантические токены по мере редизайна; legacy-блок внизу существует, пока
+   на него ссылаются непереехавшие правила, и удаляется вместе с ними. */
+
+:root {
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--ink);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  /* Поверхности: ровно три уровня. Дальше — только кромки. */
+  --ink: #0b0a10;
+  --slab: #15131c;
+  --inset: #0e0d14;
+  --edge: rgb(255 255 255 / 7%);
+  --edge-strong: rgb(255 255 255 / 13%);
+
+  /* Текст */
+  --text: #f4f0e8;
+  --muted: #a8a2b4;
+  --faint: #6e687a;
+
+  /* Роли: цвет отвечает на вопрос «кто говорит». */
+  --role-gm: #e9a94b;
+  --role-gm-dim: rgb(233 169 75 / 14%);
+  --role-model: #7fb3d5;
+  --role-model-dim: rgb(127 179 213 / 13%);
+  --role-observer: #9a87d8;
+  --role-observer-dim: rgb(154 135 216 / 13%);
+  --role-archivist: #79c39a;
+  --role-archivist-dim: rgb(121 195 154 / 13%);
+
+  /* Состояния */
+  --health: #df6b62;
+  --mana: #6d8fe8;
+  --success: #79c39a;
+  --danger: #ef837a;
+  --warning: #e4b86a;
+
+  /* Шкала отступов */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+
+  /* Радиусы */
+  --r-s: 8px;
+  --r: 12px;
+  --r-l: 16px;
+
+  /* Тайминги: только на смену состояния, не на hover-декор. */
+  --t-fast: 120ms;
+  --t: 160ms;
+  --t-slow: 180ms;
+
+  /* Высота хрома */
+  --h-cmdbar: 44px;
+  --h-flow: 26px;
+  --h-panel-head: 40px;
+
+  /* ── legacy ────────────────────────────────────────────────────────────
+     Значения прежней консоли. Не использовать в новом коде. */
+  --surface: rgb(25 23 31 / 94%);
+  --surface-2: rgb(34 31 42 / 90%);
+  --surface-3: rgb(48 43 57 / 82%);
+  --line: rgb(255 255 255 / 10%);
+  --line-strong: rgb(255 255 255 / 18%);
+  --accent: #f0aa55;
+  --accent-bright: #ffc876;
+  --radius: 18px;
+  --shadow: 0 18px 50px rgb(0 0 0 / 25%);
+}

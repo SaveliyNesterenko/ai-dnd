@@ -33,7 +33,8 @@ interface PlaybackQueue {
 
 type PlaybackAction =
   | { type: "enqueue"; campaignId: string | undefined; cue: SpeechCue }
-  | { type: "complete"; campaignId: string | undefined; cueId: string };
+  | { type: "complete"; campaignId: string | undefined; cueId: string }
+  | { type: "skip"; campaignId: string | undefined; turnId: string | null };
 
 function reducePlaybackQueue(state: PlaybackQueue, action: PlaybackAction): PlaybackQueue {
   const current =
@@ -44,6 +45,17 @@ function reducePlaybackQueue(state: PlaybackQueue, action: PlaybackAction): Play
   if (action.type === "enqueue") {
     if (!current.activeCue) return { ...current, activeCue: action.cue };
     return { ...current, pendingCues: [...current.pendingCues, action.cue] };
+  }
+  /* Пропуск от ГМ-а снимает и оставшиеся реплики того же хода: обрывать одну
+     мысль, чтобы следом зазвучало действие, — не то, что он просил. */
+  if (action.type === "skip") {
+    if (!current.activeCue) return current;
+    if (action.turnId !== null && current.activeCue.turnId !== action.turnId) return current;
+    const pendingCues =
+      action.turnId === null
+        ? current.pendingCues
+        : current.pendingCues.filter((cue) => cue.turnId !== action.turnId);
+    return { ...current, activeCue: pendingCues[0] ?? null, pendingCues: pendingCues.slice(1) };
   }
   if (!current.activeCue || current.activeCue.id !== action.cueId) return current;
 
@@ -121,6 +133,13 @@ export function useSpeechPlayback(campaignId: string | undefined): SpeechPlaybac
         setDiceState({ campaignId, value: null });
       }
       if (seenEventIds.current.has(event.event_id)) return;
+
+      if (event.type === "speech.skip") {
+        seenEventIds.current.add(event.event_id);
+        const turnId = event.payload.turn_id;
+        dispatch({ type: "skip", campaignId, turnId: typeof turnId === "string" ? turnId : null });
+        return;
+      }
 
       const cue = speechCueFromRealtimeEvent(event);
       if (!cue) return;

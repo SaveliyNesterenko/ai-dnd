@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ai-dnd",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--no-sync", "ai-dnd", "serve"],
+      "port": 8000
+    },
+    {
+      "name": "ai-dnd-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "port": 5173,
+      "url": "http://127.0.0.1:5173"
+    }
+  ]
+}

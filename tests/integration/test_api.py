@@ -1,3 +1,4 @@
+# ruff: noqa: RUF003
 from __future__ import annotations
 
 import time
@@ -47,11 +48,14 @@ def _create_turn(
 def test_health_and_capabilities(client: TestClient) -> None:
     assert client.get("/api/v1/health/live").json() == {"status": "ok"}
     assert client.get("/api/v1/health/ready").json() == {"status": "ready"}
-    assert client.get("/api/v1/capabilities").json() == {
-        "llm_enabled": False,
-        "stt_enabled": False,
-        "tts_enabled": False,
-    }
+    capabilities = client.get("/api/v1/capabilities").json()
+    assert capabilities["llm_enabled"] is False
+    assert capabilities["stt_enabled"] is False
+    assert capabilities["tts_enabled"] is False
+    # Причина обязана быть машиночитаемой: консоль различает выключенный
+    # движок и отсутствующий, а под тестами он именно выключен.
+    assert capabilities["tts"]["status"] == "off"
+    assert capabilities["tts"]["detail"]
 
 
 def test_gm_bootstrap_token_is_single_use(client: TestClient) -> None:
@@ -98,9 +102,12 @@ def test_public_projection_hides_private_fields(
     assert public_response.status_code == 200
     public = public_response.json()
     assert "private_notes" in gm["characters"][0]
-    assert "model_id" in gm["characters"][0]
+    assert "voice_asset_id" in gm["characters"][0]
     assert "private_notes" not in public["characters"][0]
-    assert "model_id" not in public["characters"][0]
+    assert "global_chronicle" not in public["characters"][0]
+    assert "voice_asset_id" not in public["characters"][0]
+    # Имя модели показывается на зрительской карточке, как в legacy-версии.
+    assert "model_id" in public["characters"][0]
     assert public["global_chronicle"] is None
 
 
@@ -132,6 +139,134 @@ def test_event_turn_and_idempotency(
         character_id,
     )
     assert turn["action"] == "<script>alert('xss')</script>"
+
+
+def test_speech_settings_are_campaign_state(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    response = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/speech",
+        json={"speech_enabled": False, "speech_speak_thoughts": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["speech_enabled"] is False
+
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    campaign = snapshot["campaign"]
+    assert isinstance(campaign, dict)
+    assert campaign["speech_enabled"] is False
+    assert campaign["speech_speak_thoughts"] is False
+
+    # Пустой запрос — это не «сбросить всё», а ошибка ввода.
+    assert (
+        authenticated_client.patch(
+            f"/api/v1/campaigns/{demo_campaign_id}/speech",
+            json={},
+        ).status_code
+        == 422
+    )
+
+
+def test_speech_queue_is_visible_and_turns_can_be_revoiced(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = str(snapshot["characters"][0]["id"])
+    turn = _create_turn(
+        authenticated_client,
+        demo_campaign_id,
+        str(event["id"]),
+        character_id,
+    )
+
+    jobs = authenticated_client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/jobs",
+        params={"kind": "speech_synthesis"},
+    )
+    assert jobs.status_code == 200
+    queued = jobs.json()
+    assert len(queued) == 1
+    # Имя персонажа лежит в самой задаче: очередь читается одним запросом.
+    assert queued[0]["input_data"]["turn_id"] == turn["id"]
+    assert queued[0]["input_data"]["actor_name"] == "<img src=x onerror=alert(1)>"
+
+    revoiced = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{turn['id']}/speech",
+    )
+    assert revoiced.status_code == 202
+    assert revoiced.json()["kind"] == "speech_synthesis"
+
+    missing = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}/speech",
+    )
+    assert missing.status_code == 404
+
+
+def test_gm_can_delete_a_turn_from_the_log(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    event = _start_event(authenticated_client, demo_campaign_id)
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character_id = str(snapshot["characters"][0]["id"])
+    first, second, third = (
+        _create_turn(authenticated_client, demo_campaign_id, str(event["id"]), character_id)
+        for _ in range(3)
+    )
+
+    deleted = authenticated_client.delete(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{second['id']}",
+    )
+    assert deleted.status_code == 200
+    assert deleted.json() == {"id": second["id"], "sequence": 2}
+
+    remaining = _gm_snapshot(authenticated_client, demo_campaign_id)["active_event"]["turns"]
+    assert [turn["id"] for turn in remaining] == [first["id"], third["id"]]
+
+    # Оставшиеся ходы не перенумеровываются: на номера ссылается сводка.
+    assert [turn["sequence"] for turn in remaining] == [1, 3]
+    fourth = _create_turn(authenticated_client, demo_campaign_id, str(event["id"]), character_id)
+    assert fourth["sequence"] == 4
+
+    repeated = authenticated_client.delete(
+        f"/api/v1/campaigns/{demo_campaign_id}/turns/{second['id']}",
+    )
+    assert repeated.status_code == 404
+    assert (
+        authenticated_client.delete(
+            f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}",
+        ).status_code
+        == 404
+    )
+
+
+def test_turn_deletion_requires_gm(
+    client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    assert client.delete(f"/api/v1/campaigns/{demo_campaign_id}/turns/{uuid4()}").status_code == 401
+
+
+def test_speech_skip_reaches_spectators(
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    response = authenticated_client.post(
+        f"/api/v1/campaigns/{demo_campaign_id}/speech/skip",
+        json={"turn_id": "turn-1"},
+    )
+    assert response.status_code == 202
+
+    with authenticated_client.websocket_connect(
+        f"/api/v1/realtime?campaign_id={demo_campaign_id}&last_sequence=0&join_code={code}"
+    ) as websocket:
+        event = websocket.receive_json()
+        assert event["type"] == "speech.skip"
+        assert event["payload"] == {"turn_id": "turn-1"}
 
 
 def test_public_turn_projection_includes_spectator_thought(
@@ -239,6 +374,53 @@ def test_scene_character_updates_are_public_and_revision_guarded(
     assert public_character["is_active"] is False
     assert public_character["flip_x"] is scene_character["flip_x"]
     assert (public_scene_character["x"], public_scene_character["y"]) == (40, 65)
+
+
+def test_gm_controls_avatar_orientation_and_size(
+    client: TestClient,
+    authenticated_client: TestClient,
+    demo_campaign_id: str,
+) -> None:
+    snapshot = _gm_snapshot(authenticated_client, demo_campaign_id)
+    character = snapshot["characters"][0]
+    scene_character = next(
+        item for item in snapshot["scene"]["characters"] if item["character_id"] == character["id"]
+    )
+    flipped = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"flip_x": True, "base_revision": scene_character["revision"]},
+    )
+    assert flipped.status_code == 200
+    updated = next(
+        item for item in flipped.json()["characters"] if item["character_id"] == character["id"]
+    )
+    assert updated["flip_x"] is True
+    assert (updated["x"], updated["y"]) == (scene_character["x"], scene_character["y"])
+
+    resized = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene",
+        json={"avatar_size": 420, "base_revision": snapshot["scene"]["revision"]},
+    )
+    assert resized.status_code == 200
+    assert resized.json()["avatar_size"] == 420
+
+    code = authenticated_client.get("/api/v1/auth/session").json()["spectator_code"]
+    public = client.get(
+        f"/api/v1/campaigns/{demo_campaign_id}/snapshot",
+        params={"spectator_code": code},
+    ).json()
+    public_scene_character = next(
+        item for item in public["scene"]["characters"] if item["character_id"] == character["id"]
+    )
+    assert public_scene_character["flip_x"] is True
+    assert public["scene"]["avatar_size"] == 420
+
+    stale = authenticated_client.patch(
+        f"/api/v1/campaigns/{demo_campaign_id}/scene/characters/{character['id']}",
+        json={"flip_x": False, "base_revision": scene_character["revision"]},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "stale_revision"
 
 
 def test_gm_can_edit_character_card_with_optimistic_revision(

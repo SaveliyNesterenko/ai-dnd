@@ -225,6 +225,62 @@ async def test_typed_operations_are_atomic_and_revision_guarded(
 
 
 @pytest.mark.asyncio
+async def test_deleting_a_turn_stops_at_the_compressed_part_of_the_log(
+    repository_session: AsyncSession,
+) -> None:
+    session = repository_session
+    service = GameService(session)
+    campaign = await session.scalar(select(CampaignModel))
+    player = await session.scalar(select(CharacterModel).where(CharacterModel.kind == "player"))
+    assert campaign is not None
+    assert player is not None
+    event = await service.start_event(campaign.id, "Compressed log")
+    turns = [
+        await service.add_turn(
+            campaign.id,
+            event.id,
+            CreateTurnRequest(
+                character_id=player.id,
+                actor_name=player.name,
+                actor_role=player.role,
+                action=f"Step {index}.",
+            ),
+        )
+        for index in range(2)
+    ]
+    await session.commit()
+
+    await service.apply_context_summary(
+        campaign.id,
+        event.id,
+        base_revision=event.revision,
+        summary="The party stepped once.",
+        through_sequence=turns[0].sequence,
+    )
+    await session.commit()
+
+    # Свёрнутый ход уже пересказан сводкой: удаление оставило бы в контексте
+    # пересказ того, чего в логе нет.
+    with pytest.raises(ConflictError):
+        await service.delete_turn(campaign.id, turns[0].id)
+
+    await service.delete_turn(campaign.id, turns[1].id)
+    await session.commit()
+    snapshot = await service.get_snapshot(campaign.id, gm_view=True)
+    assert snapshot.active_event is not None
+    assert [turn.id for turn in snapshot.active_event.turns] == [turns[0].id]
+
+    await service.begin_event_finalization(
+        campaign.id,
+        event.id,
+        base_revision=snapshot.active_event.revision,
+    )
+    await session.commit()
+    with pytest.raises(ConflictError):
+        await service.delete_turn(campaign.id, turns[0].id)
+
+
+@pytest.mark.asyncio
 async def test_finalization_preserves_log_until_atomic_memory_commit(
     repository_session: AsyncSession,
 ) -> None:

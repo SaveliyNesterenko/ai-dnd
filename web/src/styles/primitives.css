@@ -1,0 +1,781 @@
+/* Переиспользуемые элементы интерфейса: кнопки, уведомления, оверлеи.
+   Всё, что появляется больше чем на одном экране, описывается здесь. */
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.button {
+  min-height: 42px;
+  border: 1px solid #f1b05f;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgb(233 155 66 / 18%);
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.button--quiet {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: rgb(255 255 255 / 4%);
+  box-shadow: none;
+}
+
+.button--secondary {
+  border-color: rgb(240 170 85 / 35%);
+  color: var(--accent-bright);
+  background: rgb(240 170 85 / 8%);
+  box-shadow: none;
+}
+
+/* ── .btn ────────────────────────────────────────────────────────────────
+   Кнопки консоли. Отдельный от .button класс: тот описывает вид кнопок
+   карточки персонажа и экрана зрителя, а их дизайн менять не требовалось. */
+
+.btn {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: var(--s2);
+  border: 1px solid var(--edge-strong);
+  border-radius: 9px;
+  color: var(--text);
+  background: rgb(255 255 255 / 4%);
+  padding: 0 var(--s4);
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    filter var(--t-fast) ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 8%);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.btn kbd {
+  border: 0;
+  background: none;
+  padding: 0;
+  opacity: 0.65;
+}
+
+.btn--gm {
+  border-color: #f1b05f;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  font-weight: 700;
+}
+
+.btn--gm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  filter: brightness(1.08);
+}
+
+.btn--model {
+  border-color: rgb(127 179 213 / 50%);
+  color: #0c1720;
+  background: linear-gradient(135deg, #9ec8e4, #6fa5c9);
+  font-weight: 700;
+}
+
+.btn--model:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9ec8e4, #6fa5c9);
+  filter: brightness(1.06);
+}
+
+.btn--observer {
+  border-color: rgb(154 135 216 / 50%);
+  color: #140f22;
+  background: linear-gradient(135deg, #b7a6ea, #8e79d0);
+  font-weight: 700;
+}
+
+.btn--observer:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b7a6ea, #8e79d0);
+  filter: brightness(1.06);
+}
+
+.btn--ghost {
+  border-color: transparent;
+  color: var(--muted);
+  background: none;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.btn--large {
+  height: 46px;
+  border-radius: 10px;
+  padding: 0 26px;
+  font-size: 14px;
+}
+
+.btn--compact {
+  height: 26px;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.mini-button {
+  height: 22px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 6px;
+  color: var(--muted);
+  background: none;
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+  transition:
+    color var(--t-fast) ease,
+    background var(--t-fast) ease;
+}
+
+.mini-button:hover:not(:disabled) {
+  color: var(--text);
+  background: rgb(255 255 255 / 5%);
+}
+
+.mini-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mini-button--archivist {
+  border-color: rgb(121 195 154 / 35%);
+  color: var(--role-archivist);
+  background: var(--role-archivist-dim);
+}
+
+.mini-button--danger {
+  border-color: rgb(239 131 122 / 45%);
+  color: var(--danger);
+}
+
+.mini-button--danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgb(239 131 122 / 12%);
+}
+
+.icon-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  place-items: center;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  transition:
+    color var(--t-fast) ease,
+    background var(--t-fast) ease,
+    border-color var(--t-fast) ease;
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--edge);
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.icon-button--danger:hover:not(:disabled) {
+  border-color: rgb(239 131 122 / 45%);
+  color: #ffe2de;
+  background: rgb(239 131 122 / 20%);
+}
+
+.notice {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.notice--error {
+  border-color: rgb(239 131 122 / 35%);
+  color: #f5b2ac;
+  background: rgb(239 131 122 / 7%);
+}
+
+.notice span {
+  color: var(--muted);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.72rem;
+}
+
+/* ── Popover ─────────────────────────────────────────────────────────────
+   Якорная панель для настроек, которые нужны эпизодически. */
+
+.popover {
+  position: fixed;
+  z-index: 60;
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r);
+  background: #16141e;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 62%);
+  padding: var(--s3);
+  animation: popover-appear var(--t-fast) ease-out both;
+}
+
+@keyframes popover-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.popover__title {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.popover__title:not(:first-child) {
+  margin-top: var(--s3);
+}
+
+.popover__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.popover__row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: none;
+  padding: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.popover__row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 5%);
+}
+
+.popover__row:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.popover__row.is-selected {
+  background: var(--role-gm-dim);
+}
+
+.popover__row-mark {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.popover__row.is-selected .popover__row-mark {
+  background: var(--role-gm);
+}
+
+.popover__row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover__rule {
+  border: 0;
+  border-top: 1px solid var(--edge);
+  margin: 10px 0;
+}
+
+.popover__field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.popover__field select,
+.popover__search {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: var(--inset);
+  padding: 0 9px;
+}
+
+.popover__search {
+  margin-bottom: 10px;
+}
+
+.popover__field input[type="range"] {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  accent-color: var(--role-gm);
+}
+
+.popover__music {
+  display: grid;
+  align-items: center;
+  gap: var(--s2);
+  grid-template-columns: 1fr auto auto;
+}
+
+.popover__music .mini-button {
+  height: 32px;
+  padding: 0 10px;
+  line-height: 0;
+}
+
+.popover__code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: 0 8px;
+}
+
+.popover__code strong {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 17px;
+  letter-spacing: 0.18em;
+}
+
+.popover__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  padding: 0 8px;
+  font-size: 11.5px;
+}
+
+.popover__status > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4a4553;
+}
+
+.popover__status.is-online > span {
+  background: var(--role-archivist);
+}
+
+.popover__empty {
+  margin: 0;
+  color: var(--muted);
+  padding: 8px;
+  font-size: 12px;
+}
+
+.popover__scale-preview {
+  display: flex;
+  height: 44px;
+  align-items: flex-end;
+  gap: var(--s2);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-s);
+  background: var(--inset);
+  padding: 6px;
+}
+
+.popover__scale-preview i {
+  width: 18px;
+  min-height: 4px;
+  max-height: 32px;
+  border-radius: 2px;
+  background: linear-gradient(#8d6a4a, #4a3628);
+}
+
+.popover__scale-preview span {
+  margin-left: auto;
+  color: #5f5a6a;
+  font-size: 11px;
+}
+
+.picker-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: none;
+  padding: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.picker-row:hover:not(:disabled) {
+  background: rgb(255 255 255 / 5%);
+}
+
+.picker-row:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.picker-row__portrait {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  color: var(--muted);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-family: Georgia, serif;
+  font-size: 13px;
+}
+
+.picker-row__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.picker-row__text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.picker-row__name {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.picker-row__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.picker-row__kind--player {
+  color: var(--success);
+}
+
+.picker-row__kind--npc {
+  color: #d3c4a8;
+}
+
+.picker-row__kind--enemy {
+  color: var(--danger);
+}
+
+.picker-row__voiceless {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--faint);
+}
+
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  margin-left: auto;
+  background: rgb(255 255 255 / 10%);
+  transition: background var(--t-fast) ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8a8397;
+  transition:
+    left var(--t-fast) ease,
+    background var(--t-fast) ease;
+}
+
+.picker-row[aria-checked="true"] .switch {
+  background: var(--role-gm-dim);
+}
+
+.picker-row[aria-checked="true"] .switch::after {
+  left: 16px;
+  background: var(--role-gm);
+}
+
+/* ── Dialog ──────────────────────────────────────────────────────────────
+   Один шаблон на все модальные окна: шапка, прокручиваемое тело,
+   закреплённый футер с действиями. */
+
+.dialog-backdrop {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(5 4 7 / 74%);
+  padding: var(--s5);
+  backdrop-filter: blur(6px);
+}
+
+.dialog {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: 84vh;
+  flex-direction: column;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-l);
+  background: #16141e;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 60%);
+}
+
+.dialog--s {
+  width: min(480px, 100%);
+}
+
+.dialog--l {
+  width: min(960px, 100%);
+}
+
+.dialog__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  border-bottom: 1px solid var(--edge);
+  padding: var(--s3) var(--s4);
+}
+
+.dialog__heading {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.dialog__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.dialog__eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dialog--archivist .dialog__eyebrow {
+  color: var(--role-archivist);
+}
+
+.dialog__close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  place-items: center;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.dialog__close:hover {
+  border-color: var(--edge);
+  color: var(--text);
+  background: rgb(255 255 255 / 6%);
+}
+
+.dialog__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s4);
+}
+
+.dialog__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border-top: 1px solid var(--edge);
+  padding: var(--s3) var(--s4);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────
+   Статусы и ошибки не двигают вёрстку панелей. */
+
+.toasts {
+  position: fixed;
+  z-index: 90;
+  right: var(--s4);
+  bottom: var(--s4);
+  display: flex;
+  width: 330px;
+  max-width: calc(100vw - 2 * var(--s4));
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: #1a1722;
+  padding: 11px 12px;
+  box-shadow: 0 14px 40px rgb(0 0 0 / 55%);
+  animation: popover-appear var(--t) ease-out both;
+}
+
+.toast__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+}
+
+.toast p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.toast--success {
+  border-color: rgb(121 195 154 / 35%);
+}
+
+.toast--success strong {
+  color: var(--role-archivist);
+}
+
+.toast--archivist {
+  border-color: rgb(121 195 154 / 35%);
+}
+
+.toast--archivist strong {
+  color: var(--role-archivist);
+}
+
+.toast--observer {
+  border-color: rgb(154 135 216 / 40%);
+}
+
+.toast--observer strong {
+  color: #c7b8f0;
+}
+
+.toast--error {
+  border-color: rgb(239 131 122 / 40%);
+}
+
+.toast--error strong {
+  color: #f5b2ac;
+}
+
+.toast__close {
+  flex: 0 0 auto;
+  border: 0;
+  color: var(--faint);
+  background: none;
+  padding: 2px;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.toast__close:hover {
+  color: var(--text);
+}

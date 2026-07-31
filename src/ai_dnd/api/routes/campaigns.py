@@ -1,3 +1,4 @@
+# ruff: noqa: RUF002
 from __future__ import annotations
 
 from typing import Any
@@ -17,6 +18,7 @@ from ai_dnd.api.dependencies import (
 )
 from ai_dnd.api.schemas import (
     ApplyObserverProposalRequest,
+    BackgroundJobView,
     CampaignSummary,
     CharacterGM,
     ConfirmEventFinalizationRequest,
@@ -26,16 +28,23 @@ from ai_dnd.api.schemas import (
     GameStateSnapshot,
     ObserverProposalView,
     SceneView,
+    SkipSpeechRequest,
     StartEventRequest,
     UpdateCharacterRequest,
     UpdateSceneCharacterRequest,
     UpdateSceneRequest,
+    UpdateSpeechSettingsRequest,
 )
 from ai_dnd.application.game_service import GameService
-from ai_dnd.application.speech import synthesize_turn_speech
+from ai_dnd.application.speech import submit_speech_job
 from ai_dnd.domain.enums import RealtimeAudience
 from ai_dnd.domain.errors import ConflictError, NotFoundError
-from ai_dnd.infrastructure.models import GameEventModel, IdempotencyRecordModel
+from ai_dnd.infrastructure.models import (
+    BackgroundJobModel,
+    GameEventModel,
+    IdempotencyRecordModel,
+    TurnModel,
+)
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -215,26 +224,133 @@ async def create_turn(
         event_type="turn.created",
         payload=body,
     )
-    turn_id = turn.id
-
-    async def run_speech_synthesis() -> dict[str, Any]:
-        async with speech_lock:
-            return await synthesize_turn_speech(
-                session_factory=jobs.session_factory,
-                broker=broker,
-                tts=tts,
-                settings=settings,
-                campaign_id=campaign_id,
-                turn_id=turn_id,
-            )
-
-    await jobs.submit(
-        kind="speech_synthesis",
+    await submit_speech_job(
+        jobs=jobs,
+        broker=broker,
+        tts=tts,
+        settings=settings,
+        speech_lock=speech_lock,
         campaign_id=campaign_id,
-        input_data={"turn_id": turn_id},
-        runner=run_speech_synthesis,
+        turn_id=turn.id,
+        character_id=turn.character_id,
+        actor_name=turn.actor_name,
     )
     return body
+
+
+@router.delete("/{campaign_id}/turns/{turn_id}")
+async def delete_turn(
+    campaign_id: str,
+    turn_id: str,
+    session: SessionDep,
+    broker: BrokerDep,
+    gm: GMDep,
+) -> dict[str, Any]:
+    """Убрать ход из лога.
+
+    Сорвавшийся ответ модели или случайная реплика ГМ-а иначе остаются в
+    контексте навсегда: правки хода нет, а переписывать историю задним числом
+    ГМ должен уметь до того, как её прочитают другие модели.
+    """
+    del gm
+    turn = await GameService(session).delete_turn(campaign_id, turn_id)
+    body = {"id": turn.id, "sequence": turn.sequence}
+    await session.commit()
+    await broker.publish(
+        campaign_id=campaign_id,
+        event_type="turn.deleted",
+        payload=body,
+    )
+    return body
+
+
+@router.post(
+    "/{campaign_id}/turns/{turn_id}/speech",
+    response_model=BackgroundJobView,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def resynthesize_turn_speech(
+    campaign_id: str,
+    turn_id: str,
+    session: SessionDep,
+    broker: BrokerDep,
+    jobs: JobManagerDep,
+    settings: SettingsDep,
+    speech_lock: SpeechLockDep,
+    tts: TTSWorkerDep,
+    gm: GMDep,
+) -> BackgroundJobModel:
+    """Переозвучить уже записанный ход.
+
+    До этого единственным способом получить звук для хода, у которого синтез
+    упал, было создать ход заново.
+    """
+    del gm
+    turn = await session.get(TurnModel, turn_id)
+    event = await session.get(GameEventModel, turn.event_id) if turn else None
+    if not turn or not event or event.campaign_id != campaign_id:
+        raise NotFoundError("Turn not found in campaign.")
+    if not turn.character_id:
+        raise ConflictError("Only character turns are voiced.")
+    return await submit_speech_job(
+        jobs=jobs,
+        broker=broker,
+        tts=tts,
+        settings=settings,
+        speech_lock=speech_lock,
+        campaign_id=campaign_id,
+        turn_id=turn.id,
+        character_id=turn.character_id,
+        actor_name=turn.actor_name,
+    )
+
+
+@router.post("/{campaign_id}/speech/skip", status_code=status.HTTP_202_ACCEPTED)
+async def skip_speech(
+    campaign_id: str,
+    request: SkipSpeechRequest,
+    broker: BrokerDep,
+    gm: GMDep,
+) -> dict[str, Any]:
+    """Оборвать реплику, играющую у зрителей.
+
+    Событие публичное: решение принимает ГМ, а исполняет его зрительский экран.
+    """
+    del gm
+    payload = {"turn_id": request.turn_id}
+    await broker.publish(
+        campaign_id=campaign_id,
+        event_type="speech.skip",
+        payload=payload,
+    )
+    return payload
+
+
+@router.patch("/{campaign_id}/speech", response_model=CampaignSummary)
+async def update_speech_settings(
+    campaign_id: str,
+    request: UpdateSpeechSettingsRequest,
+    session: SessionDep,
+    broker: BrokerDep,
+    gm: GMDep,
+) -> CampaignSummary:
+    del gm
+    campaign = await GameService(session).update_speech_settings(
+        campaign_id,
+        speech_enabled=request.speech_enabled,
+        speech_speak_thoughts=request.speech_speak_thoughts,
+    )
+    await session.commit()
+    await broker.publish(
+        campaign_id=campaign_id,
+        event_type="speech.settings_changed",
+        audience=RealtimeAudience.GM,
+        payload={
+            "speech_enabled": campaign.speech_enabled,
+            "speech_speak_thoughts": campaign.speech_speak_thoughts,
+        },
+    )
+    return campaign
 
 
 @router.patch("/{campaign_id}/scene", response_model=SceneView)

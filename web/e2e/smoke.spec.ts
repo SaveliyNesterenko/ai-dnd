@@ -21,6 +21,12 @@ test.beforeAll(async () => {
         ...process.env,
         AI_DND_DATA_DIR: runtimeDirectory,
         AI_DND_ENVIRONMENT: "test",
+        // Сценарий проверяет поведение консоли без внешних моделей. Иначе тест
+        // зависит от того, лежит ли у разработчика рабочий ключ в .env:
+        // Наблюдатель отвечает по-настоящему, и ветка ручного ввода не
+        // показывается. Переменные окружения перекрывают .env.
+        AI_DND_OPENAI_API_KEY: "",
+        AI_DND_STT_API_KEY: "",
       },
       stdio: "ignore",
     },
@@ -62,21 +68,32 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
     await readFile(resolve(runtimeDirectory, "security.json"), "utf8"),
   ) as { bootstrap_token: string; spectator_code: string };
   await page.goto(`/api/v1/auth/gm/bootstrap?token=${security.bootstrap_token}`);
-  await expect(
-    page.getByLabel("Активная кампания").locator("option:checked"),
-  ).toHaveText("The Clockwork Crossroads");
+  const campaignChip = page.getByRole("button", { name: /^Кампания:/ });
+  await expect(campaignChip).toContainText("The Clockwork Crossroads");
 
+  // Состав сцены меняется переключателями в поповере «Персонажи».
+  const charactersChip = page.getByRole("button", { name: /^Персонажи на сцене:/ });
   await expect(page.locator(".gm-character-card")).toHaveCount(2);
-  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await charactersChip.click();
+  const ariaSwitch = page.getByRole("switch", { name: /Aria Vale/ });
+  await ariaSwitch.click();
   await expect(page.locator(".gm-character-card")).toHaveCount(1);
-  await page.getByLabel("Выбрать персонажа").selectOption({ index: 1 });
+  await ariaSwitch.click();
   await expect(page.locator(".gm-character-card")).toHaveCount(2);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "HP / MP" }).first().click();
   await page.getByLabel("HP, текущее").fill("27");
   await page.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(page.locator(".gm-character-card").getByText(/27 \//)).toBeVisible();
+  // Карточка возвращается на лицевую сторону, а сохранённое значение видно
+  // в редакторе HP/MP: с лицевой стороны показатели убраны.
+  await expect(page.locator(".gm-character-card--flipped")).toHaveCount(0);
+  await page.getByRole("button", { name: "HP / MP" }).first().click();
+  await expect(page.getByLabel("HP, текущее")).toHaveValue("27");
+  await page.locator(".gm-character-card--flipped .gm-character-card__hint").click();
+  await expect(page.locator(".gm-character-card--flipped")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Запустить событие" }).click();
+  await page.getByRole("button", { name: "Написать ход вручную" }).click();
   await expect(page.getByLabel("Публичное действие")).toBeVisible();
   const spectatorContext = await browser.newContext({
     baseURL: "http://127.0.0.1:8765/",
@@ -91,18 +108,46 @@ test("GM turn is applied and reaches the spectator projection", async ({ page, b
   await page.getByLabel("Публичное действие").fill(action);
   const thought = "Aria notices a pattern visible to the audience.";
   await page.getByLabel("Мысль модели").fill(thought);
-  await page.getByRole("button", { name: "Отправить с dice roll" }).click();
-  await expect(page.getByText(action, { exact: true })).toBeVisible();
-  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Отправить с броском d20" }).click();
+  // Мысль у зрителя показывается недолго и сменяется репликой, поэтому её
+  // проверяем сразу после публикации — до обращения к логу ГМ.
   await expect(spectator.locator(".speech-bubble.thought")).toBeVisible();
+  await expect(spectator.getByText(thought, { exact: true })).toBeVisible();
+  await expect(page.getByText(action, { exact: true })).toBeVisible();
   await expect(spectator.getByText(action, { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(spectator.locator(".speech-bubble.action")).toBeVisible();
   await expect(spectator.getByText(thought, { exact: true })).toBeHidden();
 
+  // Ошибочный ход убирается из лога: удаление спрашивает подтверждение прямо
+  // в ленте и не трогает соседние ходы.
+  await page.getByRole("button", { name: "Написать ход вручную" }).click();
+  const mistake = "Мастер оговорился, и этот ход надо убрать.";
+  await page.getByLabel("Публичное действие").fill(mistake);
+  // Разбирать заведомо ошибочный ход Наблюдателю незачем.
+  await page.getByRole("switch", { name: "Отправлять ход Наблюдателю" }).click();
+  await page.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeVisible();
+  await expect(page.locator(".log-entry")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "Удалить ход 2" }).click();
+  await page.locator(".gm-column").first().screenshot({ path: "../.scratch-delete-turn.png" });
+  await page.getByRole("button", { name: "Отмена" }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Удалить ход 2" }).click();
+  await page.getByRole("button", { name: "Удалить", exact: true }).click();
+  await expect(page.getByText(mistake, { exact: true })).toBeHidden();
+  await expect(page.locator(".log-entry")).toHaveCount(1);
+  await expect(page.getByText(action, { exact: true })).toBeVisible();
+
+  // Предложение Наблюдателя: строки изменений вместо сырого JSON, применение
+  // возвращает панель к исходному состоянию.
   await page.getByRole("button", { name: "Создать вручную" }).click();
-  await expect(page.getByText("Ожидает подтверждения")).toBeVisible();
-  await page.getByRole("button", { name: "Применить изменения" }).click();
-  await expect(page.getByText("Ожидает подтверждения")).toBeHidden();
+  const applyButton = page.getByRole("button", { name: /^Применить \(/ });
+  await expect(applyButton).toBeVisible();
+  await expect(page.getByLabel("GM Brief")).toHaveValue("Ручное предложение GM.");
+  await applyButton.click();
+  await expect(applyButton).toBeHidden();
+  await expect(page.getByRole("button", { name: "Создать вручную" })).toBeVisible();
 
   await page.getByRole("button", { name: "Завершить событие" }).click();
   await expect(

@@ -1,0 +1,1956 @@
+/* Консоль ГМ-а.
+   Раскладка: командная строка → полоса состояния хода → три рабочие колонки →
+   лента персонажей. Ширины колонок настраивает сам ГМ, они лежат в ui-сторе. */
+
+.gm-shell {
+  display: grid;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 900px;
+  grid-template-rows: var(--h-cmdbar) var(--h-flow) minmax(0, 1fr) auto;
+  gap: var(--s2);
+  overflow: hidden;
+  padding: var(--s2);
+}
+
+.slab {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  background: var(--slab);
+}
+
+/* ── командная строка ─────────────────────────────────────────────────── */
+
+.command-bar {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  background: var(--slab);
+  padding: 0 var(--s2);
+}
+
+.command-bar__zone {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3);
+}
+
+.command-bar__zone + .command-bar__zone {
+  border-left: 1px solid var(--edge);
+}
+
+.command-bar__zone--flow {
+  margin-left: auto;
+  padding-right: var(--s2);
+}
+
+.chip {
+  display: flex;
+  height: 30px;
+  min-width: 0;
+  align-items: center;
+  gap: var(--s2);
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-s);
+  color: var(--text);
+  background: var(--inset);
+  padding: 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color var(--t-fast) ease,
+    background var(--t-fast) ease;
+}
+
+.chip:hover {
+  background: #171520;
+}
+
+.chip[aria-expanded="true"] {
+  border-color: var(--role-gm);
+  background: var(--role-gm-dim);
+}
+
+.chip__label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chip__value {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.chip__aside {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.chip__dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--role-gm);
+}
+
+.count-pill {
+  display: inline-grid;
+  min-width: 20px;
+  height: 18px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--role-gm);
+  background: var(--role-gm-dim);
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.command-bar__observer-toggle {
+  display: none;
+}
+
+.capabilities {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.capability {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.capability abbr {
+  cursor: help;
+  text-decoration: none;
+}
+
+.capability > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4a4553;
+}
+
+.capability--on > span {
+  background: var(--role-archivist);
+  box-shadow: 0 0 6px rgb(121 195 154 / 70%);
+}
+
+.capability--unknown > span {
+  background: var(--faint);
+}
+
+/* Движок работает, но ГМ приглушил озвучку на кампании: это не поломка, и
+   красным «недоступен» помечать её нельзя. */
+.capability--muted > span {
+  background: var(--role-gm);
+  opacity: 0.45;
+}
+
+.event-cta {
+  display: flex;
+  height: 32px;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid #f1b05f;
+  border-radius: var(--r-s);
+}
+
+.event-cta__state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  padding: 0 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* EventFinalization отдаёт кнопку — здесь она становится правым сегментом
+   составного контрола. */
+.event-cta .btn {
+  min-height: 0;
+  border: 0;
+  border-left: 1px solid rgb(0 0 0 / 25%);
+  border-radius: 0;
+  color: var(--role-gm);
+  background: var(--role-gm-dim);
+  padding: 0 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.event-cta .btn:hover:not(:disabled) {
+  background: rgb(233 169 75 / 24%);
+  filter: none;
+  transform: none;
+}
+
+/* ── полоса состояния хода ────────────────────────────────────────────── */
+
+.flow-strip {
+  display: grid;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--edge);
+  border-radius: var(--r);
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  background: var(--slab);
+}
+
+.flow-strip--idle {
+  opacity: 0.45;
+}
+
+.flow-step {
+  position: relative;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  padding: 0 var(--s4);
+  font-size: 12px;
+}
+
+.flow-step + .flow-step::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 1px;
+  background: var(--edge);
+}
+
+.flow-step__mark {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  background: rgb(255 255 255 / 6%);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.flow-step__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-step--gm {
+  --flow-color: var(--role-gm);
+}
+
+.flow-step--model {
+  --flow-color: var(--role-model);
+}
+
+.flow-step--observer {
+  --flow-color: var(--role-observer);
+}
+
+.flow-step--archivist {
+  --flow-color: var(--role-archivist);
+}
+
+.flow-step.is-done {
+  color: #cfc9d6;
+}
+
+.flow-step.is-done .flow-step__mark {
+  color: var(--role-archivist);
+  background: var(--role-archivist-dim);
+}
+
+.flow-step.is-active {
+  color: var(--text);
+}
+
+.flow-step.is-active .flow-step__mark {
+  color: #141019;
+  background: var(--flow-color);
+}
+
+.flow-step.is-active::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--flow-color);
+  opacity: 0.9;
+}
+
+.flow-step.is-busy::after {
+  background: linear-gradient(90deg, transparent, var(--flow-color), transparent);
+  background-repeat: no-repeat;
+  background-size: 40% 100%;
+  animation: flow-sweep 1.1s linear infinite;
+}
+
+@keyframes flow-sweep {
+  from {
+    background-position: -40% 0;
+  }
+
+  to {
+    background-position: 140% 0;
+  }
+}
+
+.flow-step__timer {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.flow-step__cancel {
+  border: 0;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+  text-decoration: underline;
+}
+
+.flow-step__cancel:hover {
+  color: var(--text);
+}
+
+/* ── рабочая зона ─────────────────────────────────────────────────────── */
+
+.gm-work {
+  display: grid;
+  min-height: 0;
+
+  /* Боковые колонки держат заданную ГМ-ом ширину, но ужимаются, когда окно
+     меньше суммы треков, — иначе сетка вылезала бы за экран. */
+  grid-template-columns:
+    minmax(240px, var(--col-left)) auto minmax(360px, 1fr)
+    auto minmax(240px, var(--col-right));
+}
+
+.gm-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.column-resizer {
+  width: var(--s2);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.column-resizer::after {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 100%;
+  margin: 0 auto;
+  border-radius: 1px;
+  background: transparent;
+  transition: background var(--t-fast) ease;
+}
+
+.column-resizer:hover::after,
+.column-resizer:focus-visible::after {
+  background: var(--role-gm);
+}
+
+.panel-head {
+  display: flex;
+  height: var(--h-panel-head);
+  flex: 0 0 var(--h-panel-head);
+  align-items: center;
+  gap: var(--s2);
+  border-bottom: 1px solid var(--edge);
+  padding: 0 var(--s3);
+}
+
+.panel-head__title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.panel-head__title--gm {
+  color: var(--role-gm);
+}
+
+.panel-head__title--model {
+  color: var(--role-model);
+}
+
+.panel-head__title--observer {
+  color: var(--role-observer);
+}
+
+.panel-head__aside {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.panel-head__actions {
+  display: flex;
+  margin-left: auto;
+  gap: var(--s1);
+}
+
+/* ── лог события ──────────────────────────────────────────────────────── */
+
+.context-meter {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border-bottom: 1px solid var(--edge);
+  padding: var(--s2) var(--s3);
+}
+
+.context-meter__label,
+.context-meter__legend {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.context-meter__bar {
+  display: flex;
+  height: 4px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.context-meter__part {
+  height: 100%;
+}
+
+.context-meter__part--summarised {
+  background: var(--role-archivist);
+  opacity: 0.55;
+}
+
+.context-meter__part--live {
+  background: var(--role-gm);
+  opacity: 0.6;
+}
+
+.event-log {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s2) 0;
+}
+
+.event-log__empty {
+  margin: 0;
+  color: var(--muted);
+  padding: var(--s5);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.log-entry {
+  border-left: 2px solid var(--role, var(--role-gm));
+  margin: 0 0 2px var(--s3);
+  padding: 10px var(--s3) 10px 10px;
+}
+
+.log-entry:hover {
+  background: rgb(255 255 255 / 1.8%);
+}
+
+.log-entry--gm {
+  --role: var(--role-gm);
+}
+
+.log-entry--model {
+  --role: var(--role-model);
+}
+
+.log-entry--archivist {
+  --role: var(--role-archivist);
+  border-radius: 0 var(--r-s) var(--r-s) 0;
+  background: var(--role-archivist-dim);
+}
+
+.log-entry__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.log-entry__seq {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.log-entry__who {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--role);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.log-entry__kind {
+  line-height: 0;
+}
+
+.log-entry__kind--player {
+  color: var(--success);
+}
+
+.log-entry__kind--npc {
+  color: #d3c4a8;
+}
+
+.log-entry__kind--enemy {
+  color: var(--danger);
+}
+
+/* Состояние озвучки реплики и удаление хода. Значки проявляются на наведении:
+   в спокойном логе они не должны спорить с текстом, но при поиске «почему
+   молчит» видны сразу все. */
+.log-entry__tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.45;
+  transition: opacity var(--t-fast) ease;
+}
+
+.log-entry:hover .log-entry__tools,
+.log-entry__tools:focus-within {
+  opacity: 1;
+}
+
+.speech-badge {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  color: var(--faint);
+  background: none;
+  padding: 0;
+  line-height: 0;
+}
+
+button.speech-badge {
+  cursor: pointer;
+}
+
+button.speech-badge:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.speech-badge--voiced {
+  color: var(--role-model);
+}
+
+.speech-badge--pending {
+  color: var(--role-gm);
+  animation: speech-pending 1.2s ease-in-out infinite;
+}
+
+button.speech-badge--danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgb(239 131 122 / 14%);
+}
+
+@keyframes speech-pending {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.log-entry__time {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* Мысль публична для зрителя, но в контекст других моделей не идёт. Пунктир
+   отделяет её от действия и повторяет облачко на экране зрителя. */
+.log-entry__thought {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  border: 1px dashed rgb(255 255 255 / 13%);
+  border-radius: 6px;
+  margin: 0 0 6px;
+  color: #948da3;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-entry__thought svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  opacity: 0.6;
+}
+
+.log-entry__action {
+  margin: 0;
+  color: #d5cfd9;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.log-entry__foot {
+  margin: 7px 0 0;
+}
+
+/* Ход, который вот-вот исчезнет: приглушаем текст, чтобы вопрос о удалении
+   читался раньше самой реплики. */
+.log-entry.is-doomed {
+  background: rgb(239 131 122 / 6%);
+}
+
+.log-entry.is-doomed .log-entry__action,
+.log-entry.is-doomed .log-entry__thought {
+  opacity: 0.5;
+}
+
+.log-entry__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 11.5px;
+}
+
+.die-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(233 169 75 / 35%);
+  border-radius: 6px;
+  color: var(--role-gm);
+  background: var(--role-gm-dim);
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.jump-to-latest {
+  position: sticky;
+  bottom: 6px;
+  display: block;
+  width: max-content;
+  height: 26px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 13px;
+  margin: 6px auto 0;
+  color: var(--muted);
+  background: rgb(20 18 28 / 96%);
+  padding: 0 12px;
+  cursor: pointer;
+  font-size: 11px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 50%);
+}
+
+.jump-to-latest:hover {
+  color: var(--text);
+}
+
+/* ── док записи ───────────────────────────────────────────────────────── */
+
+.voice-dock {
+  border-top: 1px solid var(--edge);
+  background: rgb(255 255 255 / 1.4%);
+  padding: var(--s2) var(--s3) var(--s3);
+}
+
+.voice-dock__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s2);
+}
+
+.record-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid var(--edge-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  background: none;
+  cursor: pointer;
+  transition:
+    color var(--t) ease,
+    background var(--t) ease,
+    border-color var(--t) ease;
+}
+
+.record-button:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.record-button:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+.record-button.is-recording {
+  border-color: rgb(239 131 122 / 60%);
+  color: #f5b2ac;
+  background: rgb(239 131 122 / 16%);
+  animation: recording-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  50% {
+    background: rgb(239 131 122 / 30%);
+  }
+}
+
+.level-meter {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--s1);
+}
+
+.level-meter i {
+  width: 2px;
+  border-radius: 1px;
+  background: #f5b2ac;
+  animation: level-bounce 800ms ease-in-out infinite;
+}
+
+@keyframes level-bounce {
+  0%,
+  100% {
+    height: 5px;
+  }
+
+  50% {
+    height: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-meter i {
+    height: 12px;
+  }
+}
+
+.voice-dock__field {
+  min-height: 36px;
+  max-height: 150px;
+  flex: 1;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: var(--inset);
+  padding: 9px 11px;
+  resize: none;
+  line-height: 1.5;
+}
+
+.voice-dock__field::placeholder {
+  color: #67616f;
+}
+
+.send-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: #19120b;
+  background: linear-gradient(135deg, #ffd184, #e99b42);
+  cursor: pointer;
+}
+
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.voice-dock__hint {
+  margin: 7px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.voice-dock .notice {
+  margin-top: var(--s2);
+}
+
+/* ── озвучка ──────────────────────────────────────────────────────────────
+   Выход консоли под входом: VoiceDock принимает речь ГМ-а, эта полоса
+   показывает и регулирует речь моделей. */
+
+.speech-dock {
+  border-top: 1px solid var(--edge);
+  padding: var(--s2) var(--s3);
+}
+
+.speech-dock__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.speech-dock__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.speech-dock__state--ready {
+  color: var(--role-model);
+}
+
+.speech-dock__state--muted {
+  color: var(--warning);
+}
+
+.speech-dock__state--off {
+  color: var(--faint);
+}
+
+.speech-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.speech-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.speech-toggle .switch {
+  width: 26px;
+  height: 15px;
+  flex: 0 0 26px;
+  margin-left: 0;
+}
+
+.speech-toggle .switch::after {
+  width: 11px;
+  height: 11px;
+}
+
+.speech-toggle.is-on {
+  color: var(--text);
+}
+
+.speech-toggle.is-on .switch {
+  background: var(--role-gm-dim);
+}
+
+.speech-toggle.is-on .switch::after {
+  left: 13px;
+  background: var(--role-gm);
+}
+
+.speech-dock__skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.speech-dock__hint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* ── композер ─────────────────────────────────────────────────────────── */
+
+.actor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--edge);
+  padding: 10px var(--s3);
+  box-shadow: inset 3px 0 0 var(--role-gm);
+}
+
+.actor-header--empty {
+  justify-content: space-between;
+  box-shadow: none;
+}
+
+.actor-header__none {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.actor-header__portrait {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(233 169 75 / 30%);
+  border-radius: var(--r-s);
+  color: var(--role-gm);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-family: Georgia, serif;
+}
+
+.actor-header__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.actor-header__identity {
+  min-width: 0;
+}
+
+.actor-header__name {
+  margin: 0;
+  color: #ffd79b;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.actor-header__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.actor-header__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actor-header__kind--player {
+  color: var(--success);
+}
+
+.actor-header__kind--npc {
+  color: #d3c4a8;
+}
+
+.actor-header__kind--enemy {
+  color: var(--danger);
+}
+
+.actor-header__resources {
+  display: grid;
+  width: 132px;
+  margin-left: auto;
+  gap: 5px;
+}
+
+.resource-line {
+  display: grid;
+  align-items: center;
+  gap: 6px;
+  grid-template-columns: 20px 1fr auto;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.resource-line__track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.resource-line__fill {
+  display: block;
+  height: 100%;
+}
+
+.resource-line__fill--health {
+  background: var(--health);
+}
+
+.resource-line__fill--mana {
+  background: var(--mana);
+}
+
+.composer {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s3);
+}
+
+.composer__idle {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: var(--s5);
+  text-align: center;
+}
+
+.composer__idle h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.composer__idle p {
+  max-width: 38ch;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+kbd {
+  border: 1px solid var(--edge-strong);
+  border-radius: 4px;
+  background: rgb(255 255 255 / 5%);
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.composer__generating {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.composer__generating-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--role-model);
+  font-size: 12px;
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgb(127 179 213 / 25%);
+  border-top-color: var(--role-model);
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+.composer__generating-status .btn {
+  margin-left: auto;
+}
+
+.skeleton {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 9px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--inset);
+  padding: var(--s3);
+}
+
+.skeleton i {
+  display: block;
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    rgb(127 179 213 / 7%),
+    rgb(127 179 213 / 18%),
+    rgb(127 179 213 / 7%)
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.5s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -20% 0;
+  }
+}
+
+.composer__draft {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.composer__field {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composer__field--thought {
+  flex: 1;
+}
+
+.composer__field--action {
+  flex: 2;
+}
+
+.composer__field-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.scope-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px dashed rgb(255 255 255 / 18%);
+  border-radius: 5px;
+  color: #948da3;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.scope-tag--public {
+  border-style: solid;
+  border-color: rgb(127 179 213 / 30%);
+  color: var(--role-model);
+}
+
+.composer__count {
+  margin-left: auto;
+  color: #5f5a6a;
+  font-size: 10.5px;
+}
+
+.composer__field textarea {
+  min-height: 0;
+  flex: 1;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: var(--inset);
+  padding: 10px 12px;
+  resize: none;
+  line-height: 1.6;
+}
+
+.composer__field--thought textarea {
+  border-style: dashed;
+  color: #b9b2c4;
+  font-style: italic;
+}
+
+.composer__field--action textarea {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+}
+
+.composer__actions {
+  display: flex;
+  align-items: center;
+  /* Узкая центральная колонка не держит две кнопки и тумблер в строку —
+     тогда тумблер уезжает на вторую строку, оставаясь прижатым вправо. */
+  flex-wrap: wrap;
+  gap: var(--s2);
+  border-top: 1px solid var(--edge);
+  padding: var(--s3);
+}
+
+.composer__observer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 0;
+  color: var(--muted);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.composer__observer-toggle .switch {
+  width: 26px;
+  height: 15px;
+  flex: 0 0 26px;
+  margin-left: 0;
+}
+
+.composer__observer-toggle .switch::after {
+  width: 11px;
+  height: 11px;
+}
+
+.composer__observer-toggle.is-on {
+  color: var(--text);
+}
+
+.composer__observer-toggle.is-on .switch {
+  background: var(--role-observer-dim);
+}
+
+.composer__observer-toggle.is-on .switch::after {
+  left: 13px;
+  background: var(--role-observer);
+}
+
+/* ── лента персонажей ─────────────────────────────────────────────────── */
+
+.character-strip-panel {
+  overflow: hidden;
+}
+
+.strip-head {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--edge);
+  padding: 0 var(--s3);
+}
+
+.strip-head__hint + .strip-head__add,
+.strip-head__title + .count-pill + .strip-head__add {
+  margin-left: auto;
+}
+
+.strip-head__title {
+  margin: 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.strip-head__add {
+  margin-left: auto;
+}
+
+.strip-rail {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: var(--s2);
+  overflow-x: auto;
+  padding: 0 var(--s3);
+}
+
+.strip-rail__empty {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.strip-rail__chip {
+  height: 20px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  color: var(--muted);
+  background: var(--inset);
+  padding: 0 8px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.strip-rail__chip.is-selected {
+  border-color: var(--role-gm);
+  color: var(--role-gm);
+}
+
+.strip-viewport {
+  position: relative;
+}
+
+/* Кромки гасят карточки вместо видимой полосы прокрутки. */
+.strip-viewport::before,
+.strip-viewport::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  pointer-events: none;
+}
+
+.strip-viewport::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--slab), transparent);
+}
+
+.strip-viewport::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--slab), transparent);
+}
+
+.gm-character-strip {
+  display: flex;
+  height: 226px;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+  padding: 10px var(--s3);
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.gm-character-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.strip-item {
+  position: relative;
+  height: 100%;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  scroll-snap-align: start;
+}
+
+.strip-item:focus-visible {
+  outline: 2px solid var(--role-gm);
+  outline-offset: 3px;
+}
+
+.strip-item.is-dragging {
+  opacity: 0.4;
+}
+
+/* Место, куда встанет карточка. */
+.strip-item.is-drop-target::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--role-gm);
+}
+
+.gm-character-strip__empty {
+  display: grid;
+  width: 100%;
+  place-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.strip-head__hint {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+/* ── Наблюдатель ──────────────────────────────────────────────────────── */
+
+.observer-empty {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: var(--s5);
+  text-align: center;
+}
+
+.observer-empty h3 {
+  margin: 0;
+  color: #cfc9d6;
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.observer-empty p {
+  max-width: 32ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.observer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s3);
+  overflow-y: auto;
+  padding: var(--s3);
+}
+
+.observer-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--role-observer);
+  font-size: 12px;
+}
+
+.spinner--observer {
+  border-color: rgb(154 135 216 / 25%);
+  border-top-color: var(--role-observer);
+}
+
+.observer-intro p {
+  margin: 0 0 var(--s3);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.observer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.observer-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border: 1px solid rgb(121 195 154 / 28%);
+  border-radius: var(--r-s);
+  margin: 0;
+  color: #a9d8be;
+  background: var(--role-archivist-dim);
+  padding: 7px 10px;
+  font-size: 11.5px;
+}
+
+.observer-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+
+.observer-section-head h3 {
+  margin: 0;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.observer-section-head .mini-button {
+  margin-left: auto;
+}
+
+.count-pill--observer {
+  color: var(--role-observer);
+  background: var(--role-observer-dim);
+}
+
+/* Brief — это проза, которую ГМ дочитывает и правит, поэтому серифом и с
+   ограничением высоты до раскрытия. */
+.observer-brief__text {
+  width: 100%;
+  height: 74px;
+  border: 0;
+  border-left: 2px solid var(--role-observer);
+  border-radius: 0;
+  color: #d5cfd9;
+  background: none;
+  padding: 2px 0 2px 10px;
+  resize: none;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+  transition: height var(--t) ease;
+}
+
+.observer-brief__text:hover {
+  border-color: var(--role-observer);
+}
+
+.observer-brief__text.is-expanded {
+  height: 200px;
+}
+
+.observer-ops__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.observer-ops__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.operation-row {
+  display: grid;
+  align-items: center;
+  gap: 9px;
+  grid-template-columns: 15px 26px minmax(0, 1fr) auto;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: var(--inset);
+  padding: 8px 10px;
+  transition: opacity var(--t-fast) ease;
+}
+
+.operation-row.is-skipped {
+  opacity: 0.42;
+}
+
+.operation-row > input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--role-observer);
+}
+
+.operation-row__portrait {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  color: var(--muted);
+  background: linear-gradient(145deg, #34303c, #1d1a23);
+  font-family: Georgia, serif;
+  font-size: 12px;
+}
+
+.operation-row__portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.operation-row__text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.operation-row__who {
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.operation-row__what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.operation-row__what b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.operation-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(154 135 216 / 35%);
+  border-radius: 999px;
+  color: #c7b8f0;
+  background: var(--role-observer-dim);
+  padding: 1px 8px;
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.delta {
+  font-weight: 700;
+}
+
+.delta--down {
+  color: var(--health);
+}
+
+.delta--up {
+  color: var(--role-archivist);
+}
+
+.operation-row__value {
+  width: 56px;
+  height: 26px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 40%);
+  padding: 0 4px;
+  font-size: 12px;
+  text-align: center;
+
+  /* Стрелки счётчика съедают и без того узкую колонку. */
+  appearance: textfield;
+}
+
+.operation-row__value::-webkit-outer-spin-button,
+.operation-row__value::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.observer-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  border-top: 1px solid var(--edge);
+  padding: var(--s3);
+}
+
+/* Сырой JSON остаётся полноценным инструментом, но уходит из вида по
+   умолчанию: посреди сессии ГМ читает строки, а не структуру. */
+.json-toggle {
+  align-self: flex-start;
+  border: 0;
+  color: var(--faint);
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.json-toggle:hover {
+  color: var(--muted);
+}
+
+.json-editor textarea {
+  width: 100%;
+  height: 150px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 9px;
+  color: #b9b2c4;
+  background: #08070c;
+  padding: 10px;
+  resize: vertical;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* ── завершение события ───────────────────────────────────────────────── */
+
+.finalization__safe {
+  flex: 0 0 auto;
+  color: var(--role-archivist);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.finalization__lead,
+.finalization__working {
+  margin: 0 0 var(--s4);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.finalization__working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--role-archivist);
+}
+
+.spinner--archivist {
+  flex: 0 0 auto;
+  border-color: rgb(121 195 154 / 25%);
+  border-top-color: var(--role-archivist);
+}
+
+.finalization__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.finalization__notice {
+  border-left: 3px solid var(--warning);
+  margin: 0 0 var(--s4);
+  background: rgb(0 0 0 / 18%);
+  padding: 14px;
+}
+
+.finalization__notice p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* Хроника слева, личные воспоминания стопкой справа: их надо сверять между
+   собой, а не переключать. */
+.finalization__grid {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: 1fr 1fr;
+}
+
+.finalization__notes {
+  display: grid;
+  align-content: start;
+  gap: var(--s3);
+}
+
+.finalization__chronicle,
+.finalization__player-note {
+  display: grid;
+  gap: 6px;
+}
+
+.finalization__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.filled-mark {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--edge-strong);
+  border-radius: 50%;
+  background: none;
+}
+
+.filled-mark.is-filled {
+  border-color: var(--role-archivist);
+  background: var(--role-archivist);
+}
+
+.finalization__chronicle textarea {
+  height: 320px;
+}
+
+.finalization__player-note textarea {
+  height: 148px;
+}
+
+.finalization__grid textarea {
+  width: 100%;
+  border: 1px solid var(--edge-strong);
+  border-radius: 10px;
+  background: var(--inset);
+  padding: 10px 12px;
+  resize: vertical;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.finalization__progress {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.spacer {
+  margin-left: auto;
+}
+
+@media (max-width: 1280px) {
+  .finalization__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .finalization__chronicle textarea {
+    height: 200px;
+  }
+}
+
+/* ── шпаргалка ────────────────────────────────────────────────────────── */
+
+.shortcuts {
+  display: grid;
+  gap: var(--s4);
+  margin: 0;
+}
+
+.shortcuts__title {
+  margin: 0 0 var(--s2);
+  color: var(--role-gm);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.shortcuts__row {
+  display: grid;
+  align-items: baseline;
+  gap: var(--s3);
+  grid-template-columns: 140px minmax(0, 1fr);
+  padding: 4px 0;
+}
+
+.shortcuts__row dt {
+  display: flex;
+  gap: 4px;
+}
+
+.shortcuts__row dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.shortcuts__note {
+  margin: var(--s4) 0 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ── узкий экран ──────────────────────────────────────────────────────── */
+
+/* Наблюдатель нужен эпизодически — после каждого хода, — поэтому на узком
+   экране он уезжает в выдвижную панель, а не заставляет страницу ехать вбок. */
+@media (max-width: 1100px) {
+  .gm-work {
+    grid-template-columns: minmax(240px, var(--col-left)) auto minmax(0, 1fr);
+  }
+
+  .gm-work > .column-resizer:last-of-type {
+    display: none;
+  }
+
+  .command-bar__observer-toggle {
+    display: flex;
+  }
+
+  .gm-column--observer {
+    position: fixed;
+    z-index: 50;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(400px, 92vw);
+    border-radius: 0;
+    box-shadow: -18px 0 50px rgb(0 0 0 / 55%);
+    transform: translateX(100%);
+    transition: transform var(--t-slow) ease;
+  }
+
+  .gm-column--observer.is-open {
+    transform: none;
+  }
+
+  .flow-step {
+    padding: 0 var(--s2);
+    font-size: 11px;
+  }
+}
+
+.observer-drawer-close {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .observer-drawer-close {
+    display: grid;
+  }
+}

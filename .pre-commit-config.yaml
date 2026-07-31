@@ -13,3 +13,9 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: detect-private-key
+  # detect-private-key ловит только PEM-ключи; gitleaks ищет и API-токены —
+  # до коммита, а не после push, как одноимённый workflow в CI.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks

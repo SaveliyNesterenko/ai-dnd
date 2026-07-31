@@ -8,11 +8,9 @@ import {
 export function SpeechBubble({
   cue,
   onComplete,
-  anchorHeight,
 }: {
   cue: SpeechCue;
   onComplete: (cueId: string) => void;
-  anchorHeight: number;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -113,7 +111,6 @@ export function SpeechBubble({
     <>
       <div
         className={`speech-bubble ${cue.kind}`}
-        style={{ bottom: `${anchorHeight + 20}px` }}
         role="status"
         aria-label={`${description} персонажа ${cue.actorName}`}
       >

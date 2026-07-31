@@ -1,20 +1,28 @@
 import {
   activateCampaignApiV1CampaignsCampaignIdActivatePost,
   applyProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdApplyPost,
+  capabilitiesApiV1CapabilitiesGet,
   confirmEventFinalizationApiV1CampaignsCampaignIdEventsEventIdFinalizationConfirmPost,
   createProposalApiV1CampaignsCampaignIdEventsEventIdObserverProposalsPost,
   createTurnApiV1CampaignsCampaignIdEventsEventIdTurnsPost,
+  deleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDelete,
   generateContextCompressionApiV1CampaignsCampaignIdJobsContextCompressionPost,
   generateEventFinalizationApiV1CampaignsCampaignIdJobsEventFinalizationPost,
   generateObserverProposalApiV1CampaignsCampaignIdJobsObserverPost,
   generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost,
   getJobApiV1CampaignsCampaignIdJobsJobIdGet,
   getProposalApiV1CampaignsCampaignIdObserverProposalsProposalIdGet,
+  getVoiceJobApiV1VoiceJobsJobIdGet,
   gmSnapshotApiV1CampaignsCampaignIdGmSnapshotGet,
   listCampaignsApiV1CampaignsGet,
+  listJobsApiV1CampaignsCampaignIdJobsGet,
+  resynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPost,
   sessionInfoApiV1AuthSessionGet,
+  skipSpeechApiV1CampaignsCampaignIdSpeechSkipPost,
   snapshotApiV1CampaignsCampaignIdSnapshotGet,
   startEventApiV1CampaignsCampaignIdEventsPost,
+  transcribeAudioApiV1VoiceJobsTranscriptionPost,
+  updateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatch,
   updateSceneApiV1CampaignsCampaignIdScenePatch,
   updateSceneCharacterApiV1CampaignsCampaignIdSceneCharactersCharacterIdPatch,
   updateCharacterApiV1CampaignsCampaignIdCharactersCharacterIdPatch,
@@ -27,6 +35,7 @@ import type {
   UpdateSceneCharacterRequest,
   UpdateSceneRequest,
   UpdateCharacterRequest,
+  UpdateSpeechSettingsRequest,
 } from "./generated/types.gen";
 import type { ObserverOperation, ProblemDetails } from "./types";
 
@@ -61,6 +70,7 @@ const requestOptions = {
 };
 
 export const api = {
+  capabilities: () => execute(capabilitiesApiV1CapabilitiesGet(requestOptions)),
   campaigns: () => execute(listCampaignsApiV1CampaignsGet(requestOptions)),
   activateCampaign: (campaignId: string) =>
     execute(
@@ -111,12 +121,51 @@ export const api = {
         body: input,
       }),
     ) as Promise<{ id: string }>,
+  deleteTurn: (campaignId: string, turnId: string) =>
+    execute(
+      deleteTurnApiV1CampaignsCampaignIdTurnsTurnIdDelete({
+        ...requestOptions,
+        path: { campaign_id: campaignId, turn_id: turnId },
+      }),
+    ),
   generatePlayerTurn: (campaignId: string, eventId: string, characterId: string) =>
     execute(
       generatePlayerTurnApiV1CampaignsCampaignIdJobsPlayerTurnPost({
         ...requestOptions,
         path: { campaign_id: campaignId },
         body: { event_id: eventId, character_id: characterId },
+      }),
+    ),
+  /** Очередь озвучки: активные задачи плюс хвост недавних — одним запросом. */
+  speechJobs: (campaignId: string) =>
+    execute(
+      listJobsApiV1CampaignsCampaignIdJobsGet({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        query: { kind: "speech_synthesis", limit: 12 },
+      }),
+    ),
+  resynthesizeTurnSpeech: (campaignId: string, turnId: string) =>
+    execute(
+      resynthesizeTurnSpeechApiV1CampaignsCampaignIdTurnsTurnIdSpeechPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId, turn_id: turnId },
+      }),
+    ),
+  skipSpeech: (campaignId: string, turnId: string | null) =>
+    execute(
+      skipSpeechApiV1CampaignsCampaignIdSpeechSkipPost({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: { turn_id: turnId },
+      }),
+    ),
+  updateSpeechSettings: (campaignId: string, input: UpdateSpeechSettingsRequest) =>
+    execute(
+      updateSpeechSettingsApiV1CampaignsCampaignIdSpeechPatch({
+        ...requestOptions,
+        path: { campaign_id: campaignId },
+        body: input,
       }),
     ),
   getJob: (campaignId: string, jobId: string) =>
@@ -156,6 +205,20 @@ export const api = {
         ...requestOptions,
         path: { campaign_id: campaignId },
         body: { event_id: eventId, turn_id: turnId },
+      }),
+    ),
+  transcribeVoice: (file: File) =>
+    execute(
+      transcribeAudioApiV1VoiceJobsTranscriptionPost({
+        ...requestOptions,
+        body: { file },
+      }),
+    ),
+  getVoiceJob: (jobId: string) =>
+    execute(
+      getVoiceJobApiV1VoiceJobsJobIdGet({
+        ...requestOptions,
+        path: { job_id: jobId },
       }),
     ),
   getProposal: (campaignId: string, proposalId: string) =>

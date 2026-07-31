@@ -1,0 +1,340 @@
+/* Карточка персонажа в консоли ГМ-а и её редакторы.
+   Дизайн карточки признан готовым — правила перенесены без изменений.
+   Меняется только обвязка ленты, она живёт в gm.css. */
+
+.gm-character-card {
+  position: relative;
+  width: auto;
+  height: 100%;
+  max-height: 250px;
+  aspect-ratio: 5 / 7;
+  flex: 0 0 auto;
+  border: 1px solid #776a54;
+  border-radius: 12px;
+  color: #f0e6d6;
+  background: #2a2f38;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 32%);
+  cursor: grab;
+  perspective: 1000px;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.gm-character-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 28px rgb(0 0 0 / 42%);
+}
+
+.gm-character-card--selected {
+  border-color: var(--accent-bright);
+  box-shadow:
+    0 0 0 2px rgb(240 170 85 / 22%),
+    0 12px 30px rgb(0 0 0 / 46%);
+}
+
+.gm-character-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 420ms ease;
+  transform-style: preserve-3d;
+}
+
+.gm-character-card--flipped .gm-character-card__inner {
+  transform: rotateY(180deg);
+}
+
+.gm-character-card__face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  background: #2a2f38;
+  backface-visibility: hidden;
+}
+
+.gm-character-card__back {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #2f333d, #232730);
+  padding: 0.6rem 0.55rem 0.45rem;
+  cursor: pointer;
+  transform: rotateY(180deg);
+  pointer-events: none;
+}
+
+.gm-character-card--flipped .gm-character-card__front {
+  pointer-events: none;
+}
+
+.gm-character-card--flipped .gm-character-card__back {
+  pointer-events: auto;
+}
+
+.gm-character-card__back h3 {
+  margin: 0;
+  color: var(--accent-bright);
+  font-family: Georgia, serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.gm-character-card__hint {
+  margin: auto 0 0;
+  color: var(--muted);
+  font-size: 0.55rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.gm-character-card__art,
+.gm-character-card__veil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gm-character-card__art {
+  object-fit: cover;
+}
+
+.gm-character-card__veil {
+  background: linear-gradient(
+    to top,
+    rgb(15 10 5 / 98%) 18%,
+    rgb(15 10 5 / 76%) 52%,
+    rgb(15 10 5 / 8%)
+  );
+}
+
+.gm-character-card__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: end;
+  padding: 0.75rem;
+}
+
+.gm-character-card__content h3 {
+  margin: 0;
+  color: var(--accent-bright);
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* Значки в левом верхнем углу: поворот аватара и категория персонажа. */
+.gm-character-card__corner {
+  position: absolute;
+  z-index: 2;
+  top: 0.45rem;
+  left: 0.45rem;
+  display: grid;
+  gap: 0.3rem;
+  justify-items: center;
+}
+
+.gm-character-card__flip,
+.gm-character-card__kind,
+.gm-character-card__voiceless,
+.gm-character-card__remove {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  place-items: center;
+  color: var(--text);
+  background: rgb(8 8 12 / 74%);
+  padding: 0;
+  line-height: 0;
+}
+
+.gm-character-card__flip,
+.gm-character-card__remove {
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.gm-character-card__flip:hover:not(:disabled) {
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
+  background: rgb(240 170 85 / 18%);
+}
+
+.gm-character-card__flip[aria-pressed="true"] {
+  border-color: rgb(240 170 85 / 65%);
+  color: var(--accent-bright);
+}
+
+.gm-character-card__flip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.gm-character-card__remove:hover {
+  border-color: var(--danger);
+  color: #ffe2de;
+  background: rgb(239 131 122 / 42%);
+}
+
+/* Отсутствие образца голоса — не ошибка, а факт: приглушённо, но постоянно. */
+.gm-character-card__voiceless {
+  color: #b8b0c2;
+}
+
+.gm-character-card__kind--player {
+  color: var(--success);
+}
+
+.gm-character-card__kind--npc {
+  color: #d3c4a8;
+}
+
+.gm-character-card__kind--enemy {
+  color: var(--danger);
+}
+
+.gm-character-card__remove {
+  position: absolute;
+  z-index: 2;
+  top: 0.45rem;
+  right: 0.45rem;
+}
+
+.gm-character-card__attributes > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 34%);
+  padding: 0.22rem 0.4rem;
+  font-family: Georgia, serif;
+  font-size: 0.72rem;
+}
+
+.gm-character-card__attributes span {
+  color: #c9a977;
+  font-weight: 700;
+}
+
+.gm-character-card__buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.3rem;
+  margin-top: 0.55rem;
+}
+
+.gm-character-card__buttons button {
+  height: 29px;
+  border: 1px solid #776a54;
+  border-radius: 5px;
+  color: #d3c4a8;
+  background: rgb(20 18 20 / 76%);
+  cursor: pointer;
+}
+
+.gm-character-card__buttons button:hover {
+  border-color: var(--accent-bright);
+  color: #17110c;
+  background: var(--accent-bright);
+}
+
+.gm-character-card__attributes {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  overflow-y: auto;
+}
+
+.gm-character-card__resource-form {
+  display: grid;
+  gap: 0.4rem;
+  cursor: default;
+}
+
+.gm-character-card__resource-form label {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.gm-character-card__resource-form label > span {
+  color: #c9a977;
+  font-family: Georgia, serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.gm-character-card__resource-form label > div {
+  display: grid;
+  align-items: center;
+  gap: 0.2rem;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.gm-character-card__resource-form label > div > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.gm-character-card__resource-form input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: rgb(8 8 12 / 55%);
+  padding: 0.22rem 0.25rem;
+  font-size: 0.75rem;
+  text-align: center;
+
+  /* Стрелки счётчика съедают ширину на узкой карточке. */
+  appearance: textfield;
+}
+
+.gm-character-card__resource-form input::-webkit-outer-spin-button,
+.gm-character-card__resource-form input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.gm-character-card__resource-form .button {
+  min-height: 27px;
+  border-radius: 7px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+.character-editor-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.inventory-editor-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 90px minmax(220px, 2fr) auto;
+  gap: 0.45rem;
+}
+
+.effect-editor-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 0.45rem;
+}
