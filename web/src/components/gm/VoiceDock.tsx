@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { api } from "../../api/client";
+import { useHotkeys } from "../../hooks/useHotkeys";
 import { useJobRunner } from "../../hooks/useJobPolling";
 import { useToast } from "../../hooks/useToast";
 import { describeError } from "../../utils/errors";
@@ -183,6 +184,14 @@ export function VoiceDock({
       : eventId
         ? "Ctrl+Enter — отправить в лог"
         : "Запустите игровое событие, чтобы отправлять реплики в лог.";
+
+  useHotkeys([
+    {
+      code: "KeyR",
+      enabled: !transcribe.isPending,
+      handler: () => (isRecording ? stopRecording() : void startRecording()),
+    },
+  ]);
 
   const canSend = Boolean(eventId) && !isRecording && Boolean(text.trim()) && !sendToLog.isPending;
 

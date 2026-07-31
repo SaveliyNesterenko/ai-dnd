@@ -6,7 +6,7 @@
   display: grid;
   height: 100vh;
   height: 100dvh;
-  min-width: 1180px;
+  min-width: 900px;
   grid-template-rows: var(--h-cmdbar) var(--h-flow) minmax(0, 1fr) auto;
   gap: var(--s2);
   overflow: hidden;
@@ -115,6 +115,10 @@
   font-weight: 700;
 }
 
+.command-bar__observer-toggle {
+  display: none;
+}
+
 .capabilities {
   display: flex;
   align-items: center;
@@ -173,9 +177,9 @@
   white-space: nowrap;
 }
 
-/* EventFinalization отдаёт обычную кнопку — здесь она становится правым
-   сегментом составного контрола. */
-.event-cta .button {
+/* EventFinalization отдаёт кнопку — здесь она становится правым сегментом
+   составного контрола. */
+.event-cta .btn {
   min-height: 0;
   border: 0;
   border-left: 1px solid rgb(0 0 0 / 25%);
@@ -189,7 +193,7 @@
   white-space: nowrap;
 }
 
-.event-cta .button:hover:not(:disabled) {
+.event-cta .btn:hover:not(:disabled) {
   background: rgb(233 169 75 / 24%);
   filter: none;
   transform: none;
@@ -339,6 +343,12 @@
 .gm-work {
   display: grid;
   min-height: 0;
+
+  /* Боковые колонки держат заданную ГМ-ом ширину, но ужимаются, когда окно
+     меньше суммы треков, — иначе сетка вылезала бы за экран. */
+  grid-template-columns:
+    minmax(240px, var(--col-left)) auto minmax(360px, 1fr)
+    auto minmax(240px, var(--col-right));
 }
 
 .gm-column {
@@ -346,12 +356,6 @@
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
-}
-
-.gm-column__scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--s3);
 }
 
 .column-resizer {
@@ -890,10 +894,6 @@
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
-}
-
-.composer__idle-hint {
-  font-size: 11.5px;
 }
 
 kbd {
@@ -1640,5 +1640,99 @@ kbd {
 
   .finalization__chronicle textarea {
     height: 200px;
+  }
+}
+
+/* ── шпаргалка ────────────────────────────────────────────────────────── */
+
+.shortcuts {
+  display: grid;
+  gap: var(--s4);
+  margin: 0;
+}
+
+.shortcuts__title {
+  margin: 0 0 var(--s2);
+  color: var(--role-gm);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.shortcuts__row {
+  display: grid;
+  align-items: baseline;
+  gap: var(--s3);
+  grid-template-columns: 140px minmax(0, 1fr);
+  padding: 4px 0;
+}
+
+.shortcuts__row dt {
+  display: flex;
+  gap: 4px;
+}
+
+.shortcuts__row dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.shortcuts__note {
+  margin: var(--s4) 0 0;
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ── узкий экран ──────────────────────────────────────────────────────── */
+
+/* Наблюдатель нужен эпизодически — после каждого хода, — поэтому на узком
+   экране он уезжает в выдвижную панель, а не заставляет страницу ехать вбок. */
+@media (max-width: 1100px) {
+  .gm-work {
+    grid-template-columns: minmax(240px, var(--col-left)) auto minmax(0, 1fr);
+  }
+
+  .gm-work > .column-resizer:last-of-type {
+    display: none;
+  }
+
+  .command-bar__observer-toggle {
+    display: flex;
+  }
+
+  .gm-column--observer {
+    position: fixed;
+    z-index: 50;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(400px, 92vw);
+    border-radius: 0;
+    box-shadow: -18px 0 50px rgb(0 0 0 / 55%);
+    transform: translateX(100%);
+    transition: transform var(--t-slow) ease;
+  }
+
+  .gm-column--observer.is-open {
+    transform: none;
+  }
+
+  .flow-step {
+    padding: 0 var(--s2);
+    font-size: 11px;
+  }
+}
+
+.observer-drawer-close {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .observer-drawer-close {
+    display: grid;
   }
 }

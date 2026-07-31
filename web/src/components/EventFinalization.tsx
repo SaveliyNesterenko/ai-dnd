@@ -72,7 +72,7 @@ export function EventFinalization({
   if (event.status === "active") {
     return (
       <button
-        className="button button--quiet"
+        className="btn btn--compact"
         type="button"
         disabled={generate.isPending}
         onClick={() => generate.mutate()}
@@ -133,7 +133,7 @@ export function EventFinalization({
 
   return (
     <>
-      <button className="button button--quiet" type="button" onClick={() => setOpen(true)}>
+      <button className="btn btn--compact" type="button" onClick={() => setOpen(true)}>
         Событие завершается
       </button>
       {open && (

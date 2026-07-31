@@ -27,6 +27,8 @@ export function CommandBar({
   onChanged,
   openPopover,
   onOpenPopover,
+  observerOpen,
+  onToggleObserver,
 }: {
   campaignId: string;
   campaigns: Campaign[];
@@ -42,6 +44,9 @@ export function CommandBar({
      из ленты открывает тот же самый список, что и чип. */
   openPopover: OpenPopover;
   onOpenPopover: (popover: OpenPopover) => void;
+  /* Ниже 1100px Наблюдатель уезжает в выдвижную панель — кнопка живёт здесь. */
+  observerOpen: boolean;
+  onToggleObserver: () => void;
 }) {
   const toast = useToast();
   const campaignRef = useRef<HTMLButtonElement>(null);
@@ -128,6 +133,15 @@ export function CommandBar({
       </div>
 
       <div className="command-bar__zone command-bar__zone--flow">
+        <button
+          type="button"
+          className="chip command-bar__observer-toggle"
+          aria-expanded={observerOpen}
+          onClick={onToggleObserver}
+        >
+          <span className="chip__label">Наблюдатель</span>
+        </button>
+
         <ul className="capabilities" aria-label="Доступность внешних сервисов">
           <Capability label="LLM" enabled={capabilities.data?.llm_enabled} />
           <Capability label="STT" enabled={capabilities.data?.stt_enabled} />

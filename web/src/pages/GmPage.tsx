@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import { api, ApiError } from "../api/client";
 import type {
@@ -14,9 +14,11 @@ import { CharacterStrip } from "../components/gm/CharacterStrip";
 import { CommandBar, type OpenPopover } from "../components/gm/CommandBar";
 import { EventLog } from "../components/gm/EventLog";
 import { ObserverPanel } from "../components/gm/ObserverPanel";
+import { ShortcutsDialog } from "../components/gm/ShortcutsDialog";
 import { TurnComposer } from "../components/gm/TurnComposer";
 import { TurnFlowStrip, type TurnStage } from "../components/gm/TurnFlowStrip";
 import { VoiceDock } from "../components/gm/VoiceDock";
+import { useHotkeys } from "../hooks/useHotkeys";
 import { useJobRunner } from "../hooks/useJobPolling";
 import { useRealtime } from "../hooks/useRealtime";
 import { useToast } from "../hooks/useToast";
@@ -32,12 +34,15 @@ export default function GmPage() {
   const [appliedForTurnId, setAppliedForTurnId] = useState<string>();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>();
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [observerDrawerOpen, setObserverDrawerOpen] = useState(false);
 
   const selectedCharacterId = useUiStore((state) => state.selectedCharacterId);
   const selectCharacter = useUiStore((state) => state.selectCharacter);
   const leftWidth = useUiStore((state) => state.leftWidth);
   const rightWidth = useUiStore((state) => state.rightWidth);
   const setColumnWidth = useUiStore((state) => state.setColumnWidth);
+  const toggleStrip = useUiStore((state) => state.toggleStrip);
 
   const session = useQuery({ queryKey: ["gm-session"], queryFn: api.gmSession, retry: false });
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
@@ -128,6 +133,10 @@ export default function GmPage() {
   const characters = snapshot.data.characters as CharacterGM[];
   const activeEvent = snapshot.data.active_event;
   const lastTurn = activeEvent?.turns.at(-1);
+  const onSceneIds = snapshot.data.scene.characters
+    .filter((state) => state.is_visible)
+    .sort((left, right) => left.order - right.order)
+    .map((state) => state.character_id);
   const selectedCharacter = characters.find((character) => character.id === selectedCharacterId);
   const refreshSnapshot = () => {
     void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", campaignId] });
@@ -148,6 +157,13 @@ export default function GmPage() {
 
   return (
     <main className="gm-shell">
+      <PageHotkeys
+        characterIds={onSceneIds}
+        onSelect={selectCharacter}
+        onToggleStrip={toggleStrip}
+        onShortcuts={() => setShortcutsOpen(true)}
+        onEscape={observerDrawerOpen ? () => setObserverDrawerOpen(false) : undefined}
+      />
       <CommandBar
         key={campaignId}
         campaignId={campaignId}
@@ -162,15 +178,20 @@ export default function GmPage() {
         onChanged={refreshSnapshot}
         openPopover={openPopover}
         onOpenPopover={setOpenPopover}
+        observerOpen={observerDrawerOpen}
+        onToggleObserver={() => setObserverDrawerOpen((value) => !value)}
       />
 
       <FlowStripBinding stage={stage} idle={!activeEvent} />
 
       <section
         className="gm-work"
-        style={{
-          gridTemplateColumns: `${leftWidth}px auto minmax(360px, 1fr) auto ${rightWidth}px`,
-        }}
+        style={
+          {
+            "--col-left": `${leftWidth}px`,
+            "--col-right": `${rightWidth}px`,
+          } as CSSProperties
+        }
       >
         <section className="slab gm-column" aria-label="Лог события и запись речи">
           <EventLogColumn
@@ -236,7 +257,12 @@ export default function GmPage() {
           onResize={(width) => setColumnWidth("right", width)}
         />
 
-        <aside className="slab gm-column" aria-label="Наблюдатель">
+        <aside
+          className={`slab gm-column gm-column--observer${
+            observerDrawerOpen ? " is-open" : ""
+          }`}
+          aria-label="Наблюдатель"
+        >
           <ObserverPanel
             key={activeEvent?.id ?? "no-event"}
             campaignId={campaignId}
@@ -247,9 +273,12 @@ export default function GmPage() {
             setProposal={setProposal}
             onApplied={setAppliedForTurnId}
             onChanged={refreshSnapshot}
+            onCloseDrawer={() => setObserverDrawerOpen(false)}
           />
         </aside>
       </section>
+
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
 
       <CharacterStrip
         campaignId={campaignId}
@@ -261,6 +290,40 @@ export default function GmPage() {
       />
     </main>
   );
+}
+
+/**
+ * Клавиши уровня страницы вынесены в отдельный компонент: иначе выбор
+ * персонажа цифрой перерисовывал бы консоль на каждое нажатие любой клавиши.
+ */
+function PageHotkeys({
+  characterIds,
+  onSelect,
+  onToggleStrip,
+  onShortcuts,
+  onEscape,
+}: {
+  characterIds: string[];
+  onSelect: (characterId: string) => void;
+  onToggleStrip: () => void;
+  onShortcuts: () => void;
+  onEscape?: () => void;
+}) {
+  useHotkeys([
+    ...characterIds.slice(0, 9).map((characterId, index) => ({
+      code: `Digit${index + 1}`,
+      handler: () => onSelect(characterId),
+    })),
+    { code: "Backslash", alt: true, handler: onToggleStrip },
+    { code: "Slash", shift: true, handler: onShortcuts },
+    {
+      code: "Escape",
+      enabled: Boolean(onEscape),
+      allowInField: true,
+      handler: () => onEscape?.(),
+    },
+  ]);
+  return null;
 }
 
 /** Полоса подписана на стор занятости, чтобы тик секунд не трогал всю консоль. */

@@ -8,6 +8,7 @@ import type {
   ObserverOperation,
   ObserverProposal,
 } from "../../api/types";
+import { useHotkeys } from "../../hooks/useHotkeys";
 import { useJobRunner } from "../../hooks/useJobPolling";
 import { useToast } from "../../hooks/useToast";
 import { useFlowStore } from "../../store/flow";
@@ -26,6 +27,7 @@ export function ObserverPanel({
   setProposal,
   onApplied,
   onChanged,
+  onCloseDrawer,
 }: {
   campaignId: string;
   snapshot: GameStateSnapshot;
@@ -35,6 +37,9 @@ export function ObserverPanel({
   setProposal: (proposal: ObserverProposal | null) => void;
   onApplied: (turnId: string) => void;
   onChanged: () => void;
+  /* На узком экране панель выдвижная и перекрывает кнопку, которой открылась,
+     поэтому закрывать её надо изнутри. */
+  onCloseDrawer: () => void;
 }) {
   const toast = useToast();
   const setBusy = useFlowStore((state) => state.setBusy);
@@ -163,10 +168,24 @@ export function ObserverPanel({
     }
   }, [eventAcceptsChanges, generate, proposal?.turn_id, requestedTurnExists, requestedTurnId]);
 
+  useHotkeys([
+    {
+      code: "KeyO",
+      enabled: Boolean(lastTurn) && eventAcceptsChanges && !generating,
+      handler: () => lastTurn && generate.run(lastTurn.id),
+    },
+  ]);
+
   const header = (
     <div className="panel-head">
       <h2 className="panel-head__title panel-head__title--observer">Наблюдатель</h2>
       <span className="panel-head__aside mono">rev {snapshot.campaign.revision}</span>
+      <IconButton
+        className="observer-drawer-close"
+        label="Закрыть панель Наблюдателя"
+        icon={<CrossGlyph />}
+        onClick={onCloseDrawer}
+      />
     </div>
   );
 

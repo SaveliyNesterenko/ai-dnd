@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "../../api/client";
 import type { CharacterGM } from "../../api/types";
+import { useHotkeys } from "../../hooks/useHotkeys";
 import { useJobRunner } from "../../hooks/useJobPolling";
 import { useToast } from "../../hooks/useToast";
 import { useFlowStore } from "../../store/flow";
@@ -122,6 +123,14 @@ export function TurnComposer({
   };
 
   const hasDraft = manual || Boolean(thought || action);
+
+  useHotkeys([
+    {
+      code: "KeyG",
+      enabled: Boolean(character) && !generating,
+      handler: () => generateTurn.run(),
+    },
+  ]);
 
   return (
     <>

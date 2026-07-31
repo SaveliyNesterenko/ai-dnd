@@ -321,13 +321,6 @@
   margin-bottom: 1rem;
 }
 
-.character-editor-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.7rem;
-}
-
 .inventory-editor-row {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) 90px minmax(220px, 2fr) auto;
