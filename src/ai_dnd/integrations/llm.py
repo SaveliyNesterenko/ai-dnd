@@ -211,9 +211,13 @@ class OpenAICompatibleLLMProvider:
                 return output_type.model_validate(json.loads(content))
             except (json.JSONDecodeError, ValidationError, LLMInvalidResponseError) as error:
                 last_error = error
+                # Без самой схемы и текста ошибки повтор повторяет ту же ошибку:
+                # модель не знает, какое поле назвала неверно.
                 corrective_suffix = (
                     "\nYour previous response did not match the schema. Correct the structure, "
-                    "types, and required fields."
+                    f"types, and required fields.\nValidation error: {error}\n"
+                    "The response must validate against this JSON Schema:\n"
+                    f"{json.dumps(output_type.model_json_schema(), ensure_ascii=False)}"
                 )
                 if attempt < 2:
                     continue
