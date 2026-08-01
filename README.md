@@ -11,6 +11,20 @@ LLM-агенты играют персонажей, NPC, Наблюдателя 
 
 ![Зрительский экран](src/ai_dnd/screenshots/spectrator.jpg)
 
+## Готовая пробная кампания
+
+Для первого запуска доступна публичная кампания на 30–45 минут: два активных
+героя, два NPC, два противника, две локации, три музыкальных трека и голосовые
+образцы персонажей. Она работает без API-ключа — игровые ходы можно вносить
+вручную; AI-функции и локальная озвучка подключаются отдельно.
+
+- [Скачать пакет пробной кампании](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip)
+- [Скачать контрольную сумму SHA-256](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip.sha256)
+- [Открыть страницу релиза v0.1.0](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0)
+
+После запуска проекта откройте меню «Кампания» в GM Console, нажмите
+«Импортировать ZIP» и выберите скачанный архив. Распаковывать его не нужно.
+
 ## Что уже реализовано
 
 - FastAPI application factory с разделением `domain`, `application`, `api`,
