@@ -1747,6 +1747,47 @@
         }
       }
     },
+    "/api/v1/campaign-packs/import": {
+      "post": {
+        "tags": [
+          "campaign packs"
+        ],
+        "summary": "Import Campaign Pack",
+        "operationId": "import_campaign_pack_api_v1_campaign_packs_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_campaign_pack_api_v1_campaign_packs_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignPackImportReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/voice/jobs/transcription": {
       "post": {
         "tags": [
@@ -2105,6 +2146,20 @@
         ],
         "title": "BackgroundJobView"
       },
+      "Body_import_campaign_pack_api_v1_campaign_packs_import_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_campaign_pack_api_v1_campaign_packs_import_post"
+      },
       "Body_transcribe_audio_api_v1_voice_jobs_transcription_post": {
         "properties": {
           "file": {
@@ -2118,6 +2173,39 @@
           "file"
         ],
         "title": "Body_transcribe_audio_api_v1_voice_jobs_transcription_post"
+      },
+      "CampaignPackImportReport": {
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "campaign_name": {
+            "type": "string",
+            "title": "Campaign Name"
+          },
+          "characters": {
+            "type": "integer",
+            "title": "Characters"
+          },
+          "locations": {
+            "type": "integer",
+            "title": "Locations"
+          },
+          "music_tracks": {
+            "type": "integer",
+            "title": "Music Tracks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_id",
+          "campaign_name",
+          "characters",
+          "locations",
+          "music_tracks"
+        ],
+        "title": "CampaignPackImportReport"
       },
       "CampaignSummary": {
         "properties": {

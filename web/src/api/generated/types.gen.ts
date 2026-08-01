@@ -144,6 +144,16 @@ export type BackgroundJobView = {
 };
 
 /**
+ * Body_import_campaign_pack_api_v1_campaign_packs_import_post
+ */
+export type BodyImportCampaignPackApiV1CampaignPacksImportPost = {
+    /**
+     * File
+     */
+    file: Blob | File;
+};
+
+/**
  * Body_transcribe_audio_api_v1_voice_jobs_transcription_post
  */
 export type BodyTranscribeAudioApiV1VoiceJobsTranscriptionPost = {
@@ -151,6 +161,32 @@ export type BodyTranscribeAudioApiV1VoiceJobsTranscriptionPost = {
      * File
      */
     file: Blob | File;
+};
+
+/**
+ * CampaignPackImportReport
+ */
+export type CampaignPackImportReport = {
+    /**
+     * Campaign Id
+     */
+    campaign_id: string;
+    /**
+     * Campaign Name
+     */
+    campaign_name: string;
+    /**
+     * Characters
+     */
+    characters: number;
+    /**
+     * Locations
+     */
+    locations: number;
+    /**
+     * Music Tracks
+     */
+    music_tracks: number;
 };
 
 /**
@@ -2377,6 +2413,31 @@ export type ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponses = {
 };
 
 export type ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponse = ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponses[keyof ExportCampaignApiV1LegacyCampaignsCampaignIdExportGetResponses];
+
+export type ImportCampaignPackApiV1CampaignPacksImportPostData = {
+    body: BodyImportCampaignPackApiV1CampaignPacksImportPost;
+    path?: never;
+    query?: never;
+    url: '/api/v1/campaign-packs/import';
+};
+
+export type ImportCampaignPackApiV1CampaignPacksImportPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImportCampaignPackApiV1CampaignPacksImportPostError = ImportCampaignPackApiV1CampaignPacksImportPostErrors[keyof ImportCampaignPackApiV1CampaignPacksImportPostErrors];
+
+export type ImportCampaignPackApiV1CampaignPacksImportPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: CampaignPackImportReport;
+};
+
+export type ImportCampaignPackApiV1CampaignPacksImportPostResponse = ImportCampaignPackApiV1CampaignPacksImportPostResponses[keyof ImportCampaignPackApiV1CampaignPacksImportPostResponses];
 
 export type TranscribeAudioApiV1VoiceJobsTranscriptionPostData = {
     body: BodyTranscribeAudioApiV1VoiceJobsTranscriptionPost;

@@ -558,3 +558,11 @@ class LegacyExportV1(BaseModel):
     campaign: dict[str, Any]
     characters: list[dict[str, Any]]
     events: list[dict[str, Any]]
+
+
+class CampaignPackImportReport(BaseModel):
+    campaign_id: str
+    campaign_name: str
+    characters: int
+    locations: int
+    music_tracks: int

@@ -155,7 +155,9 @@ function LogEntry({
   /* Вопрос вырастает под ходом, а свежий ход стоит у нижнего края ленты:
      без подкрутки кнопки остаются за кадром. */
   useEffect(() => {
-    if (confirming) confirmRef.current?.scrollIntoView({ block: "nearest" });
+    if (confirming && typeof confirmRef.current?.scrollIntoView === "function") {
+      confirmRef.current.scrollIntoView({ block: "nearest" });
+    }
   }, [confirming]);
 
   return (

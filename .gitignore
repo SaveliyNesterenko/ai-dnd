@@ -60,7 +60,7 @@ web/test-results/
 web/.playwright-runtime/
 
 # --- Legacy runtime data and unlicensed local assets ---
-# Public, licensed fixtures belong under demo/.
+# Публичные лицензированные фикстуры размещаются в demo/.
 /data/
 /assets/
 
@@ -72,6 +72,8 @@ web/.playwright-runtime/
 /active_characters.json
 
 # Demo assets and fixtures are explicitly tracked under demo/.
+# Закрытые исходные медиа пробной кампании не должны попадать в репозиторий.
+/demo/trial-campaign-template/assets/
 
 # --- Local Codex instructions ---
 /AGENTS.md
