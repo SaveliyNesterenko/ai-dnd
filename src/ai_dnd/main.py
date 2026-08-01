@@ -17,7 +17,17 @@ from ai_dnd.api.middleware import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
-from ai_dnd.api.routes import assets, auth, campaigns, health, jobs, legacy, realtime, voice
+from ai_dnd.api.routes import (
+    assets,
+    auth,
+    campaign_packs,
+    campaigns,
+    health,
+    jobs,
+    legacy,
+    realtime,
+    voice,
+)
 from ai_dnd.application.demo import seed_demo_if_empty
 from ai_dnd.application.jobs import BackgroundJobManager
 from ai_dnd.application.realtime import RealtimeBroker
@@ -109,7 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         BodySizeLimitMiddleware,
-        max_bytes=application_settings.max_upload_bytes,
+        max_bytes=application_settings.max_request_bytes,
     )
     app.add_middleware(RequestContextMiddleware)
     if application_settings.environment == "development":
@@ -129,6 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(realtime.router, prefix=prefix)
     app.include_router(assets.router, prefix=prefix)
     app.include_router(legacy.router, prefix=prefix)
+    app.include_router(campaign_packs.router, prefix=prefix)
     app.include_router(voice.router, prefix=prefix)
 
     @app.exception_handler(NotFoundError)

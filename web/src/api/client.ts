@@ -79,6 +79,28 @@ export const api = {
         path: { campaign_id: campaignId },
       }),
     ),
+  importCampaignPack: async (file: File) => {
+    const response = await fetch("/api/v1/campaign-packs/import", {
+      method: "POST",
+      credentials: "same-origin",
+      body: (() => {
+        const form = new FormData();
+        form.append("file", file);
+        return form;
+      })(),
+    });
+    if (!response.ok) {
+      const problem = (await response.json().catch(() => undefined)) as ProblemDetails | undefined;
+      throw new ApiError(problem?.detail ?? "Campaign import failed.", response.status, problem);
+    }
+    return response.json() as Promise<{
+      campaign_id: string;
+      campaign_name: string;
+      characters: number;
+      locations: number;
+      music_tracks: number;
+    }>;
+  },
   gmSession: () =>
     execute(sessionInfoApiV1AuthSessionGet(requestOptions)) as Promise<{
       role: "gm";

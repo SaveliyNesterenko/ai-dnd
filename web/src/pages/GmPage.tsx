@@ -68,6 +68,24 @@ export default function GmPage() {
         description: describeError(error),
       }),
   });
+  const importCampaignPack = useMutation({
+    mutationFn: (file: File) => api.importCampaignPack(file),
+    onSuccess: (result) => {
+      setProposal(null);
+      selectCharacter(null);
+      setSelectedCampaignId(result.campaign_id);
+      setOpenPopover(null);
+      void queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      void queryClient.invalidateQueries({ queryKey: ["gm-snapshot", result.campaign_id] });
+      toast.push({
+        tone: "success",
+        title: "Кампания импортирована",
+        description: `${result.campaign_name}: ${result.characters} персонажей, ${result.locations} локации, ${result.music_tracks} трека.`,
+      });
+    },
+    onError: (error) =>
+      toast.push({ tone: "error", title: "Пакет не импортирован", description: describeError(error) }),
+  });
 
   const snapshot = useQuery({
     queryKey: ["gm-snapshot", campaignId],
@@ -192,6 +210,8 @@ export default function GmPage() {
         campaigns={campaigns.data ?? []}
         campaignSelectionPending={activateCampaign.isPending}
         onSelectCampaign={(nextCampaignId) => activateCampaign.mutate(nextCampaignId)}
+        campaignImportPending={importCampaignPack.isPending}
+        onImportCampaignPack={(file) => importCampaignPack.mutate(file)}
         snapshot={snapshot.data}
         characters={characters}
         spectatorCode={session.data?.spectator_code}

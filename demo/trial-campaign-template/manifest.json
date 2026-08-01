@@ -1,0 +1,53 @@
+{
+  "format": "ai-dnd-campaign-pack/v1",
+  "minimum_app_version": "0.1.0",
+  "campaign": {
+    "slug": "astralia-trial",
+    "name": "Тени Руин Астралии",
+    "global_chronicle": ["Силия и Каэль Роан расследуют следы скверны у руин Астралии."],
+    "world_state": {"scenario": "Пробная кампания на 30–45 минут"}
+  },
+  "assets": [
+    {"path": "assets/characters/silia_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/silia.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/silia.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/kael_roan_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/kael_roan.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/kael_roan.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/herbalist_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/herbalist.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/herbalist.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/oldman_silas_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/oldman_silas.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/oldman_silas.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/gorgar_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/gorgar.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/gorgar.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/mutant_goblin_assasin_portrait.png", "kind": "portrait", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/characters/mutant_goblin_assasin.png", "kind": "avatar", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/voices/goblin.wav", "kind": "voice", "media_type": "audio/wav", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/locations/crossroads.png", "kind": "location", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/locations/astralia_ruins.png", "kind": "location", "media_type": "image/png", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/music/forest_smooth.mp3", "kind": "music", "media_type": "audio/mpeg", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/music/fight1.mp3", "kind": "music", "media_type": "audio/mpeg", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"},
+    {"path": "assets/music/ruin_cave.mp3", "kind": "music", "media_type": "audio/mpeg", "sha256": "", "license": "Оригинальный ассет проекта — Савелий Нестеренко"}
+  ],
+  "characters": [
+    {"slug": "silia", "name": "Силия", "kind": "player", "role": "Игрок", "biography": "Следопыт Аркан-Синтеза, изучающая природу скверны.", "is_active": true, "stats": {"hp_current": 90, "hp_max": 90, "mp_current": 85, "mp_max": 85, "attributes": {"STR": 10, "DEX": 18, "INT": 17}}, "inventory": [{"name": "Лук следопыта", "quantity": 1}], "private_notes": ["В руинах может быть источник мутаций."], "assets": {"portrait": "assets/characters/silia_portrait.png", "avatar": "assets/characters/silia.png", "voice": "assets/voices/silia.wav"}, "scene": {"is_visible": true, "x": 35, "y": 75, "order": 0}},
+    {"slug": "kael-roan", "name": "Каэль Роан", "kind": "player", "role": "Игрок", "biography": "Бывший паладин, который защищает спутников по собственной воле.", "is_active": true, "stats": {"hp_current": 125, "hp_max": 125, "mp_current": 45, "mp_max": 45, "attributes": {"STR": 18, "END": 18, "WIS": 14}}, "inventory": [{"name": "Длинный меч ордена", "quantity": 1}], "private_notes": ["Не оставлять Силию одну в руинах."], "assets": {"portrait": "assets/characters/kael_roan_portrait.png", "avatar": "assets/characters/kael_roan.png", "voice": "assets/voices/kael_roan.wav"}, "scene": {"is_visible": true, "x": 65, "y": 75, "order": 1}},
+    {"slug": "elara-herbalist", "name": "Элара Шелест Трав", "kind": "npc", "role": "Травница", "biography": "Странствующая травница, которая знает, как остановить скверну.", "stats": {"hp_current": 55, "hp_max": 55, "mp_current": 80, "mp_max": 80}, "inventory": [{"name": "Зелье лечения", "quantity": 3}], "assets": {"portrait": "assets/characters/herbalist_portrait.png", "avatar": "assets/characters/herbalist.png", "voice": "assets/voices/herbalist.wav"}},
+    {"slug": "oldman-silas", "name": "Старик Сайлас", "kind": "npc", "role": "Свидетель", "biography": "Свидетель, который видел, как скверна пришла из руин.", "stats": {"hp_current": 45, "hp_max": 45}, "assets": {"portrait": "assets/characters/oldman_silas_portrait.png", "avatar": "assets/characters/oldman_silas.png", "voice": "assets/voices/oldman_silas.wav"}},
+    {"slug": "gorgar", "name": "Горгар", "kind": "enemy", "role": "Враг", "biography": "Воевода орков, ищущий артефакт в руинах.", "stats": {"hp_current": 180, "hp_max": 180}, "assets": {"portrait": "assets/characters/gorgar_portrait.png", "avatar": "assets/characters/gorgar.png", "voice": "assets/voices/gorgar.wav"}},
+    {"slug": "mutant-goblin-assassin", "name": "Гоблин-убийца", "kind": "enemy", "role": "Враг", "biography": "Быстрый разведчик Горгара.", "stats": {"hp_current": 60, "hp_max": 60}, "assets": {"portrait": "assets/characters/mutant_goblin_assasin_portrait.png", "avatar": "assets/characters/mutant_goblin_assasin.png", "voice": "assets/voices/goblin.wav"}}
+  ],
+  "locations": [
+    {"slug": "crossroads", "name": "Перекрёсток у руин", "asset": "assets/locations/crossroads.png"},
+    {"slug": "astralia-ruins", "name": "Руины Астралии", "asset": "assets/locations/astralia_ruins.png"}
+  ],
+  "music_tracks": [
+    {"slug": "forest-atmosphere", "name": "Лесная атмосфера", "asset": "assets/music/forest_smooth.mp3"},
+    {"slug": "ruins-conflict", "name": "Схватка у руин", "asset": "assets/music/fight1.mp3"},
+    {"slug": "ruins-finale", "name": "Тайна руин", "asset": "assets/music/ruin_cave.mp3"}
+  ],
+  "scene": {"location_slug": "crossroads", "music_track_slug": "forest-atmosphere", "music_is_playing": true, "music_volume": 50, "avatar_size": 270}
+}

@@ -1,4 +1,4 @@
-import { useState, type RefObject } from "react";
+import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 
 import type { Campaign } from "../../api/types";
 import { useToast } from "../../hooks/useToast";
@@ -14,6 +14,8 @@ export function CampaignPopover({
   onSelect,
   spectatorCode,
   spectatorsOnline,
+  importPending,
+  onImport,
 }: {
   anchorRef: RefObject<HTMLElement | null>;
   open: boolean;
@@ -24,9 +26,19 @@ export function CampaignPopover({
   onSelect: (campaignId: string) => void;
   spectatorCode?: string;
   spectatorsOnline: boolean;
+  importPending: boolean;
+  onImport: (file: File) => void;
 }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const choosePack = () => fileInput.current?.click();
+  const importPack = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onImport(file);
+  };
 
   const copyCode = () => {
     if (!spectatorCode) return;
@@ -66,6 +78,17 @@ export function CampaignPopover({
           </li>
         ))}
       </ul>
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".zip,application/zip"
+        hidden
+        onChange={importPack}
+      />
+      <button type="button" className="mini-button" disabled={importPending} onClick={choosePack}>
+        {importPending ? "Проверяем пакет…" : "Импортировать ZIP"}
+      </button>
 
       <hr className="popover__rule" />
 

@@ -19,6 +19,8 @@ export function CommandBar({
   campaigns,
   campaignSelectionPending,
   onSelectCampaign,
+  onImportCampaignPack,
+  campaignImportPending,
   snapshot,
   characters,
   spectatorCode,
@@ -34,6 +36,8 @@ export function CommandBar({
   campaigns: Campaign[];
   campaignSelectionPending: boolean;
   onSelectCampaign: (campaignId: string) => void;
+  onImportCampaignPack: (file: File) => void;
+  campaignImportPending: boolean;
   snapshot: GameStateSnapshot;
   characters: CharacterGM[];
   spectatorCode?: string;
@@ -185,6 +189,8 @@ export function CommandBar({
         campaignId={campaignId}
         pending={campaignSelectionPending}
         onSelect={onSelectCampaign}
+        onImport={onImportCampaignPack}
+        importPending={campaignImportPending}
         spectatorCode={spectatorCode}
         spectatorsOnline={Boolean(spectatorCode)}
       />

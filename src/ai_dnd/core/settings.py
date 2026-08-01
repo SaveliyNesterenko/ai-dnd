@@ -33,6 +33,7 @@ class Settings(BaseSettings):
         "http://localhost:5173",
     ]
     max_upload_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
+    max_campaign_pack_bytes: int = Field(default=64 * 1024 * 1024, ge=1024)
     job_concurrency: int = Field(default=2, ge=1, le=8)
     openai_api_key: str | None = None
     openai_base_url: str = "https://routerai.ru/api/v1"
@@ -57,6 +58,11 @@ class Settings(BaseSettings):
             return self.database_url
         database_path = (self.data_dir / "ai-dnd.db").resolve()
         return f"sqlite+aiosqlite:///{database_path.as_posix()}"
+
+    @property
+    def max_request_bytes(self) -> int:
+        """Общий предел запроса; endpoints загрузки применяют собственные меньшие лимиты."""
+        return max(self.max_upload_bytes, self.max_campaign_pack_bytes)
 
     def ensure_directories(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
