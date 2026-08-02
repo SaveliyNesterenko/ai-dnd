@@ -59,21 +59,6 @@
   background-size: cover;
 }
 
-.spectator__veil {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  background:
-    linear-gradient(
-      180deg,
-      rgb(11 9 14 / 72%) 0%,
-      transparent 32%,
-      transparent 62%,
-      rgb(8 7 10 / 92%) 100%
-    ),
-    radial-gradient(circle at center, transparent 30%, rgb(8 6 10 / 35%));
-}
-
 .spectator__stage {
   position: relative;
   z-index: 1;

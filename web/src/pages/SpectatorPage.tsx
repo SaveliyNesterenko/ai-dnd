@@ -162,7 +162,6 @@ export default function SpectatorPage() {
       className="spectator"
       style={location?.image_url ? { backgroundImage: `url("${location.image_url}")` } : undefined}
     >
-      <div className="spectator__veil" />
       {positionError ? (
         <div className="spectator__position-error">
           <ErrorNotice error={positionError} title="Не удалось переместить персонажа" />
