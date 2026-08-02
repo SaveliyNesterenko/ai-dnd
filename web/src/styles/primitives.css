@@ -701,13 +701,13 @@
   max-width: calc(100vw - 2 * var(--s4));
   flex-direction: column;
   gap: var(--s2);
+  pointer-events: none;
 }
 
 .toast {
   display: flex;
   align-items: flex-start;
   gap: var(--s2);
-  pointer-events: none;
   border: 1px solid var(--edge-strong);
   border-radius: 10px;
   background: #1a1722;
