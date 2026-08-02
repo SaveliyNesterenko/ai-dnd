@@ -7,6 +7,7 @@
 | `demo/assets/crossroads.svg` | Оригинальная графика проекта | MIT |
 | `docs/assets/ai-dnd-demo.mp4` | Запись интерфейса с материалами пробной кампании v0.1.0 | См. `LICENSES.md` релизного пакета |
 | `docs/assets/ai-dnd-demo-poster.jpg` | Кадр из `ai-dnd-demo.mp4` | См. `LICENSES.md` релизного пакета |
+| `docs/assets/ai-dnd-social-preview.jpg` | Обложка на основе `ai-dnd-demo-poster.jpg` | См. `LICENSES.md` релизного пакета |
 
 ## Релизный пакет пробной кампании
 
