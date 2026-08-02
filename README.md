@@ -1,45 +1,67 @@
 # AI-DND
 
-Локальный движок для настольной ролевой игры, в которой человек ведёт мир, а
-LLM-агенты играют персонажей, NPC, Наблюдателя и Архивариуса.
+<p align="center">
+  <strong>Локальный движок для настольной RPG, где человек ведёт мир, а LLM-агенты играют персонажей.</strong>
+</p>
 
-Проект строится как local-first приложение: данные кампаний остаются на машине
-пользователя, GM Console защищена локальной сессией, spectator-экран получает
-только публичную проекцию состояния.
+<p align="center">
+  <a href="docs/assets/ai-dnd-demo.mp4">Демо, 47 секунд</a> ·
+  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0">Пробная кампания</a>
+</p>
 
-![Консоль гейм мастера](src/ai_dnd/screenshots/GM%20console.png)
+<p align="center">
+  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/secret-scan.yml"><img alt="Secret scan" src="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/secret-scan.yml/badge.svg"></a>
+  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases"><img alt="Release" src="https://img.shields.io/github/v/release/SaveliyNesterenko/AI-dnd_v2"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/SaveliyNesterenko/AI-dnd_v2"></a>
+</p>
 
-![Зрительский экран](src/ai_dnd/screenshots/spectrator.jpg)
+[![AI-DND: GM Console и зрительский экран](docs/assets/ai-dnd-demo-poster.jpg)](docs/assets/ai-dnd-demo.mp4)
 
-## Готовая пробная кампания
+<p align="center"><strong>▶ Нажмите на изображение, чтобы посмотреть 47-секундное демо</strong></p>
 
-Для первого запуска доступна публичная кампания на 30–45 минут: два активных
-героя, два NPC, два противника, две локации, три музыкальных трека и голосовые
-образцы персонажей. Она работает без API-ключа — игровые ходы можно вносить
-вручную; AI-функции и локальная озвучка подключаются отдельно.
+## О проекте
 
-- [Скачать пакет пробной кампании](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip)
-- [Скачать контрольную сумму SHA-256](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip.sha256)
-- [Открыть страницу релиза v0.1.0](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0)
+AI-DND помогает проводить живую настольную ролевую сессию без необходимости
+отдавать роль ведущего модели. Человек-ГМ управляет сценой и принимает решения,
+а AI-персонажи реагируют на мир, совершают ходы и сохраняют воспоминания.
 
-После запуска проекта откройте меню «Кампания» в GM Console, нажмите
-«Импортировать ZIP» и выберите скачанный архив. Распаковывать его не нужно.
+Проект построен как **local-first приложение**:
 
-## Что уже реализовано
+- кампании и пользовательские материалы остаются на машине владельца;
+- GM Console защищена локальной сессией;
+- зрительский экран получает только публичную проекцию состояния;
+- основной игровой цикл работает без API-ключа — AI и озвучка подключаются отдельно.
 
-- FastAPI application factory с разделением `domain`, `application`, `api`,
-  `infrastructure`, `integrations` и `core`.
-- SQLite + SQLAlchemy 2 + Alembic, WAL, foreign keys, `busy_timeout`,
-  optimistic locking и типизированные Observer-команды.
-- Durable WebSocket-события с sequence/replay и отдельными GM/public
-  проекциями.
-- Фоновые LLM jobs с ограниченной конкурентностью, timeout, retry и безопасным
-  degraded-режимом без API-ключа.
-- React 19 + TypeScript strict, TanStack Query, Zustand, React Hook Form и Zod.
-- HttpOnly GM session, spectator join code, same-origin production, security
-  headers и единый `application/problem+json`.
-- Транзакционный legacy-import с dry-run и отдельная самодостаточная
-  demo-кампания без пользовательских media.
+## Как проходит сессия
+
+1. ГМ выбирает сцену, участников и описывает событие.
+2. Модели-персонажи отвечают от лица героев с учётом их состояния и памяти.
+3. Наблюдатель предлагает последствия, но применяет только разрешённые операции.
+4. ГМ редактирует результат, публикует ход и завершает событие.
+5. Зрители видят синхронизированную сцену, реплики, мысли и изменения персонажей.
+
+## Ключевые возможности
+
+- отдельные интерфейсы для ГМ и зрителей с realtime-синхронизацией;
+- управляемые AI-персонажи, NPC, Наблюдатель и Архивариус;
+- память сцены и персонажей, журнал событий и контролируемая финализация хода;
+- ручной режим, если LLM-провайдер недоступен или API-ключ не настроен;
+- локальная озвучка реплик и мыслей через XTTS v2 с текстовым fallback;
+- импорт версионированных ZIP-пакетов кампаний с проверкой структуры и лицензий;
+- разделение приватных данных ГМ и публичного spectator-состояния.
+
+## Попробовать без API-ключа
+
+В [релизе v0.1.0](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0)
+есть готовая кампания на 30–45 минут: два героя, NPC, противники, две локации,
+музыка и голосовые образцы. Ходы можно вносить вручную.
+
+- [Скачать пакет кампании](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip)
+- [Скачать SHA-256](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip.sha256)
+
+После запуска откройте меню «Кампания» в GM Console и выберите
+«Импортировать ZIP». Распаковывать архив не нужно.
 
 ## Быстрый старт
 
@@ -54,121 +76,11 @@ cd ..
 uv run --no-sync ai-dnd serve --open
 ```
 
-`--no-sync` при запуске не случаен: без него `uv run` каждый раз пересобирает
-окружение под набор зависимостей по умолчанию. Для базовой установки это
-безвредно, но озвучка ставится отдельным extra и была бы удалена — см. ниже.
+CLI выведет одноразовую bootstrap-ссылку ГМ, spectator-код и локальный адрес
+приложения. API-ключи для первого запуска не обязательны.
 
-После запуска CLI выводит:
-
-- одноразовую bootstrap-ссылку GM;
-- шестизначный spectator-код;
-- локальный адрес приложения.
-
-API-ключи не обязательны: без них основной игровой цикл работает, а
-AI/voice-возможности явно отображаются как недоступные.
-
-Для локальной озвучки мыслей и реплик установите voice-extra:
-
-```bash
-uv sync --locked --extra voice
-```
-
-**И запускайте сервер с `--no-sync`:**
-
-```bash
-uv run --no-sync ai-dnd serve --open
-```
-
-При первом ходе XTTS v2 загрузит модель — это происходит лениво, при первом
-синтезе, а не при старте сервера. Если пакет или голосовой образец персонажа
-недоступен, spectator автоматически использует текстовый режим.
-
-Состояние озвучки видно и управляется из консоли ГМ: индикатор `TTS` в верхней
-панели различает «работает», «выключена настройкой», «движка нет» и «выключена
-на кампании», а полоса «Озвучка» под записью речи показывает очередь синтеза и
-даёт выключить озвучку или мысли на живой сессии, не трогая `.env`. В логе
-события каждая реплика помечена значком: озвучена (кликом — прослушать),
-синтезируется или осталась текстом с причиной в подсказке; там же кнопка
-переозвучить ход.
-
-### Конфигурация и ключи
-
-Настройки читаются из `.env` в корне проекта (шаблон — `.env.example`) или из
-переменных окружения. **Все имена обязаны начинаться с `AI_DND_`**: переменная
-без префикса игнорируется молча, поэтому `OPENAI_API_KEY` или `NEXARA_API_KEY`
-из старых версий проекта не подхватятся.
-
-| Переменная | Назначение | Без неё |
-| --- | --- | --- |
-| `AI_DND_OPENAI_API_KEY` | ходы моделей-игроков, Наблюдатель, Архивариус | генерация недоступна, задачи завершаются как `degraded` |
-| `AI_DND_OPENAI_BASE_URL` | endpoint LLM-провайдера | `https://routerai.ru/api/v1` |
-| `AI_DND_STT_API_KEY` | распознавание речи GM (Nexara) | кнопка записи работает, но расшифровка возвращает `degraded` |
-| `AI_DND_STT_BASE_URL` | endpoint STT-провайдера | `https://api.nexara.ru/api/v1` |
-
-`.env` читается один раз при старте — после правки перезапустите сервер.
-Проверить, что ключи подхватились, можно через `GET /api/v1/capabilities`: там
-есть флаги `llm_enabled` и `stt_enabled`, а также `tts.status` с причиной
-недоступности (сами ключи наружу не отдаются).
-
-Ключи остаются на сервере: браузер обращается только к локальному API, а во
-внешние сервисы ходит бэкенд. `.env` и любые `.env.*` игнорируются git — не
-переносите ключи в отслеживаемые файлы и не вставляйте их во фронтенд.
-
-### LAN-режим
-
-Доступ из локальной сети выключен по умолчанию:
-
-```bash
-uv run --no-sync ai-dnd serve --lan --open
-```
-
-Открывайте порт только в доверенной сети. Публичное интернет-развёртывание не
-входит в модель угроз v1.
-
-## Импорт существующей кампании
-
-Сначала всегда выполняйте проверку:
-
-```bash
-uv run ai-dnd import-legacy ./data
-```
-
-Команда валидирует JSON и перечисляет отсутствующие assets, но ничего не
-изменяет. Для реального импорта:
-
-```bash
-uv run ai-dnd import-legacy ./data --apply --name "Моя кампания"
-```
-
-Импортированная кампания становится активной и открывается при следующем запуске.
-Переключить активную кампанию можно в списке «Кампания» в верхней части GM
-Console. Спрайты, голоса, локации и музыка копируются в локальное системное
-хранилище и не добавляются в Git.
-
-Runtime-БД и пользовательские assets сохраняются в системной директории данных,
-а не в Git checkout. JSON используется только для импорта/экспорта.
-
-## Разработка
-
-```bash
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src
-uv run pytest --cov=ai_dnd
-
-cd web
-npm run lint
-npm test
-npm run build
-npm run test:e2e
-```
-
-OpenAPI контракт экспортируется командой:
-
-```bash
-uv run python scripts/export_openapi.py
-cd web && npm run generate:api
-```
+Подробная настройка LLM, STT, локальной озвучки, LAN-режима и legacy-import
+описана в [руководстве по запуску](docs/getting-started.md).
 
 ## Архитектура
 
@@ -185,24 +97,43 @@ flowchart LR
     WS --> DB
 ```
 
-Подробности: [структура проекта](docs/project-structure.md),
-[архитектура](docs/architecture.md), [product vision](docs/product-vision.md),
-[ADR](docs/adr/) и [план миграции](docs/migration-status.md).
+Backend разделён на `domain`, `application`, `api`, `infrastructure`,
+`integrations` и `core`. SQLite остаётся источником истины, а WebSocket-события
+имеют sequence/replay и отдельные GM/public проекции.
 
-## Безопасность и приватность
+Подробности: [архитектура](docs/architecture.md),
+[структура проекта](docs/project-structure.md), [product vision](docs/product-vision.md)
+и [ADR](docs/adr/).
 
-- `CharacterGM` и `CharacterPublic` — разные API-проекции.
-- Мысли опубликованных ходов передаются spectator и отображаются зрителям.
-- Private notes, персональные хроники, model IDs, prompts и ключи spectator не получает.
-- Observer может выполнять только разрешённые типизированные операции.
-- Контент кампании выводится React как текст; `dangerouslySetInnerHTML` не
-  используется.
-- Полные prompts по умолчанию не логируются.
+## Инженерное качество
 
-О найденных уязвимостях сообщайте по инструкции в [SECURITY.md](SECURITY.md).
+- Python: Ruff, strict mypy, pytest и branch coverage не ниже 80%;
+- Frontend: TypeScript strict, ESLint, Vitest, Testing Library и Playwright;
+- CI проверяет Python 3.11/3.12 и frontend на Ubuntu и Windows;
+- миграции проходят автоматический upgrade/downgrade round-trip;
+- зависимости проверяются через `pip-audit` и `npm audit`;
+- отдельный workflow ищет секреты, а CI формирует SBOM для Python и npm.
 
-## Лицензия и assets
+Команды разработки и генерации OpenAPI приведены в
+[руководстве по запуску](docs/getting-started.md#разработка).
 
-Код распространяется по MIT License. Лицензии demo-материалов перечислены в
-[ASSET_MANIFEST.md](ASSET_MANIFEST.md). Legacy-кампания и её media не являются
-частью публичного demo и требуют отдельной проверки прав перед публикацией.
+## Стек
+
+| Слой | Технологии |
+| --- | --- |
+| Backend | Python, FastAPI, Pydantic, SQLAlchemy 2, Alembic |
+| Frontend | React 19, TypeScript, TanStack Query, Zustand, Zod |
+| Realtime | WebSocket с durable sequence/replay |
+| Данные | SQLite, WAL, optimistic locking |
+| AI и речь | OpenAI-compatible LLM API, STT API, локальный XTTS v2 |
+| Качество | pytest, Vitest, Playwright, Ruff, mypy, GitHub Actions |
+
+## Безопасность и лицензии
+
+GM и spectator используют разные API-проекции. Private notes, персональные
+хроники, model IDs, prompts и ключи не передаются зрителю. Приложение рассчитано
+на localhost или доверенную LAN, а не на публичное интернет-развёртывание.
+
+Правила сообщения об уязвимостях описаны в [SECURITY.md](SECURITY.md). Код
+распространяется по MIT License; лицензии демонстрационных материалов перечислены
+в [ASSET_MANIFEST.md](ASSET_MANIFEST.md).
