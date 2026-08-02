@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/user-attachments/assets/57d96417-bdf7-410e-b8bd-a040f4e4a9c5">Демо, 47 секунд</a> ·
+  <a href="https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a">Демо, 47 секунд</a> ·
   <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0">Пробная кампания</a>
 </p>
 
@@ -16,7 +16,7 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/SaveliyNesterenko/AI-dnd_v2"></a>
 </p>
 
-https://github.com/user-attachments/assets/57d96417-bdf7-410e-b8bd-a040f4e4a9c5
+https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a
 
 ## О проекте
 
