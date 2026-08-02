@@ -6,14 +6,14 @@
 
 <p align="center">
   <a href="https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a">Демо, 47 секунд</a> ·
-  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0">Пробная кампания</a>
+  <a href="https://github.com/SaveliyNesterenko/ai-dnd/releases/tag/v0.1.0">Пробная кампания</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/secret-scan.yml"><img alt="Secret scan" src="https://github.com/SaveliyNesterenko/AI-dnd_v2/actions/workflows/secret-scan.yml/badge.svg"></a>
-  <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases"><img alt="Release" src="https://img.shields.io/github/v/release/SaveliyNesterenko/AI-dnd_v2"></a>
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/SaveliyNesterenko/AI-dnd_v2"></a>
+  <a href="https://github.com/SaveliyNesterenko/ai-dnd/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SaveliyNesterenko/ai-dnd/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/SaveliyNesterenko/ai-dnd/actions/workflows/secret-scan.yml"><img alt="Secret scan" src="https://github.com/SaveliyNesterenko/ai-dnd/actions/workflows/secret-scan.yml/badge.svg"></a>
+  <a href="https://github.com/SaveliyNesterenko/ai-dnd/releases"><img alt="Release" src="https://img.shields.io/github/v/release/SaveliyNesterenko/ai-dnd"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/SaveliyNesterenko/ai-dnd"></a>
 </p>
 
 https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a
@@ -51,12 +51,12 @@ AI-DND помогает проводить живую настольную ро�
 
 ## Попробовать без API-ключа
 
-В [релизе v0.1.0](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0)
+В [релизе v0.1.0](https://github.com/SaveliyNesterenko/ai-dnd/releases/tag/v0.1.0)
 есть готовая кампания на 30–45 минут: два героя, NPC, противники, две локации,
 музыка и голосовые образцы. Ходы можно вносить вручную.
 
-- [Скачать пакет кампании](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip)
-- [Скачать SHA-256](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip.sha256)
+- [Скачать пакет кампании](https://github.com/SaveliyNesterenko/ai-dnd/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip)
+- [Скачать SHA-256](https://github.com/SaveliyNesterenko/ai-dnd/releases/download/v0.1.0/ai-dnd-trial-campaign-v1.zip.sha256)
 
 После запуска откройте меню «Кампания» в GM Console и выберите
 «Импортировать ZIP». Распаковывать архив не нужно.

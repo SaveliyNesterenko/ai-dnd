@@ -79,7 +79,7 @@ uv run --no-sync ai-dnd serve --lan --open
 
 ## Импорт пробной кампании
 
-Скачайте ZIP из [релиза v0.1.0](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0),
+Скачайте ZIP из [релиза v0.1.0](https://github.com/SaveliyNesterenko/ai-dnd/releases/tag/v0.1.0),
 откройте меню «Кампания» в GM Console и выберите «Импортировать ZIP».
 Распаковывать архив не нужно.
 

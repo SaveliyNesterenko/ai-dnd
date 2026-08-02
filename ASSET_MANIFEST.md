@@ -6,7 +6,7 @@
 |---|---|---|
 | `demo/assets/crossroads.svg` | Оригинальная графика проекта | MIT |
 | [Демо в README](https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a) | Оптимизированная 1080p-запись интерфейса с материалами пробной кампании v0.1.0 | См. `LICENSES.md` релизного пакета |
-| [Исходная запись демо](https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/download/v0.1.0/ai-dnd-demo-original-1080p.mp4) | Архивная 1080p-запись без дополнительного сжатия, опубликованная как ассет релиза v0.1.0 | См. `LICENSES.md` релизного пакета |
+| [Исходная запись демо](https://github.com/SaveliyNesterenko/ai-dnd/releases/download/v0.1.0/ai-dnd-demo-original-1080p.mp4) | Архивная 1080p-запись без дополнительного сжатия, опубликованная как ассет релиза v0.1.0 | См. `LICENSES.md` релизного пакета |
 | `docs/assets/ai-dnd-demo-poster.jpg` | Кадр из демонстрационного видео | См. `LICENSES.md` релизного пакета |
 | `docs/assets/ai-dnd-social-preview.jpg` | Обложка на основе `ai-dnd-demo-poster.jpg` | См. `LICENSES.md` релизного пакета |
 
