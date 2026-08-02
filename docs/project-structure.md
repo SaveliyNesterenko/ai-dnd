@@ -3,9 +3,7 @@
 Статус: актуально на 30 июля 2026 года.
 
 Этот документ описывает фактическую структуру checkout. Архитектурные решения и
-границы ответственности подробнее разобраны в [architecture.md](architecture.md),
-а состояние переноса функций из прототипа — в
-[migration-status.md](migration-status.md).
+границы ответственности подробнее разобраны в [architecture.md](architecture.md).
 
 ## Карта репозитория
 
@@ -47,8 +45,6 @@ ai-dnd_V2/
 │   ├── architecture.md          # Архитектура и runtime-инварианты
 │   ├── project-structure.md     # Этот документ
 │   ├── product-vision.md        # Цели продукта
-│   ├── migration-status.md      # Статус перехода с прототипа
-│   ├── functional-parity.md     # Матрица переноса возможностей
 │   └── openapi.json             # Версионируемый API-контракт
 │
 ├── demo/                        # Публичные лицензированные demo-данные
