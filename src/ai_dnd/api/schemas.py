@@ -215,8 +215,14 @@ class UpdateSceneCharacterRequest(BaseModel):
 
 
 class UpdateCharacterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     base_revision: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    kind: Literal["player", "npc", "enemy"] | None = None
+    role: str | None = Field(default=None, min_length=1, max_length=64)
     biography: str | None = Field(default=None, max_length=50_000)
+    model_id: str | None = Field(default=None, max_length=160)
     hp_current: int | None = Field(default=None, ge=0, le=1_000_000)
     hp_max: int | None = Field(default=None, ge=0, le=1_000_000)
     mp_current: int | None = Field(default=None, ge=0, le=1_000_000)
@@ -224,6 +230,25 @@ class UpdateCharacterRequest(BaseModel):
     attributes: dict[str, int] | None = None
     inventory: list[InventoryItem] | None = Field(default=None, max_length=500)
     status_effects: list[str] | None = Field(default=None, max_length=100)
+    global_chronicle: list[str] | None = Field(default=None, max_length=1_000)
+    private_notes: list[str] | None = Field(default=None, max_length=1_000)
+
+    @field_validator("name", "role")
+    @classmethod
+    def validate_required_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("value cannot be blank")
+        return cleaned
+
+    @field_validator("model_id")
+    @classmethod
+    def normalize_model_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
 
     @field_validator("attributes")
     @classmethod
@@ -249,10 +274,36 @@ class UpdateCharacterRequest(BaseModel):
             raise ValueError("duplicate status effects are not allowed")
         return cleaned
 
+    @field_validator("global_chronicle", "private_notes")
+    @classmethod
+    def validate_memory_entries(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        cleaned = [entry.strip() for entry in value if entry.strip()]
+        if any(len(entry) > 10_000 for entry in cleaned):
+            raise ValueError("memory entry is too long")
+        return cleaned
+
     @model_validator(mode="after")
     def contains_character_change(self) -> UpdateCharacterRequest:
         if self.model_fields_set == {"base_revision"}:
             raise ValueError("at least one character field must be provided")
+        non_nullable_fields = {
+            "name",
+            "kind",
+            "role",
+            "biography",
+            "attributes",
+            "inventory",
+            "status_effects",
+            "global_chronicle",
+            "private_notes",
+        }
+        if any(
+            field in self.model_fields_set and getattr(self, field) is None
+            for field in non_nullable_fields
+        ):
+            raise ValueError("only model_id can be cleared with null")
         return self
 
 

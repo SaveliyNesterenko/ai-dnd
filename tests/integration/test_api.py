@@ -433,6 +433,11 @@ def test_gm_can_edit_character_card_with_optimistic_revision(
         f"/api/v1/campaigns/{demo_campaign_id}/characters/{character['id']}",
         json={
             "base_revision": character["revision"],
+            "name": "Edited Aria",
+            "kind": "npc",
+            "role": "oracle",
+            "biography": "Edited from the complete GM editor.",
+            "model_id": "gpt-character-test",
             "hp_current": 7,
             "hp_max": 12,
             "mp_current": 3,
@@ -445,10 +450,21 @@ def test_gm_can_edit_character_card_with_optimistic_revision(
                 }
             ],
             "status_effects": ["Inspired"],
+            "attributes": {"WIS": 18},
+            "global_chronicle": ["The oracle reached the gate."],
+            "private_notes": ["The oracle has the hidden key."],
         },
     )
     assert response.status_code == 200
     updated = response.json()
+    assert updated["name"] == "Edited Aria"
+    assert updated["kind"] == "npc"
+    assert updated["role"] == "oracle"
+    assert updated["biography"] == "Edited from the complete GM editor."
+    assert updated["model_id"] == "gpt-character-test"
+    assert updated["attributes"] == {"WIS": 18}
+    assert updated["global_chronicle"] == ["The oracle reached the gate."]
+    assert updated["private_notes"] == ["The oracle has the hidden key."]
     assert (updated["hp_current"], updated["hp_max"]) == (7, 12)
     assert updated["inventory"][0]["name"] == "Edited item"
     assert updated["status_effects"] == ["Inspired"]

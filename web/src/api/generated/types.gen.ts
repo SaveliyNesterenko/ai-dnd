@@ -1165,9 +1165,25 @@ export type UpdateCharacterRequest = {
      */
     base_revision: number;
     /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Kind
+     */
+    kind?: 'player' | 'npc' | 'enemy' | null;
+    /**
+     * Role
+     */
+    role?: string | null;
+    /**
      * Biography
      */
     biography?: string | null;
+    /**
+     * Model Id
+     */
+    model_id?: string | null;
     /**
      * Hp Current
      */
@@ -1198,6 +1214,14 @@ export type UpdateCharacterRequest = {
      * Status Effects
      */
     status_effects?: Array<string> | null;
+    /**
+     * Global Chronicle
+     */
+    global_chronicle?: Array<string> | null;
+    /**
+     * Private Notes
+     */
+    private_notes?: Array<string> | null;
 };
 
 /**

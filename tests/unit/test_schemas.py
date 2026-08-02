@@ -105,6 +105,13 @@ def test_confirmation_strips_durable_memory() -> None:
         {"base_revision": 1, "attributes": {"STR": 1_000_001}},
         {"base_revision": 1, "status_effects": ["Poisoned", "Poisoned"]},
         {"base_revision": 1, "status_effects": ["x" * 161]},
+        {"base_revision": 1, "name": "   "},
+        {"base_revision": 1, "role": ""},
+        {"base_revision": 1, "kind": "dragon"},
+        {"base_revision": 1, "private_notes": ["x" * 10_001]},
+        {"base_revision": 1, "unknown_field": True},
+        {"base_revision": 1, "biography": None},
+        {"base_revision": 1, "attributes": None},
     ],
 )
 def test_character_card_update_validates_editable_fields(
@@ -120,6 +127,20 @@ def test_character_card_update_normalizes_status_effects() -> None:
         status_effects=["  Inspired  ", ""],
     )
     assert request.status_effects == ["Inspired"]
+
+
+def test_character_card_update_normalizes_profile_fields() -> None:
+    request = UpdateCharacterRequest(
+        base_revision=1,
+        name="  Aria Vale  ",
+        role="  scout  ",
+        model_id="   ",
+        private_notes=["  Hidden clue  ", ""],
+    )
+    assert request.name == "Aria Vale"
+    assert request.role == "scout"
+    assert request.model_id is None
+    assert request.private_notes == ["Hidden clue"]
 
 
 def test_scene_character_update_requires_a_bounded_change() -> None:

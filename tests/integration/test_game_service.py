@@ -525,7 +525,11 @@ async def test_character_card_editors_update_resources_inventory_and_effects(
         character.id,
         UpdateCharacterRequest(
             base_revision=character.revision,
+            name="Aria the Far-Seer",
+            kind="npc",
+            role="seer",
             biography="Updated safely from the GM card.",
+            model_id="gpt-test-character",
             hp_current=20,
             hp_max=25,
             mp_current=8,
@@ -545,10 +549,18 @@ async def test_character_card_editors_update_resources_inventory_and_effects(
                 ),
             ],
             status_effects=["Inspired", "Alert"],
+            global_chronicle=["Aria crossed the glass wastes."],
+            private_notes=["She knows who opened the gate."],
         ),
     )
     await session.commit()
     assert updated.biography == "Updated safely from the GM card."
+    assert updated.name == "Aria the Far-Seer"
+    assert updated.kind == "npc"
+    assert updated.role == "seer"
+    assert updated.model_id == "gpt-test-character"
+    assert updated.global_chronicle == ["Aria crossed the glass wastes."]
+    assert updated.private_notes == ["She knows who opened the gate."]
     assert (updated.hp_current, updated.hp_max) == (20, 25)
     assert (updated.mp_current, updated.mp_max) == (8, 12)
     assert updated.attributes == {"STR": 9, "INT": 18}
@@ -564,6 +576,7 @@ async def test_character_card_editors_update_resources_inventory_and_effects(
         character.id,
         UpdateCharacterRequest(
             base_revision=updated.revision,
+            model_id=None,
             inventory=[
                 InventoryItem(
                     id=retained.id,
@@ -576,6 +589,7 @@ async def test_character_card_editors_update_resources_inventory_and_effects(
     )
     await session.commit()
     assert [(item.name, item.quantity) for item in reduced.inventory] == [("Clockwork key", 3)]
+    assert reduced.model_id is None
 
     with pytest.raises(StaleRevisionError):
         await service.update_character(

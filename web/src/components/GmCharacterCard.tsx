@@ -9,8 +9,19 @@ import { SpeakerOffGlyph } from "./gm/icons";
 import { Dialog } from "./ui/Dialog";
 
 type CardBack = "attributes" | "resources" | null;
-type Editor = "inventory" | "effects" | null;
+type Editor = "profile" | "inventory" | "effects" | null;
 type InventoryDraft = InventoryItem & { clientKey: string };
+type AttributeDraft = { clientKey: string; name: string; value: number };
+type ProfileDraft = {
+  name: string;
+  kind: CharacterGM["kind"];
+  role: string;
+  modelId: string;
+  biography: string;
+  attributes: AttributeDraft[];
+  globalChronicle: string[];
+  privateNotes: string[];
+};
 
 export function GmCharacterCard({
   campaignId,
@@ -39,6 +50,7 @@ export function GmCharacterCard({
   });
   const [inventory, setInventory] = useState<InventoryDraft[]>([]);
   const [effects, setEffects] = useState<string[]>([]);
+  const [profile, setProfile] = useState<ProfileDraft>(() => profileFromCharacter(character));
   const update = useMutation({
     mutationFn: (input: Parameters<typeof api.updateCharacter>[2]) =>
       api.updateCharacter(campaignId, character.id, input),
@@ -69,6 +81,10 @@ export function GmCharacterCard({
       mpMax: character.mp_max,
     });
     setBack("resources");
+  };
+  const openProfile = () => {
+    setProfile(profileFromCharacter(character));
+    setEditor("profile");
   };
   const openInventory = () => {
     setInventory(
@@ -140,6 +156,18 @@ export function GmCharacterCard({
                 >
                   <KindIcon kind={character.kind} />
                 </span>
+                <button
+                  className="gm-character-card__edit"
+                  type="button"
+                  aria-label={`Редактировать персонажа ${character.name}`}
+                  title="Редактировать персонажа"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openProfile();
+                  }}
+                >
+                  <PencilIcon />
+                </button>
               </div>
               <button
                 className="gm-character-card__remove"
@@ -243,6 +271,203 @@ export function GmCharacterCard({
           </section>
         </div>
       </article>
+      {editor === "profile" && (
+        <EditorDialog
+          title={`Персонаж · ${character.name}`}
+          onClose={() => setEditor(null)}
+          footer={
+            <>
+              <span className="character-profile-editor__hint">
+                Изменения повлияют на следующие ответы персонажа.
+              </span>
+              <button
+                className="button"
+                type="button"
+                style={{ marginLeft: "auto" }}
+                disabled={
+                  update.isPending ||
+                  !profile.name.trim() ||
+                  !profile.role.trim() ||
+                  profile.attributes.some((attribute) => !attribute.name.trim()) ||
+                  new Set(profile.attributes.map((attribute) => attribute.name.trim())).size !==
+                    profile.attributes.length
+                }
+                onClick={() =>
+                  update.mutate({
+                    base_revision: character.revision,
+                    name: profile.name,
+                    kind: profile.kind,
+                    role: profile.role,
+                    model_id: profile.modelId || null,
+                    biography: profile.biography,
+                    attributes: Object.fromEntries(
+                      profile.attributes.map((attribute) => [
+                        attribute.name.trim(),
+                        attribute.value,
+                      ]),
+                    ),
+                    global_chronicle: profile.globalChronicle,
+                    private_notes: profile.privateNotes,
+                  })
+                }
+              >
+                Сохранить персонажа
+              </button>
+            </>
+          }
+        >
+          <div className="character-profile-editor">
+            <section className="character-profile-editor__section">
+              <h3>Основные сведения</h3>
+              <div className="character-profile-editor__grid">
+                <EditorField label="Имя">
+                  <input
+                    value={profile.name}
+                    maxLength={160}
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, name: event.target.value }))
+                    }
+                  />
+                </EditorField>
+                <EditorField label="Тип">
+                  <select
+                    value={profile.kind}
+                    onChange={(event) =>
+                      setProfile((current) => ({
+                        ...current,
+                        kind: event.target.value as CharacterGM["kind"],
+                      }))
+                    }
+                  >
+                    <option value="player">Игрок</option>
+                    <option value="npc">NPC</option>
+                    <option value="enemy">Враг</option>
+                  </select>
+                </EditorField>
+                <EditorField label="Роль">
+                  <input
+                    value={profile.role}
+                    maxLength={64}
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, role: event.target.value }))
+                    }
+                  />
+                </EditorField>
+                <EditorField label="Модель ИИ" hint="Пусто — модель кампании по умолчанию">
+                  <input
+                    value={profile.modelId}
+                    maxLength={160}
+                    placeholder="По умолчанию"
+                    onChange={(event) =>
+                      setProfile((current) => ({ ...current, modelId: event.target.value }))
+                    }
+                  />
+                </EditorField>
+              </div>
+              <EditorField label="Биография">
+                <textarea
+                  rows={6}
+                  value={profile.biography}
+                  maxLength={50_000}
+                  onChange={(event) =>
+                    setProfile((current) => ({ ...current, biography: event.target.value }))
+                  }
+                />
+              </EditorField>
+            </section>
+
+            <section className="character-profile-editor__section">
+              <div className="character-profile-editor__section-head">
+                <h3>Характеристики</h3>
+                <button
+                  className="button button--secondary"
+                  type="button"
+                  onClick={() =>
+                    setProfile((current) => ({
+                      ...current,
+                      attributes: [
+                        ...current.attributes,
+                        { clientKey: crypto.randomUUID(), name: "", value: 0 },
+                      ],
+                    }))
+                  }
+                >
+                  Добавить
+                </button>
+              </div>
+              <div className="character-editor-list">
+                {profile.attributes.map((attribute) => (
+                  <div className="attribute-editor-row" key={attribute.clientKey}>
+                    <input
+                      aria-label="Название характеристики"
+                      value={attribute.name}
+                      maxLength={32}
+                      placeholder="Название"
+                      onChange={(event) =>
+                        setProfile((current) => ({
+                          ...current,
+                          attributes: current.attributes.map((item) =>
+                            item.clientKey === attribute.clientKey
+                              ? { ...item, name: event.target.value }
+                              : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      aria-label={`Значение характеристики ${attribute.name || "без названия"}`}
+                      type="number"
+                      value={attribute.value}
+                      onChange={(event) =>
+                        setProfile((current) => ({
+                          ...current,
+                          attributes: current.attributes.map((item) =>
+                            item.clientKey === attribute.clientKey
+                              ? { ...item, value: Number(event.target.value) }
+                              : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <button
+                      className="button button--quiet"
+                      type="button"
+                      onClick={() =>
+                        setProfile((current) => ({
+                          ...current,
+                          attributes: current.attributes.filter(
+                            (item) => item.clientKey !== attribute.clientKey,
+                          ),
+                        }))
+                      }
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <TextListEditor
+              title="Личная хроника"
+              hint="Факты, которые модель использует как память персонажа."
+              values={profile.globalChronicle}
+              onChange={(globalChronicle) =>
+                setProfile((current) => ({ ...current, globalChronicle }))
+              }
+            />
+            <TextListEditor
+              title="Закрытые заметки ГМ-а"
+              hint="Не показываются зрителям и другим персонажам."
+              values={profile.privateNotes}
+              onChange={(privateNotes) =>
+                setProfile((current) => ({ ...current, privateNotes }))
+              }
+            />
+          </div>
+          {update.error && <ErrorNotice error={update.error} />}
+        </EditorDialog>
+      )}
       {editor === "inventory" && (
         <EditorDialog
           title={`Инвентарь · ${character.name}`}
@@ -417,6 +642,93 @@ export function GmCharacterCard({
   );
 }
 
+function profileFromCharacter(character: CharacterGM): ProfileDraft {
+  return {
+    name: character.name,
+    kind: character.kind,
+    role: character.role,
+    modelId: character.model_id ?? "",
+    biography: character.biography,
+    attributes: Object.entries(character.attributes).map(([name, value]) => ({
+      clientKey: crypto.randomUUID(),
+      name,
+      value,
+    })),
+    globalChronicle: [...character.global_chronicle],
+    privateNotes: [...character.private_notes],
+  };
+}
+
+function EditorField({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="character-profile-editor__field">
+      <span>{label}</span>
+      {children}
+      {hint && <small>{hint}</small>}
+    </label>
+  );
+}
+
+function TextListEditor({
+  title,
+  hint,
+  values,
+  onChange,
+}: {
+  title: string;
+  hint: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  return (
+    <section className="character-profile-editor__section">
+      <div className="character-profile-editor__section-head">
+        <div>
+          <h3>{title}</h3>
+          <p>{hint}</p>
+        </div>
+        <button
+          className="button button--secondary"
+          type="button"
+          onClick={() => onChange([...values, ""])}
+        >
+          Добавить
+        </button>
+      </div>
+      <div className="character-editor-list">
+        {values.map((value, index) => (
+          <div className="memory-editor-row" key={index}>
+            <textarea
+              rows={2}
+              aria-label={`${title}, запись ${index + 1}`}
+              value={value}
+              maxLength={10_000}
+              onChange={(event) =>
+                onChange(values.map((item, itemIndex) => (itemIndex === index ? event.target.value : item)))
+              }
+            />
+            <button
+              className="button button--quiet"
+              type="button"
+              onClick={() => onChange(values.filter((_, itemIndex) => itemIndex !== index))}
+            >
+              Удалить
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** Две встречные стрелки: аватар отражается по горизонтали. */
 function FlipIcon() {
   return (
@@ -455,6 +767,26 @@ function CloseIcon() {
     >
       <path d="M5 5l14 14" />
       <path d="M19 5L5 19" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
     </svg>
   );
 }

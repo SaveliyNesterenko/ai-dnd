@@ -3845,6 +3845,48 @@
             "minimum": 1.0,
             "title": "Base Revision"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "player",
+                  "npc",
+                  "enemy"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
           "biography": {
             "anyOf": [
               {
@@ -3856,6 +3898,18 @@
               }
             ],
             "title": "Biography"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
           },
           "hp_current": {
             "anyOf": [
@@ -3952,8 +4006,39 @@
               }
             ],
             "title": "Status Effects"
+          },
+          "global_chronicle": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Chronicle"
+          },
+          "private_notes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private Notes"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "base_revision"

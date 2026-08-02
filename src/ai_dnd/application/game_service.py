@@ -628,8 +628,18 @@ class GameService:
             "mp_current": next_mp_current,
             "mp_max": next_mp_max,
         }
-        if request.biography is not None:
-            values["biography"] = request.biography
+        scalar_fields = (
+            "name",
+            "kind",
+            "role",
+            "biography",
+            "model_id",
+            "global_chronicle",
+            "private_notes",
+        )
+        for field in scalar_fields:
+            if field in request.model_fields_set:
+                values[field] = getattr(request, field)
         if request.attributes is not None:
             values["attributes"] = request.attributes
         changed = await self.session.execute(

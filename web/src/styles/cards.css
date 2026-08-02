@@ -148,6 +148,7 @@
 .gm-character-card__flip,
 .gm-character-card__kind,
 .gm-character-card__voiceless,
+.gm-character-card__edit,
 .gm-character-card__remove {
   display: grid;
   width: 25px;
@@ -162,6 +163,7 @@
 }
 
 .gm-character-card__flip,
+.gm-character-card__edit,
 .gm-character-card__remove {
   cursor: pointer;
   transition:
@@ -170,7 +172,8 @@
     color 140ms ease;
 }
 
-.gm-character-card__flip:hover:not(:disabled) {
+.gm-character-card__flip:hover:not(:disabled),
+.gm-character-card__edit:hover {
   border-color: var(--accent-bright);
   color: var(--accent-bright);
   background: rgb(240 170 85 / 18%);
@@ -337,4 +340,83 @@
   display: grid;
   grid-template-columns: minmax(220px, 1fr) auto;
   gap: 0.45rem;
+}
+
+.character-profile-editor {
+  display: grid;
+  gap: 1rem;
+}
+
+.character-profile-editor__section {
+  display: grid;
+  gap: 0.65rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+}
+
+.character-profile-editor__section:last-child {
+  border-bottom: 0;
+}
+
+.character-profile-editor__section h3,
+.character-profile-editor__section p {
+  margin: 0;
+}
+
+.character-profile-editor__section p,
+.character-profile-editor__hint,
+.character-profile-editor__field small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.character-profile-editor__section-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.character-profile-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.character-profile-editor__field {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.character-profile-editor__field > span {
+  font-weight: 700;
+}
+
+.character-profile-editor__field input,
+.character-profile-editor__field select,
+.character-profile-editor__field textarea,
+.attribute-editor-row input,
+.memory-editor-row textarea {
+  width: 100%;
+}
+
+.attribute-editor-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 120px auto;
+  gap: 0.45rem;
+}
+
+.memory-editor-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: start;
+  gap: 0.45rem;
+}
+
+@media (max-width: 720px) {
+  .character-profile-editor__grid,
+  .attribute-editor-row,
+  .memory-editor-row {
+    grid-template-columns: 1fr;
+  }
 }
