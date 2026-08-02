@@ -3,6 +3,7 @@ import { useRef } from "react";
 
 import { api } from "../../api/client";
 import type { Campaign, CharacterGM, GameStateSnapshot } from "../../api/types";
+import type { GmTheme } from "../../store/ui";
 import { useToast } from "../../hooks/useToast";
 import { describeError } from "../../utils/errors";
 import { pluralTurns } from "../../utils/format";
@@ -10,7 +11,7 @@ import { EventFinalization } from "../EventFinalization";
 import { CampaignPopover } from "./CampaignPopover";
 import { CharacterPicker } from "./CharacterPicker";
 import { ScenePopover } from "./ScenePopover";
-import { ChevronDown, ClockGlyph } from "./icons";
+import { ChevronDown, ClockGlyph, MoonGlyph, SunGlyph } from "./icons";
 
 export type OpenPopover = "campaign" | "scene" | "characters" | null;
 
@@ -31,6 +32,8 @@ export function CommandBar({
   onOpenPopover,
   observerOpen,
   onToggleObserver,
+  theme,
+  onToggleTheme,
 }: {
   campaignId: string;
   campaigns: Campaign[];
@@ -51,6 +54,8 @@ export function CommandBar({
   /* Ниже 1100px Наблюдатель уезжает в выдвижную панель — кнопка живёт здесь. */
   observerOpen: boolean;
   onToggleObserver: () => void;
+  theme: GmTheme;
+  onToggleTheme: () => void;
 }) {
   const toast = useToast();
   const campaignRef = useRef<HTMLButtonElement>(null);
@@ -144,6 +149,16 @@ export function CommandBar({
           onClick={onToggleObserver}
         >
           <span className="chip__label">Наблюдатель</span>
+        </button>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          aria-label={theme === "dark" ? "Включить светлую тему" : "Включить тёмную тему"}
+          title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+          onClick={onToggleTheme}
+        >
+          {theme === "dark" ? <SunGlyph size={15} /> : <MoonGlyph size={15} />}
         </button>
 
         <ul className="capabilities" aria-label="Доступность внешних сервисов">

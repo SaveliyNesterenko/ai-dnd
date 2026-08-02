@@ -119,6 +119,26 @@
   display: none;
 }
 
+.theme-toggle {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--edge-strong);
+  border-radius: var(--r-s);
+  color: var(--muted);
+  background: var(--inset);
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--t-fast) ease, background var(--t-fast) ease;
+}
+
+.theme-toggle:hover {
+  color: var(--role-gm);
+  background: var(--role-gm-dim);
+}
+
 .capabilities {
   display: flex;
   align-items: center;
@@ -1943,6 +1963,128 @@ kbd {
     padding: 0 var(--s2);
     font-size: 11px;
   }
+}
+
+/* Нейтральные оттенки, которые в исходной тёмной теме были частью рисунка,
+   получают светлые эквиваленты. Ролевые цвета остаются прежней системой. */
+html[data-gm-theme="light"] .chip:hover,
+html[data-gm-theme="light"] .log-entry:hover,
+html[data-gm-theme="light"] .picker-row:hover:not(:disabled),
+html[data-gm-theme="light"] .voice-speaker:hover,
+html[data-gm-theme="light"] .character-strip__item:hover {
+  background: rgb(73 58 45 / 6%);
+}
+
+html[data-gm-theme="light"] .flow-step__mark,
+html[data-gm-theme="light"] .context-meter__bar,
+html[data-gm-theme="light"] .speech-badge:hover,
+html[data-gm-theme="light"] .switch {
+  background: rgb(73 58 45 / 10%);
+}
+
+html[data-gm-theme="light"] .flow-step.is-done,
+html[data-gm-theme="light"] .log-entry__action,
+html[data-gm-theme="light"] .observer-result__text,
+html[data-gm-theme="light"] .finalization__text {
+  color: #49423c;
+}
+
+html[data-gm-theme="light"] .log-entry__thought,
+html[data-gm-theme="light"] .composer__thought,
+html[data-gm-theme="light"] .observer-note {
+  border-color: rgb(54 45 38 / 20%);
+  color: #716860;
+}
+
+html[data-gm-theme="light"] .log-entry__confirm,
+html[data-gm-theme="light"] .voice-dock__confirm {
+  background: rgb(251 250 247 / 98%);
+  box-shadow: 0 6px 18px rgb(61 47 35 / 16%);
+}
+
+html[data-gm-theme="light"] .actor-portrait,
+html[data-gm-theme="light"] .character-strip__portrait {
+  background: linear-gradient(145deg, #e9e4dc, #d8d0c5);
+}
+
+html[data-gm-theme="light"] .observer-code,
+html[data-gm-theme="light"] .speech-dock__queue {
+  background: #ebe6de;
+}
+
+html[data-gm-theme="light"] .command-bar .chip {
+  border-color: rgb(146 87 15 / 22%);
+  color: #3b342d;
+  background: #fff9f0;
+}
+
+html[data-gm-theme="light"] .command-bar .chip__value {
+  color: #3b342d;
+}
+
+html[data-gm-theme="light"] .command-bar .chip__label,
+html[data-gm-theme="light"] .command-bar .chip__aside {
+  color: #74695f;
+}
+
+html[data-gm-theme="light"] .jump-to-latest {
+  border-color: rgb(65 111 118 / 34%);
+  color: #31575d;
+  background: rgb(239 247 246 / 97%);
+  box-shadow: 0 5px 14px rgb(53 72 72 / 17%);
+}
+
+html[data-gm-theme="light"] .jump-to-latest:hover {
+  border-color: var(--role-observer);
+  color: #203f44;
+  background: #e4f0ef;
+}
+
+html[data-gm-theme="light"] .log-entry__kind--npc,
+html[data-gm-theme="light"] .actor-header__kind--npc,
+html[data-gm-theme="light"] .picker-row__kind--npc {
+  color: #705c45;
+}
+
+html[data-gm-theme="light"] .voice-dock__field::placeholder,
+html[data-gm-theme="light"] .scope-tag,
+html[data-gm-theme="light"] .composer__count,
+html[data-gm-theme="light"] .strip-head__hint,
+html[data-gm-theme="light"] .json-toggle {
+  color: #746b63;
+}
+
+html[data-gm-theme="light"] .composer__field--thought textarea,
+html[data-gm-theme="light"] .observer-brief__text,
+html[data-gm-theme="light"] .json-editor textarea {
+  color: #554e47;
+}
+
+html[data-gm-theme="light"] .json-editor textarea,
+html[data-gm-theme="light"] .operation-row__value {
+  background: #f3efe8;
+}
+
+html[data-gm-theme="light"] .observer-empty h3 {
+  color: #39342f;
+}
+
+html[data-gm-theme="light"] .observer-trail {
+  border-color: rgb(63 115 80 / 30%);
+  color: #356344;
+}
+
+html[data-gm-theme="light"] .operation-tag {
+  border-color: rgb(65 111 118 / 30%);
+  color: #315c63;
+}
+
+html[data-gm-theme="light"] .finalization__notice {
+  background: rgb(146 87 15 / 7%);
+}
+
+html[data-gm-theme="light"] .voice-dock {
+  background: #faf7f2;
 }
 
 .observer-drawer-close {

@@ -20,6 +20,27 @@ body {
     var(--ink);
 }
 
+html[data-gm-theme="light"] body {
+  background:
+    radial-gradient(circle at 12% 8%, rgb(196 131 62 / 10%), transparent 32rem),
+    radial-gradient(circle at 90% 70%, rgb(70 113 124 / 7%), transparent 35rem),
+    var(--ink);
+}
+
+html[data-gm-theme="light"] input,
+html[data-gm-theme="light"] textarea {
+  background: rgb(255 254 251 / 88%);
+}
+
+html[data-gm-theme="light"] input:hover,
+html[data-gm-theme="light"] textarea:hover {
+  border-color: rgb(54 45 38 / 36%);
+}
+
+html[data-gm-theme="light"] code {
+  background: rgb(73 58 45 / 7%);
+}
+
 button,
 input,
 textarea,

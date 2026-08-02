@@ -342,6 +342,94 @@
   gap: 0.45rem;
 }
 
+/* В светлой теме карточка остаётся кинематографичной, но уже не выглядит
+   чёрным прямоугольником на бумажной рабочей поверхности. */
+html[data-gm-theme="light"] .gm-character-card {
+  border-color: #ad987d;
+  color: #332d27;
+  background: #ded6ca;
+  box-shadow: 0 7px 18px rgb(63 48 33 / 22%);
+}
+
+html[data-gm-theme="light"] .gm-character-card:hover {
+  box-shadow: 0 12px 25px rgb(63 48 33 / 27%);
+}
+
+html[data-gm-theme="light"] .gm-character-card--selected {
+  border-color: var(--accent-bright);
+  box-shadow:
+    0 0 0 2px rgb(173 104 20 / 24%),
+    0 11px 24px rgb(63 48 33 / 28%);
+}
+
+html[data-gm-theme="light"] .gm-character-card__face {
+  background: #ded6ca;
+}
+
+html[data-gm-theme="light"] .gm-character-card__art {
+  filter: brightness(1.16) saturate(0.92) contrast(0.96);
+}
+
+html[data-gm-theme="light"] .gm-character-card__veil {
+  background: linear-gradient(
+    to top,
+    rgb(31 24 18 / 88%) 10%,
+    rgb(31 24 18 / 56%) 38%,
+    rgb(31 24 18 / 13%) 68%,
+    transparent 82%
+  );
+}
+
+html[data-gm-theme="light"] .gm-character-card__content h3 {
+  color: #ffd58f;
+  text-shadow: 0 1px 3px rgb(20 14 9 / 75%);
+}
+
+html[data-gm-theme="light"] .gm-character-card__flip,
+html[data-gm-theme="light"] .gm-character-card__kind,
+html[data-gm-theme="light"] .gm-character-card__voiceless,
+html[data-gm-theme="light"] .gm-character-card__edit,
+html[data-gm-theme="light"] .gm-character-card__remove {
+  border-color: rgb(67 54 43 / 26%);
+  color: #40372f;
+  background: rgb(255 252 245 / 88%);
+  box-shadow: 0 2px 7px rgb(35 26 19 / 18%);
+}
+
+html[data-gm-theme="light"] .gm-character-card__kind--player {
+  color: #2e7151;
+}
+
+html[data-gm-theme="light"] .gm-character-card__kind--npc {
+  color: #6f5a42;
+}
+
+html[data-gm-theme="light"] .gm-character-card__back {
+  color: var(--text);
+  background: linear-gradient(180deg, #f6f0e6, #e7ddd0);
+}
+
+html[data-gm-theme="light"] .gm-character-card__back h3,
+html[data-gm-theme="light"] .gm-character-card__attributes span,
+html[data-gm-theme="light"] .gm-character-card__resource-form label > span {
+  color: var(--role-gm);
+}
+
+html[data-gm-theme="light"] .gm-character-card__attributes > div {
+  background: rgb(94 72 49 / 9%);
+}
+
+html[data-gm-theme="light"] .gm-character-card__buttons button {
+  border-color: #b7a489;
+  color: #493d31;
+  background: rgb(255 252 245 / 92%);
+}
+
+html[data-gm-theme="light"] .gm-character-card__resource-form input {
+  color: var(--text);
+  background: rgb(255 253 248 / 85%);
+}
+
 .character-profile-editor {
   display: grid;
   gap: 1rem;

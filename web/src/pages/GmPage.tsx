@@ -46,6 +46,15 @@ export default function GmPage() {
   const rightWidth = useUiStore((state) => state.rightWidth);
   const setColumnWidth = useUiStore((state) => state.setColumnWidth);
   const toggleStrip = useUiStore((state) => state.toggleStrip);
+  const theme = useUiStore((state) => state.theme);
+  const toggleTheme = useUiStore((state) => state.toggleTheme);
+
+  useEffect(() => {
+    document.documentElement.dataset.gmTheme = theme;
+    return () => {
+      delete document.documentElement.dataset.gmTheme;
+    };
+  }, [theme]);
 
   const session = useQuery({ queryKey: ["gm-session"], queryFn: api.gmSession, retry: false });
   const campaigns = useQuery({ queryKey: ["campaigns"], queryFn: api.campaigns });
@@ -222,6 +231,8 @@ export default function GmPage() {
         onOpenPopover={setOpenPopover}
         observerOpen={observerDrawerOpen}
         onToggleObserver={() => setObserverDrawerOpen((value) => !value)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <FlowStripBinding stage={stage} idle={!activeEvent} />

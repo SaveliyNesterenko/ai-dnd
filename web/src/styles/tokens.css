@@ -73,3 +73,38 @@
   --radius: 18px;
   --shadow: 0 18px 50px rgb(0 0 0 / 25%);
 }
+
+/* Светлая тема существует только у консоли ГМ-а. Атрибут ставится на html,
+   чтобы токены наследовали также popover-ы и диалоги, вынесенные в portal. */
+html[data-gm-theme="light"] {
+  color-scheme: light;
+  --ink: #ebe7e0;
+  --slab: #fffdf9;
+  --inset: #f5f1ea;
+  --edge: rgb(69 55 43 / 15%);
+  --edge-strong: rgb(69 55 43 / 28%);
+  --text: #292521;
+  --muted: #625b54;
+  --faint: #7d746b;
+  --role-gm: #92570f;
+  --role-gm-dim: rgb(176 105 20 / 14%);
+  --role-model: #2f6888;
+  --role-model-dim: rgb(47 104 136 / 13%);
+  --role-observer: #416f76;
+  --role-observer-dim: rgb(65 111 118 / 13%);
+  --role-archivist: #3f7350;
+  --role-archivist-dim: rgb(63 115 80 / 12%);
+  --health: #bd4e46;
+  --mana: #496fc4;
+  --success: #347550;
+  --danger: #b9433b;
+  --warning: #9b6818;
+  --surface: rgb(255 253 249 / 97%);
+  --surface-2: rgb(247 243 236 / 97%);
+  --surface-3: rgb(236 230 221 / 95%);
+  --line: rgb(69 55 43 / 17%);
+  --line-strong: rgb(69 55 43 / 30%);
+  --accent: #92570f;
+  --accent-bright: #ad6814;
+  --shadow: 0 18px 50px rgb(70 54 38 / 16%);
+}

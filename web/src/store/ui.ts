@@ -5,18 +5,22 @@ import { persist } from "zustand/middleware";
 export const MIN_COLUMN_WIDTH = 260;
 export const MAX_COLUMN_WIDTH = 640;
 
+export type GmTheme = "dark" | "light";
+
 interface UiState {
   selectedCharacterId: string | null;
   audioEnabled: boolean;
   leftWidth: number;
   rightWidth: number;
   stripCollapsed: boolean;
+  theme: GmTheme;
   /** Уходит ли опубликованный ход Наблюдателю на разбор. */
   notifyObserver: boolean;
   selectCharacter: (id: string | null) => void;
   setAudioEnabled: (enabled: boolean) => void;
   setColumnWidth: (side: "left" | "right", width: number) => void;
   toggleStrip: () => void;
+  toggleTheme: () => void;
   setNotifyObserver: (enabled: boolean) => void;
 }
 
@@ -31,12 +35,14 @@ export const useUiStore = create<UiState>()(
       leftWidth: 380,
       rightWidth: 380,
       stripCollapsed: false,
+      theme: "dark",
       notifyObserver: true,
       selectCharacter: (selectedCharacterId) => set({ selectedCharacterId }),
       setAudioEnabled: (audioEnabled) => set({ audioEnabled }),
       setColumnWidth: (side, width) =>
         set(side === "left" ? { leftWidth: clampWidth(width) } : { rightWidth: clampWidth(width) }),
       toggleStrip: () => set((state) => ({ stripCollapsed: !state.stripCollapsed })),
+      toggleTheme: () => set((state) => ({ theme: state.theme === "dark" ? "light" : "dark" })),
       setNotifyObserver: (notifyObserver) => set({ notifyObserver }),
     }),
     {
@@ -49,6 +55,7 @@ export const useUiStore = create<UiState>()(
         leftWidth: state.leftWidth,
         rightWidth: state.rightWidth,
         stripCollapsed: state.stripCollapsed,
+        theme: state.theme,
         notifyObserver: state.notifyObserver,
       }),
     },

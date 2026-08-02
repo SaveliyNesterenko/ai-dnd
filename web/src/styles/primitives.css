@@ -779,3 +779,54 @@
 .toast__close:hover {
   color: var(--text);
 }
+
+html[data-gm-theme="light"] .button--quiet,
+html[data-gm-theme="light"] .btn:not(.btn--gm):not(.btn--model):not(.btn--observer),
+html[data-gm-theme="light"] .btn--ghost:hover:not(:disabled),
+html[data-gm-theme="light"] .mini-button:hover:not(:disabled),
+html[data-gm-theme="light"] .icon-button:hover:not(:disabled),
+html[data-gm-theme="light"] .popover__row:hover:not(:disabled),
+html[data-gm-theme="light"] .picker-row:hover:not(:disabled),
+html[data-gm-theme="light"] .dialog__close:hover {
+  background: rgb(73 58 45 / 7%);
+}
+
+html[data-gm-theme="light"] .popover,
+html[data-gm-theme="light"] .dialog,
+html[data-gm-theme="light"] .toast {
+  background: var(--slab);
+  box-shadow: 0 24px 70px rgb(61 47 35 / 18%);
+}
+
+html[data-gm-theme="light"] .dialog-backdrop {
+  background: rgb(57 48 41 / 32%);
+}
+
+html[data-gm-theme="light"] .picker-row__portrait {
+  background: linear-gradient(145deg, #e9e4dc, #d8d0c5);
+}
+
+html[data-gm-theme="light"] .switch::after {
+  background: #8d8379;
+}
+
+html[data-gm-theme="light"] .btn--observer {
+  border-color: rgb(65 111 118 / 42%);
+  color: #203f44;
+  background: linear-gradient(135deg, #dcebea, #bed6d5);
+}
+
+html[data-gm-theme="light"] .btn--observer:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e4f0ef, #c6dddc);
+}
+
+html[data-gm-theme="light"] .btn:disabled,
+html[data-gm-theme="light"] .button:disabled {
+  opacity: 0.62;
+}
+
+html[data-gm-theme="light"] .button--quiet,
+html[data-gm-theme="light"] .btn:not(.btn--gm):not(.btn--model):not(.btn--observer) {
+  color: #3d3833;
+  background: #f4f1ec;
+}
