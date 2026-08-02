@@ -78,5 +78,8 @@ web/.playwright-runtime/
 # --- Local Codex instructions ---
 /AGENTS.md
 
+# --- Local Claude launch configuration ---
+/.claude/
+
 # --- Local pre-modernization archive ---
 /_archive_pre_modernization/
