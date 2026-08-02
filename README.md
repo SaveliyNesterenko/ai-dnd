@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/assets/ai-dnd-demo.mp4">Демо, 47 секунд</a> ·
+  <a href="https://github.com/user-attachments/assets/57d96417-bdf7-410e-b8bd-a040f4e4a9c5">Демо, 47 секунд</a> ·
   <a href="https://github.com/SaveliyNesterenko/AI-dnd_v2/releases/tag/v0.1.0">Пробная кампания</a>
 </p>
 
@@ -16,9 +16,7 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/github/license/SaveliyNesterenko/AI-dnd_v2"></a>
 </p>
 
-[![AI-DND: GM Console и зрительский экран](docs/assets/ai-dnd-demo-poster.jpg)](docs/assets/ai-dnd-demo.mp4)
-
-<p align="center"><strong>▶ Нажмите на изображение, чтобы посмотреть 47-секундное демо</strong></p>
+https://github.com/user-attachments/assets/57d96417-bdf7-410e-b8bd-a040f4e4a9c5
 
 ## О проекте
 
