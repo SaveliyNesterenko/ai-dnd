@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://saveliynesterenko.github.io/gm-console-tutorial/"><strong>Попробовать GM Console в браузере</strong></a> ·
   <a href="https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a">Демо, 47 секунд</a> ·
   <a href="https://github.com/SaveliyNesterenko/ai-dnd/releases/tag/v0.1.0">Пробная кампания</a>
 </p>
@@ -17,6 +18,15 @@
 </p>
 
 https://github.com/user-attachments/assets/4f9007fe-06cb-4c28-903c-838219d64b1a
+
+## Попробовать GM Console без установки
+
+Пройдите интерактивный сценарий из 21 шага: подготовьте сцену, проведите игровое событие,
+создайте ход персонажа, проверьте предложения Наблюдателя и сохраните результат кампании.
+
+[**Открыть интерактивный туториал →**](https://saveliynesterenko.github.io/gm-console-tutorial/)
+
+Туториал работает прямо в браузере — без установки, сервера и внешних запросов.
 
 ## О проекте
 
